@@ -1,6 +1,7 @@
 import { XMLParser } from 'fast-xml-parser'
 import type { Signal } from '../../shared/truth.ts'
 import { trendingRss } from '../core/googletrends.ts'
+import { TRUTH_GEOS } from '../core/trendsGeos.ts'
 import { stripHtml } from './text.ts'
 
 /** A raw social/search trend. `context` = related headlines, used for topic gating & matching. */
@@ -21,8 +22,7 @@ function parseTraffic(t: string): number {
   return Math.round(parseFloat(m[1]) * ({ k: 1e3, m: 1e6, b: 1e9 }[m[2].toLowerCase() as 'k'] ?? 1))
 }
 
-// English-language regions give the topic gate and fact-check matcher usable text.
-const GEOS = ['US', 'GB', 'IN', 'AU', 'CA', 'IE', 'ZA', 'NG', 'KE', 'PH', 'SG', 'PK']
+const GEOS = TRUTH_GEOS
 
 async function googleTrends(geo: string): Promise<RawSignal[]> {
   const doc = parser.parse(await trendingRss(geo)) // shared, rate-limited client

@@ -13,7 +13,7 @@ Open-source map of unrest and influence activity on a 3D globe (CesiumJS), built
 - **AI analyst brief** (optional, Claude): a sourced summary of why a story is flagged, how each bloc frames it and what to check next; also semantic fact-check matching for the claim checker.
 - **Region watch**: draw a circle around a place; anything new from any layer inside it raises an alert in the live wire.
 - **Physical layers**: GPS jamming (GPSJam), military aircraft (adsb.lol), satellites overhead (CelesTrak, SGP4), Ukraine frontline (DeepState), web censorship (OONI), submarine cables; ships at chokepoints (AISStream), ACLED, NASA FIRMS and Cloudflare Radar when keys are set.
-- **Conflict events and search trends**: Wikipedia Current Events (cited, last 3 days) beside ACLED; Google Trends per country with security terms in 12 languages.
+- **Conflict events and search trends**: Wikipedia Current Events (cited, last 3 days) beside ACLED; Google Trends per country with security terms in 12 languages, relayed every 30 min by a GitHub Actions job (`trends-relay`) because Google rate-limits cloud IPs.
 - **Sensor looks**: night vision, FLIR and CRT post-processing on the globe (press V), adapted from God's Eye View (MIT).
 
 ```
