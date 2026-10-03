@@ -47,3 +47,24 @@ test('copy-paste detection survives emoji, links and small edits', () => {
   assert.ok(jaccard(a, b) >= 0.6)
   assert.ok(jaccard(a, c) < 0.1)
 })
+
+test('wikipedia current events: leaf items with their conflict chain and deaths', async () => {
+  const { parseDay, fatalities } = await import('../server/providers/conflict/wikicurrent.ts')
+  const html = `<div class="current-events-content description">
+<p><b>Armed conflicts and attacks</b>
+</p>
+<ul><li><a href="/wiki/S">Sudanese civil war</a>
+<ul><li><a href="/wiki/K">Kordofan campaign</a>
+<ul><li>Eighteen people are killed in a drone strike on El Obeid. <a rel="nofollow" class="external text" href="https://example.org/x">(Al Jazeera)</a></li></ul></li></ul></li></ul>
+<p><b>Sports</b>
+</p>
+<ul><li>A football match happens somewhere far away today.</li></ul>`
+  const items = parseDay(html)
+  assert.equal(items.length, 1)
+  assert.deepEqual(items[0].context, ['Sudanese civil war', 'Kordofan campaign'])
+  assert.equal(items[0].source, 'Al Jazeera')
+  assert.equal(items[0].sourceUrl, 'https://example.org/x')
+  assert.equal(fatalities(items[0].text), 18)
+  assert.equal(fatalities('The death toll rises to 10.'), 10)
+  assert.equal(fatalities('Talks resume in Doha.'), 0)
+})

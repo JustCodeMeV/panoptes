@@ -666,3 +666,24 @@ export function geolocateAvoiding(avoid: string[], ...texts: (string | undefined
 
 /** Country a known location belongs to (for clustering vetoes and filters). */
 export const countryOf = (name: string): string | undefined => locByName.get(name)?.country
+
+/** Country (gazetteer name) whose polygon contains a point, if any. */
+const atCache = new Map<string, string | undefined>()
+export function countryAt(lat: number, lon: number): string | undefined {
+  const k = `${lat.toFixed(2)},${lon.toFixed(2)}`
+  if (!atCache.has(k)) {
+    const s = shapeAt(lat, lon)
+    if (atCache.size > 50_000) atCache.clear()
+    atCache.set(k, s && (handById.get(s.id) ?? s.name))
+  }
+  return atCache.get(k)
+}
+
+/** Gazetteer name for a Natural Earth polygon id (same ids at every world-atlas resolution). */
+export const countryNameForId = (id: string, neName: string): string => handById.get(id) ?? NE_NAMES[neName] ?? neName
+
+/** Pin position for a country name. */
+export function centroidOf(name: string): { lat: number; lon: number } | undefined {
+  const l = locByName.get(name)
+  return l && { lat: l.lat, lon: l.lon }
+}

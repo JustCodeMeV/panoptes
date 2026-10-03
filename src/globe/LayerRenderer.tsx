@@ -131,10 +131,14 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
           featureById.current.set(f.id, { feature: f, def })
           // Shapes (frontlines, jamming cells, cables) are drawn as geometry, never as pins.
           if (f.geometry) {
-            if (!ds.entities.getById(f.id)) {
-              addShape(ds, f, def)
-              changed = true
-            }
+            // Restyle when the layer's look for it changes (e.g. an index score moving up a band).
+            const sig = `shape|${JSON.stringify(def.shape?.(f) ?? {})}`
+            const had = ds.entities.getById(f.id)
+            if (had && pinSig.current.get(f.id) === sig) continue
+            if (had) for (const e of [...ds.entities.values]) if (e.id === f.id || e.id.startsWith(`${f.id}#`)) ds.entities.remove(e)
+            addShape(ds, f, def)
+            pinSig.current.set(f.id, sig)
+            changed = true
             continue
           }
           if (!f.position) continue

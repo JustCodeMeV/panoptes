@@ -167,3 +167,12 @@ h3.tabs button.on { color: var(--text); border-color: var(--c, var(--color-accen
 .tg-swarm b { color: var(--color-ink); font-variant-numeric: tabular-nums; }
 .tg-swarm b.alert { color: #ef4444; }
 .tg-found a { margin-right: 6px; color: var(--color-accent-2); }
+
+/* ---- instability index ---- */
+.cii-score { font-family: var(--font-mono); font-size: 0.9em; margin-left: 6px; color: var(--dim); }
+.cii-bars { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; font-size: 11px; }
+.cii-bars li { display: grid; grid-template-columns: 1fr 90px 40px; gap: 2px 8px; align-items: center; }
+.cii-bars i { display: block; height: 6px; background: color-mix(in srgb, var(--color-ink) 10%, transparent); }
+.cii-bars em { display: block; height: 100%; }
+.cii-bars b { font-family: var(--font-mono); font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
+.cii-bars small { grid-column: 1 / -1; color: var(--dim); font-size: 10px; }

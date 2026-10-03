@@ -20,6 +20,9 @@ import { acledProvider } from './providers/acled/acled.ts'
 import { firmsProvider } from './providers/osint/firms.ts'
 import { cloudflareProvider } from './providers/osint/cloudflare.ts'
 import { telegramProvider } from './providers/telegram/scouts.ts'
+import { ciiProvider } from './providers/cii/index.ts'
+import { googleTrendsProvider } from './providers/trends/google.ts'
+import { wikiCurrentProvider } from './providers/conflict/wikicurrent.ts'
 
 /**
  * SERVER LAYER REGISTRY. A layer = an id + the providers that feed it.
@@ -33,11 +36,13 @@ export const LAYERS: Record<string, Provider[]> = {
   telegram: [telegramProvider],
   campaigns: [campaignsProvider],
   markets: [marketsProvider],
+  cii: [ciiProvider],
+  trends: [googleTrendsProvider],
   unrest: [gdeltEventsProvider],
   osint: [iodaProvider, cloudflareProvider, ooniProvider, gdacsProvider, usgsProvider, eonetProvider, firmsProvider],
   gnss: [gpsjamProvider],
   'military-air': [adsblolProvider],
   frontlines: [deepstateProvider],
-  acled: [acledProvider],
+  acled: [acledProvider, wikiCurrentProvider],
   infrastructure: [cablesProvider],
 }

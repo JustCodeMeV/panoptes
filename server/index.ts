@@ -23,6 +23,7 @@ import { buildNetwork, storySubgraph } from '../shared/network.ts'
 import { startUnrestEngine } from './unrest/engine.ts'
 import { networkStories, startTelegramScouts, swarmStats } from './telegram/engine.ts'
 import { translatePost } from './telegram/translate.ts'
+import { snapshotScores, startCii } from './cii/engine.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
 import { reloadWatches, startWatchEngine } from './watch/engine.ts'
 import { geolocate } from './geo/gazetteer.ts'
@@ -95,6 +96,7 @@ app.post('/api/llm/brief', async (c) => {
 })
 
 app.get('/api/telegram/swarm', (c) => c.json(swarmStats()))
+app.get('/api/cii', (c) => c.json(snapshotScores()))
 app.post('/api/llm/translate', async (c) => {
   const b = (await c.req.json().catch(() => ({}))) as { text?: unknown }
   if (typeof b.text !== 'string' || !b.text.trim()) return c.json({ error: 'text required' }, 400)
@@ -235,6 +237,7 @@ startMarketsEngine()
 startUnrestEngine()
 startTelegramScouts()
 startWatchEngine(LAYERS)
+startCii(LAYERS)
 
 // Production (e.g. Render): one service serves the API and the built frontend.
 // Skipped in dev, where Vite serves the frontend and proxies /api here.

@@ -5,5 +5,7 @@ export const TYPE_COLOR: Record<string, string> = {
   Protests: '#fb923c',
   Riots: '#f43f5e',
   'Strategic developments': '#a78bfa',
+  'Armed conflict': '#ef4444',
+  Disaster: '#38bdf8',
 }
 export const str = (v: unknown) => (v === undefined || v === null || v === '' ? undefined : String(v))
