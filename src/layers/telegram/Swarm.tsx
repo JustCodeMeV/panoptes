@@ -9,6 +9,7 @@ type Stats = {
   posts: number
   clusters: number
   busiest: { handle: string; perHour: number; everySec: number }[]
+  copyPairs?: { from: string; to: string; count: number }[]
 }
 
 /** What the scout swarm is doing right now: size, load, discoveries. */
@@ -41,6 +42,16 @@ export function SwarmControls() {
         ) : null}
         {s.failing ? ` · ${s.failing} failing` : ''}
       </p>
+      {!!s.copyPairs?.length && (
+        <p className="tg-found">
+          Copy pairs:{' '}
+          {s.copyPairs.map((c) => (
+            <span key={`${c.from}>${c.to}`} className={c.count >= 3 ? 'alert' : ''}>
+              @{c.to} ← @{c.from} ×{c.count}{' '}
+            </span>
+          ))}
+        </p>
+      )}
       {s.discovered.length > 0 && (
         <p className="tg-found">
           Found via forwards:{' '}

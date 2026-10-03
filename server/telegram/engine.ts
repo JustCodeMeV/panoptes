@@ -116,6 +116,33 @@ function cluster(p: Stored): Cluster | undefined {
   }
 }
 
+// ---------- recurring copy pairs ----------
+
+const RECURRING = 3
+
+/** Leader -> follower counts over all live clusters: who copies whom, and how often. */
+export function copyPairs(): { from: string; to: string; count: number }[] {
+  const n = new Map<string, number>()
+  for (const c of clusters.values()) {
+    const order = c.posts
+      .map((k) => posts.get(k))
+      .filter((p): p is Stored => !!p)
+      .sort((a, b) => a.at - b.at)
+    const firstOf = new Map<string, number>()
+    for (const p of order) if (!firstOf.has(p.handle)) firstOf.set(p.handle, p.at)
+    const hs = [...firstOf.keys()]
+    for (let i = 0; i < hs.length; i++) for (let j = i + 1; j < hs.length; j++) n.set(`${hs[i]}|${hs[j]}`, (n.get(`${hs[i]}|${hs[j]}`) ?? 0) + 1)
+  }
+  return [...n.entries()].map(([k, count]) => ({ from: k.split('|')[0], to: k.split('|')[1], count })).sort((a, b) => b.count - a.count)
+}
+
+/** A cluster is coordinated when 3+ channels carry it, or when two channels that keep copying each other do. */
+function isCoordinated(c: Cluster, pairs: { from: string; to: string; count: number }[]): { yes: boolean; pair?: { from: string; to: string; count: number } } {
+  if (c.channels.length >= 3) return { yes: true }
+  const pair = pairs.find((p) => p.count >= RECURRING && c.channels.includes(p.from) && c.channels.includes(p.to))
+  return { yes: !!pair, pair }
+}
+
 // ---------- features ----------
 
 const lang = (t: string) =>
@@ -126,8 +153,11 @@ function toFeature(p: Stored): Feature {
   const geo = scoreLocations([{ text: p.text.slice(0, 600) }])
   const placed = geo && geo.confidence >= 0.5 ? geo : null
   const c = p.cluster ? clusters.get(p.cluster) : undefined
+  const coord = c ? isCoordinated(c, copyPairs()) : { yes: false }
   const ageH = (Date.now() - p.at) / 3600_000
-  const firstLine = p.text.split('\n').find((l) => l.trim().length > 3) ?? p.text
+  // Title: the first real line, joined with the next when it is only a lead-in ("Trump:", "BREAKING").
+  const lines = p.text.split('\n').map((l) => l.trim()).filter((l) => l.length > 3)
+  const firstLine = (lines[0]?.length ?? 0) < 30 && lines[1] ? `${lines[0]} ${lines[1]}` : (lines[0] ?? p.text)
   return {
     id: `${LAYER_ID}:${p.key}`,
     layerId: LAYER_ID,
@@ -140,7 +170,7 @@ function toFeature(p: Stored): Feature {
       : `no place named in the post${ch?.region ? `; channel covers ${ch.region}` : ''}`,
     observedAt: new Date(p.at).toISOString(),
     source: { provider: 'telegram-scouts', platform: `t.me/${p.handle}`, url: `https://t.me/${p.post}`, retrievedAt: new Date(p.seenAt).toISOString() },
-    tags: ['telegram', ch?.type ?? 'unvetted', ...(c && c.channels.length >= 3 ? ['coordinated'] : [])],
+    tags: ['telegram', ch?.type ?? 'unvetted', ...(coord.yes ? ['coordinated'] : [])],
     props: {
       handle: p.handle,
       channel: ch?.name ?? p.handle,
@@ -167,6 +197,8 @@ function toFeature(p: Stored): Feature {
         first: c.first,
         firstAt: c.firstAt,
         leadMin: Math.round((p.at - c.firstAt) / 60_000),
+        coordinated: coord.yes,
+        ...(coord.pair ? { recurringPair: coord.pair } : {}),
       },
     },
   }
@@ -193,7 +225,8 @@ export function swarmStats() {
   const now = Date.now()
   requests = requests.filter((t) => now - t < 60_000)
   const list = [...scouts.values()]
-  const coordinated = [...clusters.values()].filter((c) => c.channels.length >= 3)
+  const pairs = copyPairs()
+  const coordinated = [...clusters.values()].filter((c) => isCoordinated(c, pairs).yes)
   return {
     scouts: list.length,
     curated: list.filter((s) => !s.ch.discovered).length,
@@ -202,6 +235,7 @@ export function swarmStats() {
     requestsPerMin: requests.length,
     posts: posts.size,
     clusters: coordinated.length,
+    copyPairs: pairs.filter((p) => p.count >= 2).slice(0, 5),
     busiest: list
       .filter((s) => s.polls)
       .sort((a, b) => b.rate - a.rate)
@@ -253,6 +287,16 @@ async function ingest(s: Scout, got: TgPost[], silent: boolean) {
         if (!silent) publish(LAYER_ID, { type: 'upsert', kind: 'update', feature: g, change: `copied by ${c.channels.length} channels` })
       }
   }
+  // A pair that just reached RECURRING copies turns its earlier clusters coordinated too.
+  if (fresh.some((p) => p.cluster))
+    for (const q of posts.values()) {
+      if (!q.cluster) continue
+      const id = `${LAYER_ID}:${q.key}`
+      const g = toFeature(q)
+      if (features.get(id)?.tags.includes('coordinated') === g.tags.includes('coordinated')) continue
+      features.set(id, g)
+      if (!silent) publish(LAYER_ID, { type: 'upsert', kind: 'update', feature: g, change: 'part of a recurring copy pair' })
+    }
   if (fresh.length) await ingestSocial(fresh.map(toNewsItem), silent)
 }
 
@@ -424,10 +468,11 @@ export function networkStories(): Feature[] {
       },
     },
   })
+  const pairs = copyPairs()
   for (const c of clusters.values()) {
     const members = c.posts.map((k) => posts.get(k)).filter((p): p is Stored => !!p)
     if (new Set(members.map((m) => m.handle)).size < 2) continue
-    out.push(story(c.id, `Telegram: ${c.sample.slice(0, 100)}`, members.sort((a, b) => a.at - b.at).map((m) => entry(m)), c.channels.length >= 3))
+    out.push(story(c.id, `Telegram: ${c.sample.slice(0, 100)}`, members.sort((a, b) => a.at - b.at).map((m) => entry(m)), isCoordinated(c, pairs).yes))
   }
   for (const p of posts.values()) {
     if (!p.forwardedFrom || p.forwardedFrom.toLowerCase() === p.handle.toLowerCase()) continue

@@ -1,6 +1,6 @@
 import type { Feature } from '../../../shared/feature'
 
-export type TgCluster = { id: string; size: number; channels: string[]; first: string; firstAt: number; leadMin: number }
+export type TgCluster = { id: string; size: number; channels: string[]; first: string; firstAt: number; leadMin: number; coordinated?: boolean; recurringPair?: { from: string; to: string; count: number } }
 
 /** Colour per channel type: state-affiliated and partisan sources stand out. */
 export const TYPE_COLOR: Record<string, string> = {
@@ -19,7 +19,7 @@ export const TYPE_LABEL: Record<string, string> = {
 }
 
 export const clusterOf = (f: Feature) => f.props.cluster as TgCluster | undefined
-export const coordinated = (f: Feature) => (clusterOf(f)?.channels.length ?? 0) >= 3
+export const coordinated = (f: Feature) => !!clusterOf(f)?.coordinated || (clusterOf(f)?.channels.length ?? 0) >= 3
 
 export const compact = (n: unknown) => {
   const v = Number(n)

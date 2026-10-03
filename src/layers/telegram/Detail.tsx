@@ -64,9 +64,10 @@ export function TelegramDetail({ feature }: DetailProps) {
           <span className="tg-text">{text}</span>
           {p.lang !== 'en' && <Translate key={feature.id} text={text} />}
           {c && c.channels.length >= 2 && (
-            <span className={`tg-coord ${c.channels.length >= 3 ? 'alert' : ''}`}>
-              <b>{c.channels.length >= 3 ? '⚑ Coordinated copy' : 'Copied'}</b> Same text on {c.channels.length} channels within an hour, first on @{c.first}
+            <span className={`tg-coord ${c.coordinated || c.channels.length >= 3 ? 'alert' : ''}`}>
+              <b>{c.coordinated || c.channels.length >= 3 ? '⚑ Coordinated copy' : 'Copied'}</b> Same text on {c.channels.length} channels within an hour, first on @{c.first}
               {c.leadMin > 0 ? ` (${c.leadMin} min before this one)` : ' (this channel was first)'}: {c.channels.map((h) => `@${h}`).join(', ')}
+              {c.recurringPair && ` · @${c.recurringPair.to} has copied @${c.recurringPair.from} ${c.recurringPair.count} times in 12 h`}
             </span>
           )}
         </>

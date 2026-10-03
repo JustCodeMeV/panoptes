@@ -182,3 +182,4 @@ h3.tabs button.on { color: var(--text); border-color: var(--c, var(--color-accen
 .sensor-modes button { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; padding: 6px 8px; color: var(--dim); background: none; border: 0; cursor: pointer; }
 .sensor-modes button:hover { color: var(--color-ink); }
 .sensor-modes button.on { color: var(--color-bg, #000); background: var(--color-accent-2); }
+.tg-found span { margin-right: 6px; } .tg-found span.alert { color: #ef4444; }
