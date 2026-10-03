@@ -7,7 +7,7 @@ export const news: LayerDef = {
   id: 'news',
   label: 'Live wire',
   description:
-    'Breaking stories from 22 news feeds, grouped by event and re-analyzed as more outlets pick them up.',
+    'Breaking stories from news feeds and public Telegram/Bluesky, grouped by event and re-analyzed as more outlets pick them up.',
   color: '#38bdf8',
   refreshMs: 0,
   stream: '/api/stream/news',
@@ -27,7 +27,8 @@ export const news: LayerDef = {
   rank: (f) => Number(f.props.updatedAt) || 0,
   subtitle: (f) => {
     const a = assessmentOf(f)
-    return `${VERDICT[a.verdict].label.toLowerCase()} · ${f.props.outlets} outlet${f.props.outlets === 1 ? '' : 's'} · ${f.source.platform}`
+    const soc = Number(f.props.social) ? ` + ${f.props.social} social` : ''
+    return `${VERDICT[a.verdict].label.toLowerCase()} · ${f.props.outlets} outlet${f.props.outlets === 1 ? '' : 's'}${soc}${Number(f.props.campaign) >= 25 ? ' · ⚑' : ''}`
   },
   Detail: NarrativeDetail,
 }

@@ -2,7 +2,7 @@ import type { Feature, LayerResponse, ProviderStatus } from '../../shared/featur
 import { TtlCache } from './cache.ts'
 import type { Provider } from './provider.ts'
 
-const cache = new TtlCache<LayerResponse>(30_000)
+const cache = new TtlCache<LayerResponse>(15_000)
 
 /**
  * Runs every enabled provider of a layer in parallel. One provider failing

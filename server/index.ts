@@ -1,3 +1,6 @@
+// Many sources are polled concurrently; the default 4-thread DNS pool makes start-up bursts fail.
+process.env.UV_THREADPOOL_SIZE ??= '32'
+
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'

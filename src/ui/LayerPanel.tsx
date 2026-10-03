@@ -11,7 +11,7 @@ export function LayerPanel() {
   const pin = useStore((s) => s.pin)
   const live = useStore((s) => s.live)
   const now = useNow(1000)
-  const [open, setOpen] = useState<Record<string, boolean>>({ markets: true })
+  const [open, setOpen] = useState<Record<string, boolean>>({ campaigns: true })
 
   return (
     <aside className="panel">

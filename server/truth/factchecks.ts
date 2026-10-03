@@ -108,6 +108,8 @@ export function loadCorpus(): Promise<Corpus> {
     const df = new Map<string, number>()
     for (const it of items) for (const t of it.tokens) df.set(t, (df.get(t) ?? 0) + 1)
     const idf = new Map([...df].map(([t, n]) => [t, Math.log((items.length + 1) / (n + 1)) + 1]))
+    // A start-up burst can fail most feeds: do not pin an empty corpus for 20 minutes.
+    if (feeds.filter((f) => f.ok).length < Math.ceil(FEEDS.length / 2)) setTimeout(() => cache.invalidate('corpus'), 20_000)
     return { items, idf, feeds }
   })
 }

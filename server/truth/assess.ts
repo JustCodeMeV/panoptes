@@ -4,7 +4,7 @@ import { MATCH_STRONG } from './factchecks.ts'
 
 /** Distinct feeds a narrative appears on. Mastodon instances mirror one network, so they count once. */
 export const spreadOf = (signals: Signal[]) =>
-  new Set(signals.map((s) => (s.platform === 'mastodon' ? 'mastodon' : `${s.platform}:${s.region ?? ''}`))).size
+  new Set(signals.map((s) => (s.platform === 'mastodon' || s.platform === 'bluesky' ? s.platform : `${s.platform}:${s.region ?? ''}`))).size
 
 /**
  * Turns gathered evidence into a verdict + attention score. Deliberately
@@ -50,7 +50,9 @@ export function assess(input: {
     reasons.push(
       established === 1
         ? `only 1 established outlet covers it so far (${coverage.establishedOutlets[0]}) out of ${coverage.domains} domains`
-        : stateOnly
+        : coverage.domains === 0
+          ? 'only social accounts report it so far; no news outlet has covered it yet'
+          : stateOnly
           ? `reported only by state-affiliated outlets so far (${coverage.domains} domains)`
           : `${coverage.total} articles from ${coverage.domains} domains, none from the established-outlet list`,
     )

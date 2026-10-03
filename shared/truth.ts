@@ -55,6 +55,27 @@ export type Signal = {
   at: string
 }
 
+export type SourceClass = 'established' | 'state' | 'social' | 'other'
+
+export type CampaignFlag = { id: string; label: string; severity: 'info' | 'warn' | 'alert'; detail: string }
+
+/**
+ * Pattern analysis of HOW a story spread. These are leads for an analyst, not
+ * attribution: legitimate stories show some of the same patterns.
+ */
+export type Campaign = {
+  /** 0..100 */
+  score: number
+  flags: CampaignFlag[]
+  timeline: { at: number; source: string; cls: SourceClass; bloc?: string; title: string; url: string }[]
+  blocs: string[]
+  socialAccounts: number
+  /** Minutes by which the first state item preceded the first established item (negative = after). */
+  stateLeadMin?: number
+  /** Distinct sources reaching the story in its first hour. */
+  firstHourSources: number
+}
+
 export type Assessment = {
   verdict: Verdict
   /** 0..100 attention priority, NOT a probability of falsehood. */
@@ -67,4 +88,5 @@ export type Assessment = {
   spread: number
   /** Prediction markets that look related: what money says about it. */
   markets?: MarketRef[]
+  campaign?: Campaign
 }

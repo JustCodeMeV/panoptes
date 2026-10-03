@@ -5,7 +5,8 @@ import { registerStories, relatedMarkets } from '../core/xref.ts'
 import type { Assessment, Coverage, Signal } from '../../shared/truth.ts'
 import { geolocate } from '../geo/gazetteer.ts'
 import { assess } from '../truth/assess.ts'
-import { establishedOutlet, stateOutlet } from '../truth/domains.ts'
+import type { Campaign, CampaignFlag, SourceClass } from '../../shared/truth.ts'
+import { establishedOutlet, socialSource, stateBloc, stateOutlet } from '../truth/domains.ts'
 import { loadCorpus, matchFactChecks } from '../truth/factchecks.ts'
 import { hash, tokenSet } from '../truth/text.ts'
 import { isTopical } from '../truth/topics.ts'
@@ -16,7 +17,7 @@ export const LAYER_ID = 'news'
 const WINDOW_MS = 36 * 3600_000
 const MAX_STORIES = 220
 
-type Story = { id: string; items: NewsItem[]; tokens: Set<string>[]; sig: string; verdict: string }
+type Story = { id: string; items: NewsItem[]; tokens: Set<string>[]; sig: string; verdict: string; flags: string }
 
 const stories = new Map<string, Story>()
 const seen = new Set<string>() // item ids
@@ -55,35 +56,87 @@ function findStory(tokens: Set<string>): Story | undefined {
 
 // ---------- analysis ----------
 
-const rank = (i: NewsItem) => (establishedOutlet(i.domain) ? 0 : stateOutlet(i.domain) ? 2 : 1)
+const classOf = (domain: string): SourceClass =>
+  socialSource(domain) ? 'social' : establishedOutlet(domain) ? 'established' : stateOutlet(domain) ? 'state' : 'other'
+const rank = (i: NewsItem) => ({ established: 0, other: 1, state: 2, social: 3 })[classOf(i.domain)]
+
+/** How a story spread: who was first, state-media alignment, speed, social surge. */
+function campaignOf(story: Story, strongFalse: boolean, marketMove: boolean): Campaign {
+  const sorted = [...story.items].sort((a, b) => a.published - b.published)
+  const t0 = sorted[0].published
+  const timeline = sorted.slice(0, 40).map((i) => ({
+    at: i.published,
+    source: i.domain,
+    cls: classOf(i.domain),
+    bloc: stateBloc(i.domain),
+    title: i.title,
+    url: i.url,
+  }))
+  const firstOf = (cls: SourceClass) => sorted.find((i) => classOf(i.domain) === cls)
+  const fs = firstOf('state')
+  const fe = firstOf('established')
+  const stateLeadMin = fs && fe ? Math.round((fe.published - fs.published) / 60_000) : undefined
+  const blocs = [...new Set(sorted.map((i) => stateBloc(i.domain)).filter((b): b is string => !!b))]
+  const social = new Set(sorted.filter((i) => classOf(i.domain) === 'social').map((i) => i.domain))
+  const firstHour = new Set(sorted.filter((i) => i.published - t0 <= 3600_000).map((i) => i.domain)).size
+  const ageMin = (Date.now() - t0) / 60_000
+
+  const estCount = new Set(sorted.filter((i) => classOf(i.domain) === 'established').map((i) => i.domain)).size
+  // Widely corroborated stories are simply news: patterns on them are not suspicious.
+  const widely = estCount >= 3
+  const flags: CampaignFlag[] = []
+  const flag = (id: string, label: string, severity: CampaignFlag['severity'], detail: string) => flags.push({ id, label, severity, detail })
+  if (!widely) {
+    if (fs && fe && (stateLeadMin ?? 0) >= 60 && (stateLeadMin ?? 0) <= 1440) {
+      flag('state-first', 'State media first', 'warn', `${fs.domain} ran it ${stateLeadMin} min before the first established outlet (${fe.domain})`)
+    }
+    if (fs && !fe && ageMin >= 60 && ageMin <= 720) {
+      flag('state-only', 'State-only story', 'info', `no established outlet in ${Math.round(ageMin)} min; carried by ${[...new Set(sorted.filter((i) => classOf(i.domain) === 'state').map((i) => i.domain))].join(', ')}`)
+    }
+    if (blocs.length >= 2) flag('multi-bloc', 'Aligned state outlets', 'alert', `outlets from ${blocs.join(' + ')} carry the same story${estCount ? ` (only ${estCount} established outlet${estCount === 1 ? '' : 's'})` : ''}`)
+    if (social.size >= 3) flag('social-surge', 'Social surge', 'warn', `${social.size} distinct social accounts/channels amplify it${estCount ? '' : ' with no established outlet'}`)
+    if (sorted[0] && classOf(sorted[0].domain) === 'social' && !fe) flag('social-first', 'Social-first', 'info', `first seen on ${sorted[0].domain}, no established outlet yet`)
+    if (firstHour >= 5 && estCount < 2) flag('rapid', 'Rapid spread', 'info', `${firstHour} distinct sources within an hour of the first report`)
+  }
+  if (strongFalse) flag('contradicted', 'Contradicted', 'alert', 'a published fact-check rates a matching claim false while the story is still circulating')
+  if (marketMove) flag('market', 'Market reacting', 'info', 'a related prediction market moved sharply')
+
+  const W: Record<string, number> = { 'state-first': 20, 'state-only': 5, 'multi-bloc': 30, rapid: 10, 'social-surge': 20, 'social-first': 5, contradicted: 40, market: 10 }
+  const score = Math.min(100, flags.reduce((n, f) => n + (W[f.id] ?? 0), 0))
+  return { score, flags, timeline, blocs, socialAccounts: social.size, stateLeadMin, firstHourSources: firstHour }
+}
 
 async function analyze(story: Story): Promise<Feature> {
   const items = [...story.items].sort((a, b) => rank(a) - rank(b) || a.published - b.published)
   const best = items[0]
   const first = [...story.items].sort((a, b) => a.published - b.published)[0]
-  const domains = [...new Set(story.items.map((i) => i.domain))]
+  const outletItems = story.items.filter((i) => !socialSource(i.domain))
+  const domains = [...new Set(outletItems.map((i) => i.domain))]
+  const socialDomains = [...new Set(story.items.filter((i) => socialSource(i.domain)).map((i) => i.domain))]
   const established = [...new Set(domains.map((d) => establishedOutlet(d)).filter((d): d is string => !!d))]
   const state = [...new Set(domains.map((d) => stateOutlet(d)).filter((d): d is string => !!d))]
 
   const coverage: Coverage = {
     query: [...story.tokens[0]].slice(0, 5).join(' '),
     window: '24h',
-    total: story.items.length,
+    total: outletItems.length,
     domains: domains.length,
     countries: [],
     establishedOutlets: established,
     stateOutlets: state,
     articles: items.slice(0, 8).map((i) => ({ url: i.url, title: i.title, domain: i.domain, seen: new Date(i.published).toISOString() })),
   }
-  const signals: Signal[] = domains.map((d) => {
+  const signals: Signal[] = [...domains, ...socialDomains].map((d) => {
     const i = story.items.find((x) => x.domain === d)!
-    return { platform: 'news', region: d, text: i.title, url: i.url, at: new Date(i.published).toISOString() }
+    const social = socialSource(d)
+    return { platform: social ? (d.startsWith('bsky:') ? 'bluesky' : 'telegram') : 'news', region: d, text: i.title, url: i.url, at: new Date(i.published).toISOString() }
   })
 
   const corpus = await loadCorpus().catch(() => null)
   const factChecks = corpus ? matchFactChecks(corpus, `${best.title} ${best.summary.slice(0, 160)}`) : []
   const markets = relatedMarkets(best.title)
   const a: Assessment = assess({ signals, factChecks, coverage, markets })
+  a.campaign = campaignOf(story, a.verdict === 'debunked', markets.some((m) => !m.playMoney && Math.abs(m.change24h ?? 0) >= 0.08))
 
   const hit = geolocate(...items.map((i) => i.title), best.summary)
   const now = new Date().toISOString()
@@ -103,6 +156,8 @@ async function analyze(story: Story): Promise<Feature> {
       risk: a.risk,
       verdict: a.verdict,
       outlets: domains.length,
+      social: socialDomains.length,
+      campaign: a.campaign.score,
       items: story.items.length,
       updatedAt: Math.max(...story.items.map((i) => i.published)),
     },
@@ -111,7 +166,7 @@ async function analyze(story: Story): Promise<Feature> {
 
 const signature = (f: Feature) => {
   const a = f.props.assessment as Assessment
-  return `${a.verdict}|${f.props.outlets}|${a.risk}|${a.markets?.map((m) => Math.round(m.p * 20)).join(',') ?? ''}`
+  return `${a.verdict}|${f.props.outlets}|${f.props.social}|${f.props.campaign}|${a.risk}|${a.markets?.map((m) => Math.round(m.p * 20)).join(',') ?? ''}`
 }
 
 async function ingest(list: NewsItem[], silent: boolean) {
@@ -132,7 +187,7 @@ async function ingest(list: NewsItem[], silent: boolean) {
       existing.tokens.push(tk)
       touched.set(existing, { created: touched.get(existing)?.created ?? false, item: it })
     } else {
-      const story: Story = { id: `${LAYER_ID}:${hash(it.id)}`, items: [it], tokens: [tk], sig: '', verdict: '' }
+      const story: Story = { id: `${LAYER_ID}:${hash(it.id)}`, items: [it], tokens: [tk], sig: '', verdict: '', flags: '' }
       stories.set(story.id, story)
       touched.set(story, { created: true, item: it })
     }
@@ -146,12 +201,16 @@ async function ingest(list: NewsItem[], silent: boolean) {
     const unchanged = !created && sig === story.sig
     story.sig = sig
     story.verdict = f.props.verdict as string
+    const flagsNow = (f.props.assessment as Assessment).campaign?.flags ?? []
+    const newFlags = flagsNow.filter((x) => !story.flags.split(',').includes(x.id))
+    story.flags = flagsNow.map((x) => x.id).join(',')
     if (silent || unchanged) continue
     const a = f.props.assessment as Assessment
     let change: string | undefined
-    if (!created) {
-      const parts = [`+${item.domain}`, `${f.props.outlets} outlets`]
+    if (!created || newFlags.length) {
+      const parts = [`+${item.domain}`, `${f.props.outlets} outlets${Number(f.props.social) ? ` + ${f.props.social} social` : ''}`]
       if (prevVerdict && prevVerdict !== a.verdict) parts.push(`${prevVerdict} → ${a.verdict}`)
+      for (const nf of newFlags) parts.push(`⚑ ${nf.label}`)
       change = parts.join(' · ')
     }
     publish(LAYER_ID, { type: 'upsert', kind: created ? 'new' : 'update', feature: f, change, item: { title: item.title, source: item.domain, at: item.published } })
@@ -209,7 +268,10 @@ export function startNewsEngine() {
   }
   void (async () => {
     // Prime silently so the first snapshot is the backlog, not a flood of "breaking" events.
-    await Promise.all(NEWS_FEEDS.map((f) => pollOne(f, true)))
+    const queue = [...NEWS_FEEDS]
+    await Promise.all(Array.from({ length: 8 }, async () => {
+      for (let f = queue.shift(); f; f = queue.shift()) await pollOne(f, true)
+    }))
     primed = true
     console.log(`[news] primed: ${stories.size} stories from ${NEWS_FEEDS.length} feeds`)
     NEWS_FEEDS.forEach((feed, i) =>

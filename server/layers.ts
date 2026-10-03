@@ -7,6 +7,7 @@ import { iodaProvider } from './providers/osint/ioda.ts'
 import { usgsProvider } from './providers/osint/usgs.ts'
 import { gdeltEventsProvider } from './providers/unrest/gdelt.ts'
 import { marketsProvider } from './providers/markets/engine.ts'
+import { campaignsProvider } from './providers/news/campaigns.ts'
 import { newsProvider } from './providers/news/wire.ts'
 import { truthProvider } from './providers/narratives/truth.ts'
 import { youtubeScrapeProvider } from './providers/livestreams/youtube-scrape.ts'
@@ -20,6 +21,7 @@ export const LAYERS: Record<string, Provider[]> = {
   livestreams: [youtubeApiProvider, youtubeScrapeProvider, seedProvider],
   narratives: [truthProvider],
   news: [newsProvider],
+  campaigns: [campaignsProvider],
   markets: [marketsProvider],
   unrest: [gdeltEventsProvider],
   osint: [iodaProvider, gdacsProvider, usgsProvider, eonetProvider],

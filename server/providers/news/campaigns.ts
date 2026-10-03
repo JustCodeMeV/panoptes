@@ -1,0 +1,21 @@
+import type { Provider } from '../../core/provider.ts'
+import type { Assessment } from '../../../shared/truth.ts'
+import { snapshot } from '../../news/engine.ts'
+
+/**
+ * "Campaign watch": the subset of live stories whose spread pattern raises flags
+ * (state-first, aligned state media, social surge, contradicted...). Derived from
+ * the news engine, so it is always as fresh as the wire.
+ */
+export const campaignsProvider: Provider = {
+  id: 'campaign-detector',
+  layerId: 'campaigns',
+  async fetch() {
+    return snapshot()
+      .features.filter((f) => {
+        const c = (f.props.assessment as Assessment).campaign
+        return !!c && c.score >= 25 && c.flags.some((x) => x.severity !== 'info')
+      })
+      .map((f) => ({ ...f, id: f.id.replace(/^news:/, 'campaigns:'), layerId: 'campaigns', tags: [...f.tags, 'campaign'] }))
+  },
+}

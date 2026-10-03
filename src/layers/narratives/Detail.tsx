@@ -1,5 +1,6 @@
 import type { Feature } from '../../../shared/feature'
 import type { ReviewVerdict } from '../../../shared/truth'
+import { CampaignView } from '../campaigns/Timeline'
 import { VERDICT, assessmentOf } from './verdict'
 
 const REVIEW_COLOR: Record<ReviewVerdict, string> = {
@@ -29,12 +30,34 @@ export function NarrativeDetail({ feature }: { feature: Feature }) {
 
       <h2>{feature.title}</h2>
 
+      {a.campaign && (
+        <>
+          <h3>Spread pattern{a.campaign.score ? ` · ${a.campaign.score}/100` : ''}</h3>
+          <CampaignView c={a.campaign} />
+        </>
+      )}
+
       <h3>Why this verdict</h3>
       <ul className="reasons">
         {a.reasons.map((r) => (
           <li key={r}>{r}</li>
         ))}
       </ul>
+
+      {a.markets && a.markets.length > 0 && (
+        <>
+          <h3>What the money says</h3>
+          <ul className="evidence">
+            {a.markets.map((m) => (
+              <li key={m.id}>
+                <span className="chip" style={{ background: m.playMoney ? '#475569' : '#10b981' }}>{Math.round(m.p * 100)}%</span>
+                <a href={m.url} target="_blank" rel="noreferrer">{m.title}{m.headline !== 'Yes' ? ` [${m.headline}]` : ''}</a>
+                <small>{m.platform}{m.playMoney ? ' · play money' : ''} · depth {m.trust}/100{m.change24h ? ` · ${m.change24h > 0 ? '+' : ''}${(m.change24h * 100).toFixed(1)} pts/24h` : ''}</small>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       <h3>Fact-checks ({a.factChecks.length})</h3>
       {a.factChecks.length === 0 ? (

@@ -4,7 +4,23 @@
  * the real outlet per item). Outlet class (established / state) comes from
  * server/truth/domains.ts, not from here.
  */
-export type NewsFeed = { id: string; url: string; domain: string; everyMs?: number }
+export type NewsFeed = {
+  id: string
+  url: string
+  domain: string
+  everyMs?: number
+  /** rss (default) | telegram public channel preview | bluesky search */
+  kind?: 'rss' | 'telegram' | 'bluesky'
+}
+
+const tg = (channel: string): NewsFeed => ({ id: `tg:${channel}`, kind: 'telegram', url: `https://t.me/s/${channel}`, domain: `t.me/${channel}`, everyMs: 45_000 })
+const bsky = (id: string, q: string): NewsFeed => ({
+  id: `bsky:${id}`,
+  kind: 'bluesky',
+  domain: 'bsky.app',
+  everyMs: 60_000,
+  url: `https://api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=${encodeURIComponent(q)}&sort=latest&limit=40`,
+})
 
 const gnews = (id: string, q: string): NewsFeed => ({
   id: `gnews:${id}`,
@@ -37,5 +53,11 @@ export const NEWS_FEEDS: NewsFeed[] = [
   gnews('strikes', 'missile OR airstrike OR "drone attack" OR shelling OR explosion'),
   gnews('security', 'ceasefire OR hostage OR troops OR "military buildup" OR sanctions'),
   gnews('info', 'disinformation OR deepfake OR hoax OR "fake video" OR propaganda'),
+  // social: public Telegram OSINT/war channels and Bluesky keyword search
+  ...['clashreport', 'OSINTdefender', 'intelslava', 'wartranslated', 'ukrainenow', 'disclosetv', 'middle_east_spectator', 'israelwarroom', 'militarysummary', 'faytuks'].map(tg),
+  bsky('unrest', 'protest clashes'),
+  bsky('strikes', 'airstrike missile drone'),
+  bsky('info', 'disinformation fake video'),
+  bsky('security', 'ceasefire hostage troops'),
   gnews('cyber', 'cyberattack OR "power outage" OR sabotage OR "undersea cable"'),
 ]

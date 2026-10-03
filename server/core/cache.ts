@@ -11,6 +11,10 @@ export class TtlCache<T> {
     this.ttlMs = ttlMs
   }
 
+  invalidate(key: string) {
+    this.store.delete(key)
+  }
+
   async get(key: string, load: () => Promise<T>): Promise<T> {
     const hit = this.store.get(key)
     if (hit && hit.expires > Date.now()) return hit.value

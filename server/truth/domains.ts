@@ -21,3 +21,18 @@ const match = (domain: string, list: string[]) =>
 
 export const establishedOutlet = (domain: string) => match(domain.toLowerCase(), ESTABLISHED)
 export const stateOutlet = (domain: string) => match(domain.toLowerCase(), STATE)
+
+/** Social accounts/channels (domain strings produced by the telegram/bluesky pollers). */
+export const socialSource = (domain: string) => /^(t\.me\/|bsky:)/.test(domain)
+
+/** Which state-media bloc an outlet belongs to (for coordinated-alignment detection). */
+const BLOC: Record<string, string[]> = {
+  RU: ['rt.com', 'sputniknews.com', 'sputnikglobe.com', 'tass.com', 'tass.ru', 'ria.ru', 'belta.by'],
+  CN: ['xinhuanet.com', 'news.cn', 'cgtn.com', 'globaltimes.cn', 'chinadaily.com.cn'],
+  IR: ['presstv.ir', 'presstv.com', 'presstv.co.uk', 'irna.ir', 'almanar.com.lb'],
+  KP: ['kcna.kp', 'kcnawatch.org'],
+}
+export const stateBloc = (domain: string): string | undefined => {
+  const d = domain.toLowerCase()
+  return Object.entries(BLOC).find(([, list]) => list.some((x) => d === x || d.endsWith('.' + x)))?.[0]
+}
