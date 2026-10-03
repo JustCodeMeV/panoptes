@@ -6,9 +6,13 @@ import net from 'node:net'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 import { compress } from 'hono/compress'
+import { secureHeaders } from 'hono/secure-headers'
 import { streamSSE } from 'hono/streaming'
 import { FeatureSchema } from '../shared/feature.ts'
+import { rateLimit } from './core/ratelimit.ts'
+import { configuredSecrets, redact } from './core/secrets.ts'
 import { loadLayer } from './core/aggregate.ts'
 import * as cases from './cases/db.ts'
 import { LAYERS } from './layers.ts'
@@ -28,7 +32,21 @@ import { llmEnabled, llmStatus } from './llm/client.ts'
 // ETIMEDOUT although the host is fine; most of our "fetch failed" errors were this.
 net.setDefaultAutoSelectFamilyAttemptTimeout(2500)
 
+// Last line of defence: nothing that looks like a secret reaches the logs.
+for (const level of ['log', 'warn', 'error'] as const) {
+  const orig = console[level].bind(console)
+  console[level] = (...args: unknown[]) => orig(...args.map((a) => (typeof a === 'string' ? redact(a) : a instanceof Error ? redact(a.stack ?? a.message) : a)))
+}
+console.log(`[panoptes] secrets configured: ${configuredSecrets().join(', ') || 'none'}`)
+
 const app = new Hono()
+// HSTS, nosniff, frame and opener isolation. Referrer kept as origin-only: YouTube embeds need it.
+app.use('*', secureHeaders({ referrerPolicy: 'strict-origin-when-cross-origin' }))
+// Feature snapshots (cases, briefs) are a few KB; nothing legitimate is near this.
+app.use('/api/*', bodyLimit({ maxSize: 512 * 1024, onError: (c) => c.json({ error: 'request body too large' }, 413) }))
+// Endpoints that spend money (Claude) or rate-limited upstream quota (GDELT), per client IP.
+app.use('/api/llm/*', rateLimit({ windowMs: 10 * 60_000, max: 20, name: 'AI briefs' }))
+app.use('/api/truth/check', rateLimit({ windowMs: 10 * 60_000, max: 30, name: 'claim checks' }))
 // Layer snapshots can be large (jamming cells, frontline polygons); SSE streams stay uncompressed.
 app.use('/api/layers/*', compress())
 
@@ -123,9 +141,9 @@ app.get('/api/health/sources', async (c) => {
   for (const [layer, providers] of Object.entries(LAYERS)) {
     const live = streamSource(layer)
     const statuses = live ? live.snapshot().providers : (await loadLayer(layer, providers)).providers
-    for (const p of statuses) rows.push({ layer, id: p.id, ok: p.ok, error: p.error, stale: p.stale })
+    for (const p of statuses) rows.push({ layer, id: p.id, ok: p.ok, error: p.error && redact(p.error), stale: p.stale })
   }
-  for (const s of engineStatus()) rows.push({ layer: 'truth', id: s.id, ok: s.ok, error: s.error })
+  for (const s of engineStatus()) rows.push({ layer: 'truth', id: s.id, ok: s.ok, error: s.error && redact(s.error) })
   const l = llmStatus()
   rows.push({ layer: 'ai', id: l.id, ok: l.ok, error: l.error })
   // A source waiting for an optional key is "off", not broken.

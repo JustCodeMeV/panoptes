@@ -14,6 +14,17 @@ services:
         value: 0.0.0.0
       # Case file lives on the instance disk and is wiped on redeploy. Attach a disk
       # (paid plans) and point PANOPTES_DB at it to keep cases, e.g. /var/data/panoptes.db
+      # Secrets: values are set in the Render dashboard only (sync: false = never in git).
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ACLED_EMAIL
+        sync: false
+      - key: ACLED_PASSWORD
+        sync: false
+      - key: FIRMS_MAP_KEY
+        sync: false
+      - key: CLOUDFLARE_RADAR_TOKEN
+        sync: false
       - key: YOUTUBE_API_KEY
         sync: false
       - key: GOOGLE_FACTCHECK_API_KEY

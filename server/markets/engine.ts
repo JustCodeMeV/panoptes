@@ -10,6 +10,7 @@ import { backoffMs } from '../core/aggregate.ts'
 import { fetchManifold } from './sources/manifold.ts'
 import { fetchPolymarket, polymarketHistory } from './sources/polymarket.ts'
 import type { RawMarket } from './types.ts'
+import { redact } from '../core/secrets.ts'
 
 export const LAYER_ID = 'markets'
 const MOVE_MIN = 0.02 // 2 probability points between polls
@@ -185,7 +186,7 @@ export function startMarketsEngine() {
         failures = 0
         status.set(src.id, { id: src.id, ok: true, count, ms: Date.now() - t0 })
       } catch (e) {
-        const error = e instanceof Error ? e.message : String(e)
+        const error = redact(e instanceof Error ? e.message : String(e))
         failures++
         tryAt = Date.now() + backoffMs(failures, src.every, Number(error.match(/HTTP (\d{3})/)?.[1]) || 0)
         if (failures === 1 || failures % 10 === 0) console.warn(`[markets:${src.id}] failed (${failures}x): ${error}`)

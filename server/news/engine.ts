@@ -13,6 +13,7 @@ import { isTopical } from '../truth/topics.ts'
 import { pollFeed, type NewsItem } from './ingest.ts'
 import { backoffMs } from '../core/aggregate.ts'
 import { NEWS_FEEDS } from './sources.ts'
+import { redact } from '../core/secrets.ts'
 
 export const LAYER_ID = 'news'
 const WINDOW_MS = 36 * 3600_000
@@ -267,7 +268,7 @@ export function startNewsEngine() {
       backoff.delete(feed.id)
       feedStatus.set(feed.id, { id: feed.id, ok: true, count: items?.length ?? prev?.count ?? 0, ms: Date.now() - t0 })
     } catch (e) {
-      const error = e instanceof Error ? e.message : String(e)
+      const error = redact(e instanceof Error ? e.message : String(e))
       const failures = (b?.failures ?? 0) + 1
       const every = feed.everyMs ?? 30_000
       backoff.set(feed.id, { failures, tryAt: Date.now() + backoffMs(failures, every, Number(error.match(/HTTP (\d{3})/)?.[1]) || 0) })
