@@ -31,33 +31,6 @@ function hostOf(url: string, fallback: string): string {
   }
 }
 
-const entities = (t: string) => stripHtml(t)
-
-async function pollTelegram(feed: NewsFeed): Promise<NewsItem[]> {
-  const res = await fetch(feed.url, { headers: { 'user-agent': 'Mozilla/5.0 panoptes-research/0.1' }, signal: AbortSignal.timeout(15_000) })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const html = await res.text()
-  const out: NewsItem[] = []
-  for (const block of html.split('tgme_widget_message_wrap').slice(1)) {
-    const post = block.match(/data-post="([^"]+)"/)?.[1]
-    const text = block.match(/tgme_widget_message_text[^>]*>([\s\S]*?)<\/div>/)?.[1]
-    const when = block.match(/<time[^>]*datetime="([^"]+)"/)?.[1]
-    if (!post || !text) continue
-    const plain = entities(text.replace(/<br\s*\/?>/g, '. '))
-    if (plain.length < 20) continue
-    const t = when ? Date.parse(when) : Date.now()
-    out.push({
-      id: hash(post),
-      feedId: feed.id,
-      title: plain.slice(0, 180),
-      summary: plain.slice(180, 580),
-      url: `https://t.me/${post}`,
-      domain: feed.domain,
-      published: Number.isNaN(t) ? Date.now() : Math.min(t, Date.now()),
-    })
-  }
-  return out
-}
 
 async function pollBluesky(feed: NewsFeed): Promise<NewsItem[]> {
   const res = await fetch(feed.url, { headers: { 'user-agent': 'Mozilla/5.0 panoptes-research/0.1' }, signal: AbortSignal.timeout(15_000) })
@@ -83,7 +56,6 @@ async function pollBluesky(feed: NewsFeed): Promise<NewsItem[]> {
 
 /** Returns null when the feed says "not modified" (cheap poll). */
 export async function pollFeed(feed: NewsFeed): Promise<NewsItem[] | null> {
-  if (feed.kind === 'telegram') return pollTelegram(feed)
   if (feed.kind === 'bluesky') return pollBluesky(feed)
   const headers: Record<string, string> = {
     'user-agent': 'Mozilla/5.0 panoptes-research/0.1',

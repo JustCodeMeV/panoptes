@@ -155,6 +155,44 @@ const ROWS: Row[] = [
   ['Brasilia', -15.79, -47.88, 'place', 'Brasília'],
 
 
+  ['Lviv', 49.84, 24.03, 'place', 'Lvov'],
+  ['Dnipro', 48.46, 35.04, 'place', 'Dnipropetrovsk', 'Dnepr'],
+  ['Sumy', 50.91, 34.8, 'place'],
+  ['Chernihiv', 51.49, 31.29, 'place', 'Chernigov'],
+  ['Poltava', 49.59, 34.55, 'place'],
+  ['Mykolaiv', 46.97, 31.99, 'place', 'Nikolaev'],
+  ['Kropyvnytskyi', 48.51, 32.26, 'place', 'Kirovohrad'],
+  ['Kryvyi Rih', 47.91, 33.39, 'place', 'Krivoy Rog'],
+  ['Pokrovsk', 48.28, 37.18, 'place'],
+  ['Kramatorsk', 48.72, 37.56, 'place'],
+  ['Sloviansk', 48.85, 37.6, 'place', 'Slavyansk'],
+  ['Kostiantynivka', 48.53, 37.71, 'place'],
+  ['Luhansk', 48.57, 39.31, 'place', 'Lugansk'],
+  ['Zhytomyr', 50.25, 28.66, 'place'],
+  ['Vinnytsia', 49.23, 28.47, 'place'],
+  ['Cherkasy', 49.44, 32.06, 'place'],
+  ['Rivne', 50.62, 26.25, 'place'],
+  ['Belgorod', 50.6, 36.59, 'place'],
+  ['Bryansk', 53.25, 34.37, 'place'],
+  ['Voronezh', 51.67, 39.18, 'place'],
+  ['Rostov-on-Don', 47.24, 39.71, 'place', 'Rostov'],
+  ['Krasnodar', 45.04, 38.98, 'place'],
+  ['Novorossiysk', 44.72, 37.77, 'place'],
+  ['Crimea', 45.3, 34.4, 'place'],
+  ['Tyre', 33.27, 35.2, 'place'],
+  ['Sidon', 33.56, 35.37, 'place'],
+  ['Nabatieh', 33.38, 35.48, 'place'],
+  ['Hodeidah', 14.8, 42.95, 'place'],
+  ['Erbil', 36.19, 44.01, 'place'],
+  ['Homs', 34.73, 36.72, 'place'],
+  ['Idlib', 35.93, 36.63, 'place'],
+  ['Haifa', 32.79, 34.99, 'place'],
+  ['Eilat', 29.56, 34.95, 'place'],
+  ['Bandar Abbas', 27.18, 56.27, 'place'],
+  ['Tabriz', 38.08, 46.29, 'place'],
+  ['Shiraz', 29.59, 52.58, 'place'],
+  ['Mashhad', 36.3, 59.6, 'place'],
+
   // --- sites: specific protest/flashpoint locations; beat the surrounding city ---
   ['Plaza de Cibeles', 40.4193, -3.6931, 'place', 'Cibeles'],
   ['Puerta del Sol', 40.4169, -3.7035, 'place'],
@@ -350,7 +388,7 @@ function mainCentroid(s: Shape): [number, number] {
 // Water bodies and straits belong to no country: they compete as their own location.
 const NO_COUNTRY = new Set(['Strait of Hormuz', 'Bab el-Mandeb', 'Taiwan Strait', 'Suez Canal'])
 // Where the 1:50m polygons disagree with how news names the place.
-const PARENT: Record<string, string> = { Sevastopol: 'Ukraine', Jerusalem: 'Israel', 'Hong Kong': 'China', Knesset: 'Israel' }
+const PARENT: Record<string, string> = { Sevastopol: 'Ukraine', Crimea: 'Ukraine', Jerusalem: 'Israel', 'Hong Kong': 'China', Knesset: 'Israel' }
 
 type Entry = { name: string; lat: number; lon: number; kind: Kind; country?: string; site: boolean }
 
@@ -479,6 +517,73 @@ const EXCLUDE_RE = alternation(EXCLUSIONS, 'giu')
 
 const blank = (s: string) => ' '.repeat(s.length)
 
+// --- Native-script names for channels that post in Ukrainian, Russian, Arabic or Persian. ---
+// Regex fragments: Slavic case endings and Arabic prefixes (و ب ل ف, ال) vary, so stems take a short tail.
+const T = '[\\p{L}]{0,4}'
+const AR = '(?:[وبلف]?(?:ال)?)'
+const NATIVE: [string, ...string[]][] = [
+  ['Kyiv', `київ${T}`, `киев${T}`, `києв${T}`],
+  ['Kharkiv', `харків${T}`, `харков${T}`, `харьков${T}`],
+  ['Odesa', `одес${T}`],
+  ['Dnipro', `дніпр${T}`, `днепр${T}`, `дніпропетровщин${T}`],
+  ['Zaporizhzhia', `запоріж${T}`, `запорож${T}`],
+  ['Donetsk', `донецьк${T}`, `донецк${T}`, `донеччин${T}`],
+  ['Luhansk', `луганськ${T}`, `луганск${T}`, `луганщин${T}`],
+  ['Kherson', `херсон${T}`],
+  ['Mykolaiv', `миколаїв${T}`, `миколаєв${T}`, `николаев${T}`],
+  ['Sumy', `сум(?:и|ах|ам|щин${T})`, 'сумы'],
+  ['Chernihiv', `чернігів${T}`, `чернігов${T}`, `чернігівщин${T}`, `чернигов${T}`],
+  ['Poltava', `полтав${T}`],
+  ['Lviv', `львів${T}`, `львов${T}`, `льв(?:ові|ова)`],
+  ['Kropyvnytskyi', `кіровоградщин${T}`, `кропивницьк${T}`],
+  ['Kryvyi Rih', 'кривий ріг', 'кривому розі', 'кривого рогу', 'кривой рог'],
+  ['Pokrovsk', `покровськ${T}`, `покровск${T}`],
+  ['Kramatorsk', `краматорськ${T}`, `краматорск${T}`],
+  ['Sloviansk', `слов.янськ${T}`, `славянск${T}`],
+  ['Kostiantynivka', `костянтинівк${T}`, `константиновк${T}`],
+  ['Zhytomyr', `житомир${T}`],
+  ['Vinnytsia', `вінниц${T}`, `вінничин${T}`],
+  ['Cherkasy', `черкас${T}`, `черкащин${T}`],
+  ['Rivne', `рівн(?:е|ому|енщин${T})`],
+  ['Crimea', `крим${T}`, `крым${T}`],
+  ['Sevastopol', `севастопол${T}`],
+  ['Moscow', `москв${T}`, `підмосков${T}`, `подмосков${T}`],
+  ['Belgorod', `белгород${T}`, `бєлгород${T}`],
+  ['Kursk', `курськ${T}`, `курск${T}`],
+  ['Bryansk', `брянськ${T}`, `брянск${T}`],
+  ['Voronezh', `воронеж${T}`],
+  ['Rostov-on-Don', `ростов${T}`],
+  ['Krasnodar', `краснодар${T}`],
+  ['Novorossiysk', `новоросійськ${T}`, `новороссийск${T}`],
+  ['Ukraine', 'україна', 'україни', 'україні', 'україну', 'украина', 'украины', 'украине', 'украину'],
+  ['Russia', 'росія', 'росії', 'росію', 'россия', 'россии', 'россию'],
+  ['Belarus', `білорус(?:ь|і)`, `беларус(?:ь|и)`],
+  ['Gaza', `${AR}غز[ةه]`, 'עזה'],
+  ['Beirut', `${AR}بيروت`],
+  ['Lebanon', `${AR}لبنان`],
+  ['Tyre', `${AR}صور`],
+  ['Damascus', `${AR}دمشق`],
+  ['Syria', `${AR}سوري[اة]`],
+  ['Tehran', `${AR}(?:طهران|تهران)`],
+  ['Iran', `${AR}(?:إيران|ايران|ایران)`],
+  ['Baghdad', `${AR}بغداد`],
+  ['Iraq', `${AR}عراق`],
+  ['Yemen', `${AR}يمن`],
+  ['Sanaa', `${AR}صنعاء`],
+  ['Israel', `${AR}(?:إسرائيل|اسرائيل)`, 'ישראל'],
+  ['West Bank', `${AR}ضف[ةه] ال?غربي[ةه]`],
+  ['Jerusalem', `${AR}قدس`, 'ירושלים'],
+  ['Tel Aviv', 'تل أبيب', 'تل ابيب', 'תל אביב'],
+  ['Haifa', `${AR}حيفا`, 'חיפה'],
+  ['Saudi Arabia', `${AR}سعودي[ةه]`],
+]
+const nativeFrags: { re: RegExp; loc: Entry; frag: string }[] = NATIVE.flatMap(([name, ...frags]) => {
+  const loc = locByName.get(name)
+  if (!loc) throw new Error(`gazetteer: native alias for unknown place ${name}`)
+  return frags.map((frag) => ({ frag, loc, re: new RegExp(`^(?:${frag})$`, 'iu') }))
+})
+const NATIVE_RE = new RegExp(`(?<![\\p{L}\\p{N}])(?:${nativeFrags.map((f) => f.frag).join('|')})(?![\\p{L}\\p{N}])`, 'giu')
+
 type Hit = { at: number; len: number; m: Matcher }
 function mentions(text: string): Hit[] {
   // "Kuwait-born", "Iranian-backed": origin or sponsor, not where it happens.
@@ -486,6 +591,11 @@ function mentions(text: string): Hit[] {
   const hits: Hit[] = []
   for (const r of work.matchAll(FOLDED_RE)) hits.push({ at: r.index, len: r[0].length, m: folded.get(r[0].toLowerCase())! })
   for (const r of work.matchAll(EXACT_RE)) hits.push({ at: r.index, len: r[0].length, m: exact.get(r[0])! })
+  if (/[\u0400-\u04ff\u0590-\u06ff]/.test(work))
+    for (const r of work.matchAll(NATIVE_RE)) {
+      const f = nativeFrags.find((x) => x.re.test(r[0]))
+      if (f) hits.push({ at: r.index, len: r[0].length, m: { loc: f.loc, weight: 1 } })
+    }
   hits.sort((x, y) => x.at - y.at || y.len - x.len)
   const out: Hit[] = []
   let end = -1

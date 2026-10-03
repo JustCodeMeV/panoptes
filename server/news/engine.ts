@@ -266,6 +266,9 @@ async function ingest(list: NewsItem[], silent: boolean) {
   }
 }
 
+/** Posts from the Telegram scouts join stories as social reports (server/telegram/engine.ts). */
+export const ingestSocial = (items: NewsItem[], silent: boolean) => ingest(items, silent || !primed)
+
 function prune() {
   const cutoff = Date.now() - WINDOW_MS
   const gone: string[] = []

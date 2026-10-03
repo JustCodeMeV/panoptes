@@ -12,6 +12,7 @@ import { militaryAir } from './military'
 import { frontlines } from './frontlines'
 import { acled } from './acled'
 import { infrastructure } from './infrastructure'
+import { telegram } from './telegram'
 
 /** CLIENT LAYER REGISTRY. One line per layer. */
-export const LAYERS: LayerDef[] = [watch, campaigns, unrest, news, markets, acled, osint, gnss, militaryAir, frontlines, infrastructure, livestreams, narratives]
+export const LAYERS: LayerDef[] = [watch, campaigns, unrest, news, telegram, markets, acled, osint, gnss, militaryAir, frontlines, infrastructure, livestreams, narratives]

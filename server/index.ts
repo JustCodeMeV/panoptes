@@ -21,6 +21,8 @@ import { marketHistory, startMarketsEngine } from './markets/engine.ts'
 import { snapshot as newsSnapshot, startNewsEngine } from './news/engine.ts'
 import { buildNetwork, storySubgraph } from '../shared/network.ts'
 import { startUnrestEngine } from './unrest/engine.ts'
+import { networkStories, startTelegramScouts, swarmStats } from './telegram/engine.ts'
+import { translatePost } from './telegram/translate.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
 import { reloadWatches, startWatchEngine } from './watch/engine.ts'
 import { geolocate } from './geo/gazetteer.ts'
@@ -92,10 +94,19 @@ app.post('/api/llm/brief', async (c) => {
   return brief ? c.json(brief) : c.json({ error: llmStatus().error ?? 'brief unavailable' }, 503)
 })
 
+app.get('/api/telegram/swarm', (c) => c.json(swarmStats()))
+app.post('/api/llm/translate', async (c) => {
+  const b = (await c.req.json().catch(() => ({}))) as { text?: unknown }
+  if (typeof b.text !== 'string' || !b.text.trim()) return c.json({ error: 'text required' }, 400)
+  if (!llmEnabled()) return c.json({ error: llmStatus().error }, 503)
+  const t = await translatePost(b.text)
+  return t ? c.json(t) : c.json({ error: llmStatus().error ?? 'translation unavailable' }, 503)
+})
+
 // Co-amplification network over live stories (?story=<feature id> for one story's subgraph).
 app.get('/api/network', (c) => {
   const story = c.req.query('story')?.replace(/^campaigns:/, 'news:')
-  const all = newsSnapshot().features
+  const all = [...newsSnapshot().features, ...networkStories()]
   if (!story) return c.json(buildNetwork(all, c.req.query('all') === '1' ? { maxNodes: 60 } : { onlyFlagged: true }))
   // One story's sources, with pair history across ALL live stories (that is where recurrence shows).
   const f = all.find((x) => x.id === story)
@@ -222,6 +233,7 @@ app.get('/api/stream/:id', (c) => {
 startNewsEngine()
 startMarketsEngine()
 startUnrestEngine()
+startTelegramScouts()
 startWatchEngine(LAYERS)
 
 // Production (e.g. Render): one service serves the API and the built frontend.

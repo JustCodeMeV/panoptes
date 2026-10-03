@@ -19,6 +19,7 @@ import { cablesProvider } from './providers/infrastructure/cables.ts'
 import { acledProvider } from './providers/acled/acled.ts'
 import { firmsProvider } from './providers/osint/firms.ts'
 import { cloudflareProvider } from './providers/osint/cloudflare.ts'
+import { telegramProvider } from './providers/telegram/scouts.ts'
 
 /**
  * SERVER LAYER REGISTRY. A layer = an id + the providers that feed it.
@@ -29,6 +30,7 @@ export const LAYERS: Record<string, Provider[]> = {
   livestreams: [youtubeApiProvider, youtubeScrapeProvider, seedProvider],
   narratives: [truthProvider],
   news: [newsProvider],
+  telegram: [telegramProvider],
   campaigns: [campaignsProvider],
   markets: [marketsProvider],
   unrest: [gdeltEventsProvider],

@@ -1,3 +1,5 @@
+import { CHANNELS } from '../telegram/channels.ts'
+
 /**
  * EDITABLE heuristics for coverage analysis. These lists are a transparent
  * starting point, not a ruling: tune them to your own source policy.
@@ -32,6 +34,9 @@ const BLOC: Record<string, string[]> = {
   IR: ['presstv.ir', 'presstv.com', 'presstv.co.uk', 'irna.ir', 'almanar.com.lb'],
   KP: ['kcna.kp', 'kcnawatch.org'],
 }
+// State-aligned Telegram channels count for their bloc too (t.me/<handle>).
+for (const ch of CHANNELS) if (ch.type === 'state' && ch.bloc && ch.bloc in BLOC) BLOC[ch.bloc].push(`t.me/${ch.handle.toLowerCase()}`)
+
 export const stateBloc = (domain: string): string | undefined => {
   const d = domain.toLowerCase()
   return Object.entries(BLOC).find(([, list]) => list.some((x) => d === x || d.endsWith('.' + x)))?.[0]
