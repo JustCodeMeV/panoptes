@@ -65,6 +65,8 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
   const viewer = useViewer()!
   const sources = useRef(new Map<string, CustomDataSource>())
   const featureById = useRef(new Map<string, { feature: Feature; def: LayerDef }>())
+  // Last applied look+position per pin: live events re-run sync, but only changed pins are touched.
+  const pinSig = useRef(new Map<string, string>())
   // Camera flight time follows the design's fly-to feel
   const flight = FLIGHTS[useDesign().flyto]
   const flightSeconds = useRef(flight.dur / 1000)
@@ -102,7 +104,9 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
 
   // Sync entities with store state (diffed by feature id).
   useEffect(() => {
-    const sync = () => {
+    /** Returns true when anything on the globe changed (so a render is worth requesting). */
+    const sync = (): boolean => {
+      let changed = false
       const { layers: state, selectedId } = useStore.getState()
       const hidden = useGlobeUi.getState().pinsHidden
       featureById.current.clear()
@@ -110,21 +114,37 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
         const ds = sources.current.get(def.id)
         if (!ds) continue
         const ls = state[def.id]
-        ds.show = ls.enabled && !hidden
+        const show = ls.enabled && !hidden
+        if (ds.show !== show) {
+          ds.show = show
+          changed = true
+        }
         const features = featuresOf(ls)
         const want = new Map(features.filter((f) => f.position || f.geometry).map((f) => [f.id, f]))
-        for (const e of [...ds.entities.values]) if (!want.has(e.id.split('#')[0])) ds.entities.remove(e)
+        for (const e of [...ds.entities.values])
+          if (!want.has(e.id.split('#')[0])) {
+            ds.entities.remove(e)
+            pinSig.current.delete(e.id)
+            changed = true
+          }
         for (const f of features) {
           featureById.current.set(f.id, { feature: f, def })
           // Shapes (frontlines, jamming cells, cables) are drawn as geometry, never as pins.
           if (f.geometry) {
-            if (!ds.entities.getById(f.id)) addShape(ds, f, def)
+            if (!ds.entities.getById(f.id)) {
+              addShape(ds, f, def)
+              changed = true
+            }
             continue
           }
           if (!f.position) continue
           const selected = f.id === selectedId
           const style = def.pin(f)
           const size = style.size + (selected ? 10 : 0)
+          const sig = `${style.color ?? def.color}|${size}|${f.geoPrecision}|${selected}|${style.glyph}|${f.position.lon}|${f.position.lat}`
+          if (pinSig.current.get(f.id) === sig && ds.entities.getById(f.id)) continue
+          pinSig.current.set(f.id, sig)
+          changed = true
           const position = Cartesian3.fromDegrees(f.position.lon, f.position.lat)
           const billboard = {
             image: pinImage(style.color ?? def.color, size, f.geoPrecision, selected, style.glyph),
@@ -145,6 +165,7 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
           }
         }
       }
+      return changed
     }
     // Pin images load asynchronously; with render-on-demand, ask for a few frames so they show up
     const settle = () => {
@@ -156,8 +177,7 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
     // Only re-sync pins when pin-relevant state changed (not on loading flags etc).
     let prev = useStore.getState()
     const unsubUi = useGlobeUi.subscribe(() => {
-      sync()
-      settle()
+      if (sync()) settle()
     })
     const unsub = useStore.subscribe((s) => {
       const relevant =
@@ -168,10 +188,7 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
           return a.enabled !== b.enabled || a.data !== b.data || a.pinned !== b.pinned
         })
       prev = s
-      if (relevant) {
-        sync()
-        settle()
-      }
+      if (relevant && sync()) settle()
     })
     return () => {
       unsub()

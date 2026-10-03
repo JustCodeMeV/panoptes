@@ -29,13 +29,22 @@ export function GlobeOverlay() {
   // Live camera readout
   useEffect(() => {
     const camera = viewer.camera
+    // At most one React update per frame, however often the camera reports a change.
+    let raf = 0
     const read = () => {
-      const c = camera.positionCartographic
-      setCam({ lat: CMath.toDegrees(c.latitude), lon: CMath.toDegrees(c.longitude), height: c.height })
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        const c = camera.positionCartographic
+        setCam({ lat: CMath.toDegrees(c.latitude), lon: CMath.toDegrees(c.longitude), height: c.height })
+      })
     }
     read()
     const off = [camera.changed.addEventListener(read), camera.moveEnd.addEventListener(read)]
-    return () => off.forEach((remove) => remove())
+    return () => {
+      cancelAnimationFrame(raf)
+      off.forEach((remove) => remove())
+    }
   }, [viewer])
 
   // Auto-rotate

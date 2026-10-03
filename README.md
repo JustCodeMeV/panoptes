@@ -39,7 +39,7 @@ src/
   ui/                        LayerPanel (search, layers, live feed, case file), DetailDock, shell (minimise state)
   layers/<id>/               CLIENT layer: LayerDef + Detail component
   layers/index.ts            CLIENT registry
-gui_elements/                ATLAS UI kit: design.ts (chosen design), components, tokens (see gui_elements/README.md)
+gui_elements/                ATLAS UI kit: design.ts (chosen design), components, tokens
 canvas/                      Design editor: npm run canvas (port 5174), exports to gui_elements/design.ts
 ```
 

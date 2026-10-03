@@ -256,7 +256,7 @@ const MICRO_NAMES = ['Scale press', 'Flash on press', 'Ripple', 'Glitch tap', 'B
 const BOOT_NAMES = ['Boot sequence', 'Scan bar', 'Radar sweep', 'Segment loader', 'Glitch logo', 'Spinner']
 const REDUCED_NAMES = ['Respect OS setting', 'Always animate', 'Always reduce']
 
-/** All categories, in VISUALPARTSTODO.md order. The canvas pages through them 6 at a time. */
+/** All categories, foundations first. The canvas pages through them 6 at a time. */
 export const CATEGORIES = [
   { key: 'title', section: 'Foundations', label: 'Title font', options: TITLE_FONTS.map((f) => f.name) },
   { key: 'main', section: 'Foundations', label: 'Main font', options: MAIN_FONTS.map((f) => f.name) },
