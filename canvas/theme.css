@@ -1,0 +1,9 @@
+@import "tailwindcss";
+/* Everything the canvas shows comes from gui_elements/ */
+@import "../gui_elements/theme.css";
+@source "./";
+
+/* Canvas chrome */
+html, body { background: #05070c; color-scheme: dark; }
+select { color-scheme: dark; }
+@keyframes flash { from { opacity: 1; } to { opacity: 0; } }

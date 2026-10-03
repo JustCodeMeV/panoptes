@@ -1,0 +1,80 @@
+/*
+ * ATLAS design tokens and component styles. Import after Tailwind:
+ *   @import "tailwindcss";
+ *   @import "../gui_elements/theme.css";
+ *
+ * The values below are defaults only. <AtlasTheme> sets every token from design.ts at runtime,
+ * so change the design in design.ts (or export it from the canvas), not here.
+ */
+@import "./styles.css";
+@import "./styles-2.css";
+@source "./";
+
+@theme {
+  --font-title: 'Orbitron', sans-serif;
+  --font-main: 'Saira', sans-serif;
+  --font-news: 'Source Serif 4', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sub: 'Tektur', sans-serif;
+  --tracking-title: 0.28em;
+
+  --color-bg: #05080c;
+  --color-panel: #0c1218;
+  --color-line: #1f2a35;
+  --color-ink: #eef5fb;
+  --color-dim: #8293a3;
+  --color-accent: #bfe6ff;
+  --color-accent-2: #7fd1ff;
+  --color-alert: #ff4d6d;
+  --color-ok: #7fd1ff;
+  --color-warn: #ffd479;
+  --color-err: #ff6b6b;
+  --color-live: #ff4d6d;
+
+  --shadow-glow: none;
+  --text-shadow-glow: none;
+}
+
+:root {
+  --title-weight: 600;
+  --sub-track: 0.12em;
+  --sub-case: uppercase;
+  --fs-title: 22px;
+  --fs-h: 15px;
+  --fs-body: 13.5px;
+  --fs-label: 10.5px;
+  --fs-caption: 11px;
+  --space: 1;
+  --pad: 16px;
+  --dur: 320ms;
+  --ease: cubic-bezier(.4, 0, .2, 1);
+  --panel-fill: var(--color-panel);
+  --panel-blur: none;
+  --panel-inset: none;
+  --glow-text: none;
+  --glow-drop: drop-shadow(0 0 0 transparent);
+  --glow-anim: none;
+  --glow-overlay: none;
+  --layer-1: #bfe6ff; --layer-2: #7fd1ff; --layer-3: #4aa8ff; --layer-4: #9f9bff; --layer-5: #ff9ecf; --layer-6: #ffd27a;
+  /* Chamfer cut size. Override per element: [--cut:6px] */
+  --cut: 10px;
+}
+
+/* Subtitles, labels and metadata in the subtitle font */
+@utility sub {
+  font-family: var(--font-sub);
+  letter-spacing: var(--sub-track);
+  text-transform: var(--sub-case);
+}
+
+@utility title-weight {
+  font-weight: var(--title-weight);
+}
+
+/* The Atlas chamfer: top-left and bottom-right corners cut at 45° */
+@utility chamfer {
+  clip-path: polygon(
+    var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)
+  );
+}
