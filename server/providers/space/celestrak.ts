@@ -1,12 +1,16 @@
 import { degreesLat, degreesLong, eciToGeodetic, gstime, json2satrec, propagate, type OMMJsonObject, type SatRec } from 'satellite.js'
 import type { Feature } from '../../../shared/feature.ts'
 import type { Provider } from '../../core/provider.ts'
+import snapshot from './elements-snapshot.json' with { type: 'json' }
 
 /**
  * Satellites overhead right now: military, reconnaissance/radar, Earth
  * observation, navigation and crewed stations. Orbital elements come from
  * CelesTrak (keyless, refreshed every 6 h); positions are propagated with
  * SGP4 on every request, so pins move as the layer refreshes.
+ * CelesTrak drops connections from some shared cloud IPs; then a bundled
+ * element snapshot is used (accurate to a few km for days in LEO) and the
+ * position basis says so.
  */
 
 const GROUPS: { id: string; label: string }[] = [
@@ -21,18 +25,29 @@ const ELEMENTS_TTL = 6 * 3600_000
 type Sat = { name: string; norad: number; group: string; intlId: string; rec: SatRec; incl: number; periodMin: number }
 let sats: Sat[] = []
 let loadedAt = 0
+let elementsFrom = 'CelesTrak (live)'
+
+type Omm = OMMJsonObject & { MEAN_MOTION: number; INCLINATION: number }
 
 async function loadElements(signal: AbortSignal) {
+  let lists: { g: (typeof GROUPS)[number]; list: Omm[] }[]
+  try {
+    lists = await Promise.all(
+      GROUPS.map(async (g) => {
+        const res = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${g.id}&FORMAT=json`, { headers: { 'user-agent': 'panoptes-research/0.1' }, signal: AbortSignal.any([signal, AbortSignal.timeout(12_000)]) })
+        if (!res.ok) throw new Error(`HTTP ${res.status} celestrak.org`)
+        return { g, list: (await res.json()) as Omm[] }
+      }),
+    )
+    elementsFrom = 'CelesTrak (live)'
+  } catch (e) {
+    if (sats.length) throw e // keep the elements we have; aggregate marks the source stale
+    lists = GROUPS.map((g) => ({ g, list: (snapshot.groups as unknown as Record<string, Omm[]>)[g.id] ?? [] }))
+    elementsFrom = `bundled CelesTrak snapshot of ${snapshot.fetchedAt.slice(0, 10)}`
+    console.warn(`[celestrak] live elements unavailable (${e instanceof Error ? e.message : String(e)}); using ${elementsFrom}`)
+  }
   const out: Sat[] = []
   const seen = new Set<number>()
-  type Omm = OMMJsonObject & { MEAN_MOTION: number; INCLINATION: number }
-  const lists = await Promise.all(
-    GROUPS.map(async (g) => {
-      const res = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=${g.id}&FORMAT=json`, { headers: { 'user-agent': 'panoptes-research/0.1' }, signal })
-      if (!res.ok) throw new Error(`HTTP ${res.status} celestrak.org`)
-      return { g, list: (await res.json()) as Omm[] }
-    }),
-  )
   for (const { g, list } of lists) {
     for (const o of list) {
       if (seen.has(Number(o.NORAD_CAT_ID))) continue
@@ -41,7 +56,8 @@ async function loadElements(signal: AbortSignal) {
     }
   }
   sats = out
-  loadedAt = Date.now()
+  // On the snapshot, try the live source again in 30 min rather than 6 h.
+  loadedAt = elementsFrom.startsWith('bundled') ? Date.now() - ELEMENTS_TTL + 30 * 60_000 : Date.now()
 }
 
 /** Sub-satellite point and altitude at a time, or null if SGP4 fails (decayed / bad elements). */
@@ -70,7 +86,7 @@ export const celestrakProvider: Provider = {
         title: s.name,
         position: { lat: Math.round(p.lat * 1000) / 1000, lon: Math.round(p.lon * 1000) / 1000 },
         geoPrecision: 'exact',
-        geoBasis: `SGP4 propagation of CelesTrak elements (sub-satellite point at ${Math.round(p.altKm)} km)`,
+        geoBasis: `SGP4 propagation of ${elementsFrom} elements (sub-satellite point at ${Math.round(p.altKm)} km)`,
         observedAt: now.toISOString(),
         source: { provider: 'celestrak', platform: 'celestrak.org', url: `https://celestrak.org/satcat/table-satcat.php?CATNR=${s.norad}`, retrievedAt: now.toISOString() },
         tags: ['satellite', s.group.toLowerCase()],

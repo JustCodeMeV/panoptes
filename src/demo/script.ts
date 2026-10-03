@@ -4,6 +4,7 @@ import type { MarketProps } from '../../shared/markets'
 import type { NetGraph } from '../../shared/network'
 import type { Assessment, Brief, Campaign, CampaignFlag, FactCheckMatch } from '../../shared/truth'
 import { useCases } from '../core/cases'
+import { useGlobeUi } from '../globe/globeUi'
 import { useDemo } from '../core/demo'
 import { useStore } from '../core/store'
 import { useWatches, type Watch } from '../layers/watch/state'
@@ -20,9 +21,11 @@ const MARKET = 'markets:demo-hormuz'
 const STREAM = 'livestreams:youtube:demo-aljazeera'
 const CASE_TITLE = 'DEMO: Hormuz tanker rumour'
 const ALERT = `watch:demo:${STORY}`
+const TG = ['intelslava', 'rybar', 'News_of_Donbass'].map((h) => `telegram:demo-${h.toLowerCase()}`)
+const CII = 'cii:demo-iran'
 const WATCH: Watch = { id: -1, name: 'DEMO: Strait of Hormuz', lat: HORMUZ.lat, lon: HORMUZ.lon, radiusKm: 300, layers: [], created: new Date().toISOString() }
 /** Number of narrated steps; the banner shows "step n/STEPS". */
-export const STEPS = 10
+export const STEPS = 12
 
 const sleep = (ms: number, s: AbortSignal) =>
   new Promise<void>((res, rej) => {
@@ -124,6 +127,44 @@ const stream = (): Feature => ({
   tags: ['demo', 'news', '24/7'], props: { channel: 'Al Jazeera English', live: true, curated: true },
 })
 
+/** Same text posted by three channels within 14 minutes: what the Telegram scouts flag as a coordinated copy. */
+const tgPost = (i: number, at: number): Feature => {
+  const handles = ['intelslava', 'rybar', 'News_of_Donbass']
+  const h = handles[i]
+  const cluster = { id: 'tgc:demo', size: i + 1, channels: handles.slice(0, i + 1), first: 'intelslava', firstAt: at - i * 7 * 60_000, leadMin: i * 7 }
+  return {
+    id: TG[i], layerId: 'telegram',
+    title: 'DEMO: ⚡ Tanker hit by explosion in the Strait of Hormuz, US Navy drone suspected',
+    position: { lat: HORMUZ.lat + 0.15 * i, lon: HORMUZ.lon - 0.2 * i }, geoPrecision: 'inferred', geoBasis: 'post names "Strait of Hormuz"',
+    observedAt: new Date(at).toISOString(),
+    source: { provider: 'demo-script', platform: `t.me/${h}`, url: 'https://t.me/s/' + h, retrievedAt: new Date().toISOString() },
+    tags: ['demo', 'telegram', 'milblog', ...(i >= 2 ? ['coordinated'] : [])],
+    props: {
+      handle: h, channel: h, tier: 4, type: 'milblog', bloc: 'RU', topic: 'conflict', lang: 'en', views: [48_000, 31_000, 12_000][i],
+      text: 'DEMO: ⚡ Tanker hit by explosion in the Strait of Hormuz, US Navy drone suspected. Video from the scene.',
+      cluster, subscribers: [389_000, 1_300_000, 120_000][i],
+    },
+  }
+}
+
+/** Iran's instability score as the index shows it, rising while the rumour spreads. */
+const ciiIran = (score: number, delta: number): Feature => ({
+  id: CII, layerId: 'cii', title: `DEMO: Iran: ${score}`, position: { lat: 32.4, lon: 53.7 }, geoPrecision: 'exact', geoBasis: 'country (demo replay)',
+  observedAt: new Date().toISOString(), source: { provider: 'demo-script', platform: 'panoptes', retrievedAt: new Date().toISOString() }, tags: ['demo', 'cii'],
+  props: {
+    kind: 'cii', country: 'Iran', score, delta, rank: 2, drivers: 'News & Telegram attention, Flagged narratives, Market moves',
+    components: [
+      { id: 'conflict', label: 'Clashes & protests', value: 14, points: 7.8, max: 35, detail: 'severity-weighted events (GDELT/ACLED, 24 h)' },
+      { id: 'attention', label: 'News & Telegram attention', value: 58, points: 14.9, max: 15, detail: 'stories + posts/3' },
+      { id: 'disinfo', label: 'Flagged narratives', value: 3, points: 7.8, max: 10, detail: 'campaign-flagged or contradicted stories' },
+      { id: 'outage', label: 'Internet shutdowns & censorship', value: 2, points: 9.5, max: 15, detail: 'outage/censorship signals' },
+      { id: 'jamming', label: 'GNSS jamming', value: 6.2, points: 7.9, max: 10, detail: 'jammed cells × intensity' },
+      { id: 'markets', label: 'Market moves', value: 2, points: 3.2, max: 5, detail: 'real-money markets moving ≥5 pts/24 h' },
+      { id: 'trends', label: 'Search trends', value: 1, points: 3.9, max: 10, detail: 'security terms trending' },
+    ],
+  },
+})
+
 /** Reuse one demo case across runs and refresh its snapshot, so replays don't pile up duplicates. */
 async function saveEvidence(feature: Feature) {
   const cases = useCases.getState()
@@ -194,7 +235,9 @@ export async function runDemo(signal: AbortSignal) {
   const d = useDemo.getState()
   const st = useStore.getState
   const say = (step: number, caption: string, sub?: string) => d.set({ step, caption, sub })
-  for (const id of ['watch', 'news', 'markets', 'campaigns', 'osint', 'livestreams']) if (!st().layers[id]?.enabled) st().toggle(id)
+  for (const id of ['watch', 'news', 'telegram', 'markets', 'campaigns', 'osint', 'livestreams']) if (!st().layers[id]?.enabled) st().toggle(id)
+  const ciiWasOn = !!st().layers.cii?.enabled
+  const sensorBefore = useGlobeUi.getState().sensor
   const physical = ['gnss', 'military-air'].filter((id) => st().layers[id] && !st().layers[id].enabled)
   useWatches.setState((w) => ({ list: [...w.list.filter((x) => x.id !== WATCH.id), WATCH] }))
   const prevCase = useCases.getState().activeId
@@ -222,44 +265,61 @@ export async function runDemo(signal: AbortSignal) {
     st().applyLive('news', upsert(story({ items: [a, b, c, e], verdict: 'unverified', risk: 41, score: 25, flags: [FLAG.surge], reasons: ['only social accounts report it so far; no news outlet has covered it yet', 'appears on 4 distinct platform/region feeds'] }), 'update', '+3 social · ⚑ Social surge', b.source))
     await sleep(8000, signal)
 
-    say(3, 'Money moves: the market reprices', 'Polymarket “US–Iran Hormuz agreement” −18 pts. People are putting money behind a worse outcome')
+    say(3, 'Telegram scouts: the same text on three channels', 'The scout swarm reads ~70 public channels. @intelslava posted first; @rybar and @News_of_Donbass copied it word for word within 14 min: flagged as a coordinated copy')
+    for (const i of [0, 1, 2]) {
+      st().applyLive('telegram', upsert(tgPost(i, at(i * 7)), 'new', i ? `same text on ${i + 1} channels, first @intelslava` : undefined, `@${['intelslava', 'rybar', 'News_of_Donbass'][i]}`))
+      await sleep(1500, signal)
+    }
+    st().select(TG[2])
+    await sleep(7000, signal)
+    st().select(STORY)
+
+    say(4, 'Money moves: the market reprices', 'Polymarket “US–Iran Hormuz agreement” −18 pts. People are putting money behind a worse outcome')
     st().applyLive('markets', upsert(market(0.31, -0.18), 'new', 'Yes: 49% → 31% (−18.0 pts)', 'polymarket'))
     st().applyLive('news', upsert(story({ items: [a, b, c, e], verdict: 'unverified', risk: 58, score: 35, flags: [FLAG.surge, FLAG.market], market: true, reasons: ['only social accounts report it so far; no news outlet has covered it yet', 'polymarket prices "US–Iran Hormuz agreement" at 31% (-18 pts/24h) with 78/100 market depth'] }), 'update', '⚑ Market reacting', 'polymarket'))
     await sleep(8000, signal)
 
     const stateItems = { items: [a, b, c, e, f, g], blocs: ['RU', 'IR'], market: true, network: NETWORK }
-    say(4, 'State media pick it up: Russia and Iran align', 'TASS and Press TV frame it within minutes, before any established outlet')
+    say(5, 'State media pick it up: Russia and Iran align', 'TASS and Press TV frame it within minutes, before any established outlet')
     st().applyLive('news', upsert(story({ ...stateItems, verdict: 'unverified', risk: 81, score: 75, flags: [FLAG.stateFirst, FLAG.bloc, FLAG.surge, FLAG.market], reasons: ['reported only by state-affiliated outlets so far (2 domains)', 'coverage comes only from state-affiliated outlets: tass.com, presstv.co.uk', 'markets treat this as likely while confirmation is still thin: worth a closer look'] }), 'update', '+tass.com · +presstv.co.uk · ⚑ Aligned state outlets', 'tass.com'))
     await sleep(8000, signal)
 
-    say(5, 'Who amplifies whom: the influence network', 'TASS → Press TV is a recurring pair: same order on 5 flagged stories, Press TV ~4 min behind. The Telegram channel that started it feeds TASS too')
+    say(6, 'Who amplifies whom: the influence network', 'TASS → Press TV is a recurring pair: same order on 5 flagged stories, Press TV ~4 min behind. The Telegram channel that started it feeds TASS too')
     d.set({ tab: 'network' })
     await sleep(10000, signal)
 
-    say(6, 'The fact-check lands, and the analyst brief writes itself', 'Lead Stories: the footage is from a 2023 port fire. The verdict flips to debunked; the AI brief summarises why and what to check next')
+    say(7, 'The fact-check lands, and the analyst brief writes itself', 'Lead Stories: the footage is from a 2023 port fire. The verdict flips to debunked; the AI brief summarises why and what to check next')
     d.set({ tab: 'timeline' })
     st().applyLive('news', upsert(story({ ...stateItems, verdict: 'debunked', risk: 96, score: 95, fc: [FC], brief: BRIEF, flags: [FLAG.stateFirst, FLAG.bloc, FLAG.surge, FLAG.contradicted, FLAG.market], reasons: ['Lead Stories fact-check rates a matching claim false (82% term match)', 'coverage comes only from state-affiliated outlets: tass.com, presstv.co.uk'] }), 'update', 'unverified → debunked · ⚑ Contradicted', 'leadstories.com'))
     await sleep(10000, signal)
 
-    say(7, 'Physical signals: does anything on the ground back it up?', 'Live layers: GPS jamming from yesterday, military aircraft broadcasting now, outages and censorship. Nothing physical confirms a strike; the market keeps its fear premium')
+    say(8, 'Physical signals: does anything on the ground back it up?', 'Thermal look on. Live layers: GPS jamming from yesterday, military aircraft broadcasting now, outages and censorship. Nothing physical confirms a strike; the market keeps its fear premium')
     for (const id of physical) st().toggle(id)
+    useGlobeUi.getState().setSensor('flir')
     st().applyLive('markets', upsert(market(0.27, -0.04), 'update', 'Yes: 31% → 27% (−4.0 pts)', 'polymarket'))
     await sleep(9000, signal)
 
-    say(8, 'Eyes on the region', 'The nearest 24/7 broadcaster plays inside the dashboard. Analysts can watch live coverage without leaving the map')
+    say(9, 'Country risk: Iran climbs the instability index', 'One explainable score per country from every layer: attention, flagged narratives, shutdowns, jamming, markets. Iran +9 in the last hour')
+    useGlobeUi.getState().setSensor('eo')
+    if (!st().layers.cii?.enabled) st().toggle('cii')
+    st().applyLive('cii', upsert(ciiIran(55, 9), 'new', '▲ 9 in the last hour', 'cii'))
+    st().select(CII)
+    await sleep(9000, signal)
+
+    say(10, 'Eyes on the region', 'The nearest 24/7 broadcaster plays inside the dashboard. Analysts can watch live coverage without leaving the map')
     st().pin(stream())
     await sleep(9000, signal)
     st().select(STORY)
 
-    say(9, 'Save the evidence', 'A frozen snapshot with the timeline, network, brief and every source goes into the case file')
+    say(11, 'Save the evidence', 'A frozen snapshot with the timeline, network, brief and every source goes into the case file')
     const saved = st().layers.news.data?.features.find((x) => x.id === STORY)
     try {
       if (saved) await saveEvidence(saved)
     } catch {
-      say(9, 'Save the evidence', 'Case file unavailable: the API server is not running, so this step is skipped')
+      say(11, 'Save the evidence', 'Case file unavailable: the API server is not running, so this step is skipped')
     }
     await sleep(6000, signal)
-    say(10, 'Replay complete', 'Watch → claim → money → media → network → verdict → evidence. Demo pins are cleared; the saved case stays in the case file')
+    say(12, 'Replay complete', 'Watch → Telegram → money → media → network → verdict → ground truth → country risk → evidence. Demo pins are cleared; the saved case stays in the case file')
     await sleep(6000, signal)
   } catch {
     /* stopped by the user */
@@ -268,6 +328,10 @@ export async function runDemo(signal: AbortSignal) {
     st().removeFeatures('markets', [MARKET])
     st().removeFeatures('livestreams', [STREAM])
     st().removeFeatures('watch', [ALERT])
+    st().removeFeatures('telegram', TG)
+    st().removeFeatures('cii', [CII])
+    if (!ciiWasOn && st().layers.cii?.enabled) st().toggle('cii')
+    useGlobeUi.getState().setSensor(sensorBefore)
     useWatches.setState((w) => ({ list: w.list.filter((x) => x.id !== WATCH.id) }))
     for (const id of physical) if (st().layers[id]?.enabled) st().toggle(id)
     if (prevCase && prevCase !== useCases.getState().activeId) void useCases.getState().setActive(prevCase).catch(() => {})
