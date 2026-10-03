@@ -3,6 +3,8 @@ import type { Assessment, Signal } from '../../shared/truth.ts'
 import { geolocate } from '../geo/gazetteer.ts'
 import { assess, spreadOf } from './assess.ts'
 import { coverageFor } from './gdelt.ts'
+import { judgeFactChecks } from '../llm/analysis.ts'
+import { llmEnabled } from '../llm/client.ts'
 import { MATCH_STRONG, googleFactChecks, loadCorpus, matchFactChecks, type Corpus, type FactCheckItem } from './factchecks.ts'
 import { loadSignals, type RawSignal } from './signals.ts'
 import { hash, tokenSet } from './text.ts'
@@ -188,7 +190,9 @@ export const engineStatus = () => snapshot?.status ?? []
 export async function checkClaim(claim: string): Promise<Feature> {
   const text = claim.trim().slice(0, 400)
   const corpus: Corpus = await loadCorpus()
-  const factChecks = matchFactChecks(corpus, text, 5)
+  // With an LLM, cast a wider lexical net and let it judge meaning; without one, keyword matching as before.
+  const judged = llmEnabled() ? await judgeFactChecks(text, matchFactChecks(corpus, text, 8, 0.25)) : null
+  const factChecks = judged ?? matchFactChecks(corpus, text, 5)
   try {
     factChecks.push(...(await googleFactChecks(text)))
   } catch (e) {

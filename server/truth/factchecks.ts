@@ -121,7 +121,7 @@ export const MATCH_STRONG = 0.6
  * How much of the claim's (idf-weighted) vocabulary a published fact-check
  * covers. Needs >=2 shared terms so one generic word can never match.
  */
-export function matchFactChecks(corpus: Corpus, claim: string, limit = 4): FactCheckMatch[] {
+export function matchFactChecks(corpus: Corpus, claim: string, limit = 4, min = MATCH_MIN): FactCheckMatch[] {
   const q = tokenSet(claim)
   if (q.size < 2) return []
   const w = (t: string) => corpus.idf.get(t) ?? Math.log(corpus.items.length + 1) + 1
@@ -138,7 +138,7 @@ export function matchFactChecks(corpus: Corpus, claim: string, limit = 4): FactC
     }
     if (shared < 2) continue
     const score = sum / total
-    if (score >= MATCH_MIN)
+    if (score >= min)
       out.push({ publisher: it.publisher, title: it.title, url: it.url, date: it.date, verdict: it.verdict, score: Math.round(score * 100) / 100 })
   }
   return out.sort((a, b) => b.score - a.score).slice(0, limit)

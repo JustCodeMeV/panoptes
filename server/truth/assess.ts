@@ -2,6 +2,8 @@ import type { MarketRef } from '../../shared/markets.ts'
 import type { Assessment, Coverage, FactCheckMatch, Signal, Verdict } from '../../shared/truth.ts'
 import { MATCH_STRONG } from './factchecks.ts'
 
+const how = (m: FactCheckMatch) => (m.judged === 'same' ? 'same claim, AI-judged' : `${Math.round(m.score * 100)}% term match`)
+
 /** Distinct feeds a narrative appears on. Mastodon instances mirror one network, so they count once. */
 export const spreadOf = (signals: Signal[]) =>
   new Set(signals.map((s) => (s.platform === 'mastodon' || s.platform === 'bluesky' ? s.platform : `${s.platform}:${s.region ?? ''}`))).size
@@ -35,10 +37,10 @@ export function assess(input: {
   let verdict: Verdict
   if (falseHit) {
     verdict = 'debunked'
-    reasons.push(`${falseHit.publisher} fact-check rates a matching claim false (${Math.round(falseHit.score * 100)}% term match)`)
+    reasons.push(`${falseHit.publisher} fact-check rates a matching claim false (${how(falseHit)})`)
   } else if (mislead) {
     verdict = 'disputed'
-    reasons.push(`${mislead.publisher} flags a matching claim as misleading/disinformation (${Math.round(mislead.score * 100)}% term match)`)
+    reasons.push(`${mislead.publisher} flags a matching claim as misleading/disinformation (${how(mislead)})`)
   } else if (trueHit) {
     verdict = 'corroborated'
     reasons.push(`${trueHit.publisher} fact-check supports a matching claim`)

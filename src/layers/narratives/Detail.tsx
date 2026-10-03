@@ -1,6 +1,7 @@
 import type { Feature } from '../../../shared/feature'
 import type { ReviewVerdict } from '../../../shared/truth'
 import { CampaignView } from '../campaigns/Timeline'
+import { BriefBox } from './BriefBox'
 import { VERDICT, assessmentOf } from './verdict'
 
 const REVIEW_COLOR: Record<ReviewVerdict, string> = {
@@ -29,6 +30,8 @@ export function NarrativeDetail({ feature }: { feature: Feature }) {
       </div>
 
       <h2>{feature.title}</h2>
+
+      <BriefBox key={feature.id} feature={feature} />
 
       {a.campaign && (
         <>
@@ -73,7 +76,7 @@ export function NarrativeDetail({ feature }: { feature: Feature }) {
                 {m.title}
               </a>
               <small>
-                {m.publisher} · {Math.round(m.score * 100)}% match {m.date ? `· ${when(m.date)}` : ''}
+                {m.publisher} · {m.judged ? `${m.judged === 'same' ? 'same claim' : 'related'} (AI-judged)` : `${Math.round(m.score * 100)}% match`} {m.date ? `· ${when(m.date)}` : ''}
               </small>
             </li>
           ))}

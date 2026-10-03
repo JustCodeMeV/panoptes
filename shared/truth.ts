@@ -24,6 +24,8 @@ export type FactCheckMatch = {
   verdict: ReviewVerdict
   /** 0..1 share of the claim's (idf-weighted) terms found in the fact-check. */
   score: number
+  /** Set when an LLM compared the claim with the fact-check (semantic, not lexical). */
+  judged?: 'same' | 'related'
 }
 
 export type CoverageArticle = {
@@ -89,4 +91,15 @@ export type Assessment = {
   /** Prediction markets that look related: what money says about it. */
   markets?: MarketRef[]
   campaign?: Campaign
+}
+
+/** AI-generated analyst brief for a story / narrative. Always shown labelled as such. */
+export type Brief = {
+  summary: string
+  whyFlagged: string[]
+  frames: { actor: string; frame: string }[]
+  checkNext: string[]
+  glosses: { source: string; english: string }[]
+  model: string
+  at: string
 }

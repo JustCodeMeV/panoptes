@@ -16,6 +16,8 @@ import { marketHistory, startMarketsEngine } from './markets/engine.ts'
 import { startNewsEngine } from './news/engine.ts'
 import { startUnrestEngine } from './unrest/engine.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
+import { briefFor } from './llm/analysis.ts'
+import { llmEnabled, llmStatus } from './llm/client.ts'
 
 const app = new Hono()
 
@@ -51,6 +53,16 @@ app.post('/api/truth/check', async (c) => {
   return c.json(await checkClaim(claim))
 })
 
+// AI analyst brief for any story-like feature (news, campaign, narrative, checked claim).
+app.post('/api/llm/brief', async (c) => {
+  const b = (await c.req.json().catch(() => ({}))) as { feature?: unknown }
+  const f = FeatureSchema.safeParse(b.feature)
+  if (!f.success || !f.data.props.assessment) return c.json({ error: 'invalid feature' }, 400)
+  if (!llmEnabled()) return c.json({ error: llmStatus().error }, 503)
+  const brief = await briefFor(f.data)
+  return brief ? c.json(brief) : c.json({ error: llmStatus().error ?? 'brief unavailable' }, 503)
+})
+
 // ---- cases (local SQLite) ----
 const jsonBody = async (c: { req: { json(): Promise<unknown> } }) => ((await c.req.json().catch(() => ({}))) ?? {}) as Record<string, unknown>
 app.get('/api/cases', (c) => c.json(cases.listCases()))
@@ -83,6 +95,7 @@ app.get('/api/cases/:id/export', (c) => {
   c.header('content-disposition', `attachment; filename="panoptes-case-${c.req.param('id')}.json"`)
   return c.json(r)
 })
+const NOT_CONFIGURED = /^no (credentials|[A-Z_]*(KEY|TOKEN|EMAIL))/
 app.get('/api/health/sources', async (c) => {
   const rows: { layer: string; id: string; ok: boolean; error?: string }[] = []
   for (const [layer, providers] of Object.entries(LAYERS)) {
@@ -91,7 +104,10 @@ app.get('/api/health/sources', async (c) => {
     for (const p of statuses) rows.push({ layer, id: p.id, ok: p.ok, error: p.error })
   }
   for (const s of engineStatus()) rows.push({ layer: 'truth', id: s.id, ok: s.ok, error: s.error })
-  return c.json(rows)
+  const l = llmStatus()
+  rows.push({ layer: 'ai', id: l.id, ok: l.ok, error: l.error })
+  // A source waiting for an optional key is "off", not broken.
+  return c.json(rows.map((r) => ({ ...r, off: !r.ok && NOT_CONFIGURED.test(r.error ?? '') })))
 })
 
 app.get('/api/audit', (c) => c.json(cases.auditLog()))
