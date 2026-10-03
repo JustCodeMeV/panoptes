@@ -1,6 +1,7 @@
 import type { Feature, LayerResponse, ProviderStatus } from '../../shared/feature.ts'
 import { TtlCache } from './cache.ts'
 import type { Provider } from './provider.ts'
+import { redact } from './secrets.ts'
 
 /** Merged layer responses: cheap to rebuild because providers are cached individually below. */
 const cache = new TtlCache<LayerResponse>(15_000)
@@ -50,7 +51,7 @@ async function runProvider(p: Provider): Promise<{ features: Feature[]; status: 
         s.failures = 0
         s.error = undefined
       } catch (e) {
-        s.error = e instanceof Error ? e.message : String(e)
+        s.error = redact(e instanceof Error ? e.message : String(e))
         s.failures++
         const wait = backoffMs(s.failures, ttl, statusOf(s.error))
         s.tryAt = Date.now() + wait

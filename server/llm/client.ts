@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import type { z } from 'zod/v4'
+import { redact } from '../core/secrets.ts'
 
 /**
  * Thin, budgeted wrapper around Claude. Everything here is OPTIONAL: without
@@ -59,7 +60,7 @@ export async function structured<T>(opts: { system: string; prompt: string; sche
     ok++
     return res.parsed_output ?? null
   } catch (e) {
-    lastError = e instanceof Anthropic.APIError ? `API ${e.status ?? ''} ${e.message}`.slice(0, 160) : e instanceof Error ? e.message : String(e)
+    lastError = redact(e instanceof Anthropic.APIError ? `API ${e.status ?? ''} ${e.message}`.slice(0, 160) : e instanceof Error ? e.message : String(e))
     console.warn(`[llm] ${lastError}`)
     return null
   }
