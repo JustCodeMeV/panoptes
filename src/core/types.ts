@@ -38,6 +38,8 @@ export interface LayerDef {
   stream?: string
   defaultEnabled?: boolean
   pin(feature: Feature): PinStyle
+  /** Style for features carrying `geometry` (polygons/lines), drawn instead of a pin. */
+  shape?(feature: Feature): { color?: string; alpha?: number; width?: number }
   /** How a live event for this layer reads in the wire. Default: neutral. */
   ticker?(feature: Feature, e: { kind: 'new' | 'update'; change?: string; source?: string }): TickerView
   /** Which features pre-fill the live wire on load (default: 8 newest). */

@@ -7,6 +7,9 @@ import { osint } from './osint'
 import { unrest } from './unrest'
 import { narratives } from './narratives'
 import { watch } from './watch'
+import { gnss } from './gnss'
+import { militaryAir } from './military'
+import { frontlines } from './frontlines'
 
 /** CLIENT LAYER REGISTRY. One line per layer. */
-export const LAYERS: LayerDef[] = [watch, campaigns, unrest, news, markets, osint, livestreams, narratives]
+export const LAYERS: LayerDef[] = [watch, campaigns, unrest, news, markets, osint, gnss, militaryAir, frontlines, livestreams, narratives]

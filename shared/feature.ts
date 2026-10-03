@@ -28,6 +28,15 @@ export const FeatureSchema = z.object({
   position: z
     .object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) })
     .optional(),
+  /** Optional area/line (GeoJSON, [lon, lat]): frontlines, jamming cells, cables. Drawn instead of a pin. */
+  geometry: z
+    .discriminatedUnion('type', [
+      z.object({ type: z.literal('Polygon'), coordinates: z.array(z.array(z.array(z.number()))) }),
+      z.object({ type: z.literal('MultiPolygon'), coordinates: z.array(z.array(z.array(z.array(z.number())))) }),
+      z.object({ type: z.literal('LineString'), coordinates: z.array(z.array(z.number())) }),
+      z.object({ type: z.literal('MultiLineString'), coordinates: z.array(z.array(z.array(z.number()))) }),
+    ])
+    .optional(),
   geoPrecision: GeoPrecision,
   /** Human-readable reason for the position, e.g. `matched "Kyiv" in title`. */
   geoBasis: z.string().optional(),

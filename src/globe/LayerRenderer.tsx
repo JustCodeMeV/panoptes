@@ -11,6 +11,7 @@ import {
   HeadingPitchRange,
   HeightReference,
   NearFarScalar,
+  PolygonHierarchy,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
   VerticalOrigin,
@@ -21,6 +22,36 @@ import type { LayerDef } from '../core/types'
 import { featuresOf, useStore } from '../core/store'
 import { clusterImage, pinImage } from './pins'
 import { useViewer } from './viewerContext'
+
+const ring = (r: number[][]) => Cartesian3.fromDegreesArray(r.flatMap(([lon, lat]) => [lon, lat]))
+
+/** Adds a feature's GeoJSON geometry as polygon/polyline entities sharing the feature id. */
+function addShape(ds: CustomDataSource, f: Feature, def: LayerDef) {
+  const g = f.geometry!
+  const st = def.shape?.(f) ?? {}
+  const color = Color.fromCssColorString(st.color ?? def.color)
+  const fill = color.withAlpha(st.alpha ?? 0.3)
+  const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : []
+  const lines = g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : []
+  // One parent entity carries the id (for picking); parts are children pointing back to it.
+  const parent = ds.entities.add(new Entity({ id: f.id }))
+  polys.forEach((p, i) =>
+    ds.entities.add({
+      id: `${f.id}#p${i}`,
+      parent,
+      polygon: {
+        hierarchy: new PolygonHierarchy(ring(p[0]), p.slice(1).map((h) => new PolygonHierarchy(ring(h)))),
+        material: fill,
+        outline: false,
+        height: 0,
+      },
+      polyline: st.width ? { positions: ring(p[0]), width: st.width, material: color.withAlpha(0.9) } : undefined,
+    }),
+  )
+  lines.forEach((l, i) =>
+    ds.entities.add({ id: `${f.id}#l${i}`, parent, polyline: { positions: ring(l), width: st.width ?? 1.5, material: color.withAlpha(st.alpha ?? 0.8) } }),
+  )
+}
 
 /**
  * Generic: renders ANY layer's features as clustered pins on its own
@@ -69,10 +100,15 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
         const ls = state[def.id]
         ds.show = ls.enabled
         const features = featuresOf(ls)
-        const want = new Map(features.filter((f) => f.position).map((f) => [f.id, f]))
-        for (const e of [...ds.entities.values]) if (!want.has(e.id)) ds.entities.remove(e)
+        const want = new Map(features.filter((f) => f.position || f.geometry).map((f) => [f.id, f]))
+        for (const e of [...ds.entities.values]) if (!want.has(e.id.split('#')[0])) ds.entities.remove(e)
         for (const f of features) {
           featureById.current.set(f.id, { feature: f, def })
+          // Shapes (frontlines, jamming cells, cables) are drawn as geometry, never as pins.
+          if (f.geometry) {
+            if (!ds.entities.getById(f.id)) addShape(ds, f, def)
+            continue
+          }
           if (!f.position) continue
           const selected = f.id === selectedId
           const style = def.pin(f)
@@ -229,7 +265,7 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
         }
         return
       }
-      const id = defined(picked) && picked.id instanceof Entity ? (picked.id.id as string) : null
+      const id = defined(picked) && picked.id instanceof Entity ? (picked.id.id as string).split('#')[0] : null
       if (id && featureById.current.has(id)) {
         useStore.getState().select(id)
       } else if (!defined(picked)) {
