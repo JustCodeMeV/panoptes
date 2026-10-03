@@ -21,7 +21,7 @@ const status = new Map<string, ProviderStatus>()
 const primed = new Set<string>()
 
 /** 0..100 weight a price deserves, from how much money is behind it. */
-function trust(m: RawMarket): number {
+export function trust(m: RawMarket): number {
   if (m.playMoney) return Math.min(20, Math.round(Math.log10(m.volumeTotal + 1) * 4))
   // 1k total ~ 0, 100k ~ 35, 10M ~ 70.  100 traded in 24h ~ 0, 1M ~ 30.
   const total = Math.max(0, (Math.log10(m.volumeTotal + 1) - 3) / 4) * 70

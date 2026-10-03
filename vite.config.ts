@@ -9,6 +9,7 @@ export default defineConfig({
   define: {
     CESIUM_BASE_URL: JSON.stringify('/cesium'),
   },
+  build: { chunkSizeWarningLimit: 4500 },
   server: {
     proxy: { '/api': 'http://localhost:8787' },
   },

@@ -17,7 +17,7 @@ export const LAYER_ID = 'news'
 const WINDOW_MS = 36 * 3600_000
 const MAX_STORIES = 220
 
-type Story = { id: string; items: NewsItem[]; tokens: Set<string>[]; sig: string; verdict: string; flags: string }
+export type Story = { id: string; items: NewsItem[]; tokens: Set<string>[]; sig: string; verdict: string; flags: string }
 
 const stories = new Map<string, Story>()
 const seen = new Set<string>() // item ids
@@ -38,7 +38,7 @@ registerStream(LAYER_ID, { snapshot, heartbeat })
 
 const itemTokens = (i: NewsItem) => tokenSet(i.title)
 
-function similar(a: Set<string>, b: Set<string>): boolean {
+export function similar(a: Set<string>, b: Set<string>): boolean {
   let shared = 0
   let long = false
   for (const t of a) {
@@ -56,12 +56,12 @@ function findStory(tokens: Set<string>): Story | undefined {
 
 // ---------- analysis ----------
 
-const classOf = (domain: string): SourceClass =>
+export const classOf = (domain: string): SourceClass =>
   socialSource(domain) ? 'social' : establishedOutlet(domain) ? 'established' : stateOutlet(domain) ? 'state' : 'other'
 const rank = (i: NewsItem) => ({ established: 0, other: 1, state: 2, social: 3 })[classOf(i.domain)]
 
 /** How a story spread: who was first, state-media alignment, speed, social surge. */
-function campaignOf(story: Story, strongFalse: boolean, marketMove: boolean): Campaign {
+export function campaignOf(story: Story, strongFalse: boolean, marketMove: boolean): Campaign {
   const sorted = [...story.items].sort((a, b) => a.published - b.published)
   const t0 = sorted[0].published
   const timeline = sorted.slice(0, 40).map((i) => ({

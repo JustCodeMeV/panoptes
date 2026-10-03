@@ -261,7 +261,7 @@ const ROWS: Row[] = [
   ['Japan', 36.2, 138.3, 'country'],
   ['Australia', -25.3, 133.8, 'country'],
   ['New Zealand', -41.0, 174.0, 'country'],
-  ['United States', 39.8, -98.6, 'country', 'USA', 'U.S.', 'America'],
+  ['United States', 39.8, -98.6, 'country', 'USA', 'US', 'U.S.', 'America'],
   ['Canada', 56.1, -106.3, 'country'],
   ['Mexico', 23.6, -102.5, 'country'],
   ['Cuba', 21.5, -77.8, 'country'],

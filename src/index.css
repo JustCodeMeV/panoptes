@@ -182,3 +182,7 @@ dt { color: var(--dim); } dd { margin: 0; } a { color: #8ab4ff; }
 .case-items small { color: var(--dim); font-size: 10px; }
 .case-items .rm { font-size: 10px; color: var(--dim); align-self: flex-end; }
 .case-items textarea { resize: vertical; }
+
+.health { font-size: 10px; margin-left: 8px; letter-spacing: 0.04em; }
+.health.ok { color: #4ade80; } .health.warn { color: #fbbf24; cursor: help; } .health.bad { color: #f87171; }
+.boot { display: grid; place-items: center; color: var(--dim); font-size: 13px; }

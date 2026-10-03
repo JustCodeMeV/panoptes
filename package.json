@@ -9,7 +9,8 @@
     "dev:api": "tsx watch --env-file-if-exists=.env server/index.ts",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "PANOPTES_DB=:memory: node --import tsx --test 'tests/**/*.test.ts'"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.3",

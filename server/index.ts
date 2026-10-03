@@ -80,6 +80,17 @@ app.get('/api/cases/:id/export', (c) => {
   c.header('content-disposition', `attachment; filename="panoptes-case-${c.req.param('id')}.json"`)
   return c.json(r)
 })
+app.get('/api/health/sources', async (c) => {
+  const rows: { layer: string; id: string; ok: boolean; error?: string }[] = []
+  for (const [layer, providers] of Object.entries(LAYERS)) {
+    const live = streamSource(layer)
+    const statuses = live ? live.snapshot().providers : (await loadLayer(layer, providers)).providers
+    for (const p of statuses) rows.push({ layer, id: p.id, ok: p.ok, error: p.error })
+  }
+  for (const s of engineStatus()) rows.push({ layer: 'truth', id: s.id, ok: s.ok, error: s.error })
+  return c.json(rows)
+})
+
 app.get('/api/audit', (c) => c.json(cases.auditLog()))
 
 // Live push: one snapshot on connect, then every story change as it happens.
