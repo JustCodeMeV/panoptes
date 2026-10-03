@@ -19,6 +19,10 @@ db.exec(`
     feature_id TEXT NOT NULL, snapshot TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', added TEXT NOT NULL,
     UNIQUE (case_id, feature_id)
   );
+  CREATE TABLE IF NOT EXISTS watches (
+    id INTEGER PRIMARY KEY, name TEXT NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL,
+    radius_km REAL NOT NULL, layers TEXT NOT NULL DEFAULT '[]', created TEXT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, ts TEXT NOT NULL, action TEXT NOT NULL, detail TEXT NOT NULL);
 `)
 db.exec('PRAGMA foreign_keys = ON')
@@ -98,6 +102,29 @@ export function exportCase(id: number) {
       analysis: i.feature.props,
     })),
   }
+}
+
+// ---- region watches ----
+
+export type WatchRow = { id: number; name: string; lat: number; lon: number; radiusKm: number; layers: string[]; created: string }
+
+export function listWatches(): WatchRow[] {
+  const rows = db.prepare('SELECT id, name, lat, lon, radius_km, layers, created FROM watches ORDER BY id').all() as {
+    id: number; name: string; lat: number; lon: number; radius_km: number; layers: string; created: string
+  }[]
+  return rows.map((r) => ({ id: r.id, name: r.name, lat: r.lat, lon: r.lon, radiusKm: r.radius_km, layers: JSON.parse(r.layers) as string[], created: r.created }))
+}
+
+export function createWatch(w: Omit<WatchRow, 'id' | 'created'>): WatchRow {
+  const created = now()
+  const r = db.prepare('INSERT INTO watches (name, lat, lon, radius_km, layers, created) VALUES (?, ?, ?, ?, ?, ?)').run(w.name.slice(0, 80), w.lat, w.lon, w.radiusKm, JSON.stringify(w.layers), created)
+  log('watch.create', `#${r.lastInsertRowid} ${w.name} (${w.lat.toFixed(2)}, ${w.lon.toFixed(2)}) r=${w.radiusKm} km`)
+  return { ...w, id: Number(r.lastInsertRowid), created }
+}
+
+export function deleteWatch(id: number) {
+  db.prepare('DELETE FROM watches WHERE id = ?').run(id)
+  log('watch.delete', `#${id}`)
 }
 
 export const auditLog = (limit = 200) => db.prepare('SELECT ts, action, detail FROM audit ORDER BY id DESC LIMIT ?').all(limit)

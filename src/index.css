@@ -222,3 +222,16 @@ h3.tabs { display: flex; align-items: center; gap: 8px; }
 h3.tabs span { margin-left: auto; display: flex; gap: 2px; }
 h3.tabs button { font: inherit; font-size: 10px; padding: 2px 8px; border: 1px solid #ffffff22; background: none; color: var(--dim); border-radius: 4px; cursor: pointer; text-transform: none; letter-spacing: 0; }
 h3.tabs button.on { color: inherit; border-color: var(--c, #d946ef); }
+.watch-ctl form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; }
+.watch-ctl input[type='text'], .watch-ctl form > input { flex: 1 1 100%; font: inherit; font-size: 12px; padding: 5px 8px; border-radius: 6px; border: 1px solid #ffffff22; background: #ffffff0a; color: inherit; }
+.watch-ctl label { display: flex; align-items: center; gap: 6px; flex: 1; font-size: 11px; color: var(--dim); }
+.watch-ctl label input { flex: 1; accent-color: #14b8a6; }
+.watch-ctl form button { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid #14b8a6; background: #14b8a622; color: inherit; cursor: pointer; }
+.watch-ctl form button:disabled { opacity: 0.5; cursor: default; }
+.watch-ctl ul { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; }
+.watch-ctl li { display: flex; gap: 8px; align-items: center; padding: 2px 0; }
+.watch-ctl li span { color: #5eead4; }
+.watch-ctl li small { color: var(--dim); margin-left: auto; }
+.watch-ctl li button { background: none; border: 0; color: var(--dim); font-size: 16px; cursor: pointer; }
+.watch-banner { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; border: 1px solid #14b8a688; background: #14b8a614; font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
+.watch-banner b { color: #5eead4; }

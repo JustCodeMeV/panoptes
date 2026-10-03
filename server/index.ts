@@ -17,6 +17,8 @@ import { snapshot as newsSnapshot, startNewsEngine } from './news/engine.ts'
 import { buildNetwork, storySubgraph } from '../shared/network.ts'
 import { startUnrestEngine } from './unrest/engine.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
+import { reloadWatches, startWatchEngine } from './watch/engine.ts'
+import { geolocate } from './geo/gazetteer.ts'
 import { briefFor } from './llm/analysis.ts'
 import { llmEnabled, llmStatus } from './llm/client.ts'
 
@@ -122,6 +124,35 @@ app.get('/api/health/sources', async (c) => {
   return c.json(rows.map((r) => ({ ...r, off: !r.ok && NOT_CONFIGURED.test(r.error ?? '') })))
 })
 
+// ---- region watches ----
+app.get('/api/watches', (c) => c.json(cases.listWatches()))
+app.post('/api/watches', async (c) => {
+  const b = await jsonBody(c)
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined)
+  let lat = num(b.lat)
+  let lon = num(b.lon)
+  let name = typeof b.name === 'string' ? b.name.trim() : ''
+  const place = typeof b.place === 'string' ? b.place.trim() : ''
+  if ((lat === undefined || lon === undefined) && place) {
+    const hit = geolocate(place)
+    if (!hit) return c.json({ error: `no known place in "${place}"` }, 400)
+    lat = hit.lat
+    lon = hit.lon
+    name ||= hit.name
+  }
+  if (lat === undefined || lon === undefined || Math.abs(lat) > 90 || Math.abs(lon) > 180) return c.json({ error: 'place or lat/lon required' }, 400)
+  const radiusKm = Math.min(3000, Math.max(5, num(b.radiusKm) ?? 150))
+  const layers = Array.isArray(b.layers) ? b.layers.filter((x): x is string => typeof x === 'string') : []
+  const w = cases.createWatch({ name: name || `${lat.toFixed(2)}, ${lon.toFixed(2)}`, lat, lon, radiusKm, layers })
+  await reloadWatches(LAYERS)
+  return c.json(w)
+})
+app.delete('/api/watches/:id', async (c) => {
+  cases.deleteWatch(Number(c.req.param('id')))
+  await reloadWatches(LAYERS)
+  return c.json({ ok: true })
+})
+
 app.get('/api/audit', (c) => c.json(cases.auditLog()))
 
 // Live push: one snapshot on connect, then every story change as it happens.
@@ -165,6 +196,7 @@ app.get('/api/stream/:id', (c) => {
 startNewsEngine()
 startMarketsEngine()
 startUnrestEngine()
+startWatchEngine(LAYERS)
 
 // Production (e.g. Render): one service serves the API and the built frontend.
 // Skipped in dev, where Vite serves the frontend and proxies /api here.
@@ -179,3 +211,5 @@ const port = Number(process.env.PORT ?? 8787)
 // Loopback locally; all interfaces on Render (which sets RENDER=true) so its router can reach us.
 const hostname = process.env.HOST ?? (process.env.RENDER ? '0.0.0.0' : '127.0.0.1')
 serve({ fetch: app.fetch, port, hostname }, () => console.log(`[panoptes] listening on http://${hostname}:${port}`))
+// Open SSE streams and poll timers would otherwise keep the old process (and the port) alive on restart.
+for (const sig of ['SIGTERM', 'SIGINT'] as const) process.once(sig, () => process.exit(0))
