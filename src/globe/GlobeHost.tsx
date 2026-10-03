@@ -31,6 +31,14 @@ export function GlobeHost({ children }: { children?: ReactNode }) {
         credit: 'Esri, Maxar, Earthstar Geographics, and the GIS User Community',
       }),
     )
+    // Render only when something changes (camera, data) instead of 60 fps forever.
+    v.scene.requestRenderMode = true
+    v.scene.maximumRenderTimeChange = Infinity
+    // Cheaper frames: pins are textured billboards so MSAA buys little, and coarser
+    // terrain/imagery LOD means far fewer tile loads while zooming.
+    v.scene.msaaSamples = 1
+    v.scene.globe.maximumScreenSpaceError = 4
+    v.scene.globe.tileCacheSize = 200
     v.scene.globe.baseColor = Color.fromCssColorString('#0b1d3a')
     v.camera.setView({ destination: Cartesian3.fromDegrees(15, 30, 20_000_000) })
     setViewer(v)

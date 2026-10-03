@@ -15,6 +15,7 @@ export const GeoPrecision = z.enum([
   'exact', // device/platform-reported coordinates
   'approximate', // known base (e.g. broadcaster HQ), not the event itself
   'inferred', // guessed from text (title, description)
+  'none', // no known location; listed in the panel, not drawn on the globe
 ])
 export type GeoPrecision = z.infer<typeof GeoPrecision>
 
@@ -23,7 +24,10 @@ export const FeatureSchema = z.object({
   id: z.string(),
   layerId: z.string(),
   title: z.string(),
-  position: z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) }),
+  /** Absent for placeless items (e.g. a narrative that names no location). */
+  position: z
+    .object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) })
+    .optional(),
   geoPrecision: GeoPrecision,
   /** Human-readable reason for the position, e.g. `matched "Kyiv" in title`. */
   geoBasis: z.string().optional(),

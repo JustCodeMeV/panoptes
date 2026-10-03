@@ -1,6 +1,7 @@
 import type { Provider } from './core/provider.ts'
 import { seedProvider } from './providers/livestreams/seed.ts'
 import { youtubeApiProvider } from './providers/livestreams/youtube-api.ts'
+import { truthProvider } from './providers/narratives/truth.ts'
 import { youtubeScrapeProvider } from './providers/livestreams/youtube-scrape.ts'
 
 /**
@@ -10,4 +11,5 @@ import { youtubeScrapeProvider } from './providers/livestreams/youtube-scrape.ts
  */
 export const LAYERS: Record<string, Provider[]> = {
   livestreams: [youtubeApiProvider, youtubeScrapeProvider, seedProvider],
+  narratives: [truthProvider],
 }

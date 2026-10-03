@@ -13,22 +13,6 @@ export function parseViewers(text?: string): number | undefined {
   return Math.round(n * mult)
 }
 
-function hash(s: string): number {
-  let h = 2166136261
-  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619)
-  return (h >>> 0) / 4294967296
-}
-
-/** Deterministic spread so several streams in one city/country don't stack. */
-export function jitter(id: string, lat: number, lon: number, degrees: number) {
-  const a = hash(id + 'a') * Math.PI * 2
-  const r = Math.sqrt(hash(id + 'r')) * degrees
-  return {
-    lat: Math.max(-89.9, Math.min(89.9, lat + Math.sin(a) * r)),
-    lon: lon + (Math.cos(a) * r) / Math.max(0.2, Math.cos((lat * Math.PI) / 180)),
-  }
-}
-
 export function youtubeFeature(args: {
   provider: string
   videoId: string

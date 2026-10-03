@@ -20,8 +20,6 @@ const SWEEP: [name: string, lat: number, lon: number][] = [
   ['SE Asia', 14, 105],
 ]
 
-const round2 = (n: number) => Math.round(n * 100) / 100
-
 const cache = new TtlCache<Feature[]>(15 * 60_000)
 
 type SearchItem = { id: { videoId: string } }
@@ -44,7 +42,7 @@ async function api<T>(path: string, params: Record<string, string>, signal: Abor
 /**
  * Official API provider, enabled only when YOUTUBE_API_KEY is set. Uses true
  * geo search (`location` + `locationRadius`), so positions are uploader-reported
- * (coarsened, see below). Only streams that carry recordingDetails.location are kept.
+ * and kept at full precision (`exact`). Only streams that carry recordingDetails.location are kept.
  */
 export const youtubeApiProvider: Provider = {
   id: 'youtube-api',
@@ -92,10 +90,9 @@ export const youtubeApiProvider: Provider = {
               provider: 'youtube-api',
               videoId: v.id,
               title: v.snippet.title,
-              // Coarsened to ~1 km: never pin an individual streamer precisely.
-              position: { lat: round2(loc.latitude), lon: round2(loc.longitude) },
-              geoPrecision: 'approximate',
-              geoBasis: 'uploader-reported recordingDetails.location, coarsened to ~1 km',
+              position: { lat: loc.latitude, lon: loc.longitude },
+              geoPrecision: 'exact',
+              geoBasis: 'uploader-reported recordingDetails.location',
               channel: v.snippet.channelTitle,
               viewers: Number(v.liveStreamingDetails?.concurrentViewers) || undefined,
               observedAt: v.liveStreamingDetails?.actualStartTime ?? v.snippet.publishedAt,

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { LAYERS } from '../layers'
-import { useStore } from '../core/store'
+import { featuresOf, useStore } from '../core/store'
 
 function ago(iso?: string) {
   if (!iso) return ''
@@ -13,7 +13,8 @@ export function LayerPanel() {
   const toggle = useStore((s) => s.toggle)
   const selectedId = useStore((s) => s.selectedId)
   const select = useStore((s) => s.select)
-  const [open, setOpen] = useState<Record<string, boolean>>({ livestreams: true })
+  const pin = useStore((s) => s.pin)
+  const [open, setOpen] = useState<Record<string, boolean>>({ livestreams: true, narratives: true })
 
   return (
     <aside className="panel">
@@ -23,10 +24,9 @@ export function LayerPanel() {
       </header>
       {LAYERS.map((def) => {
         const st = layers[def.id]
-        const features = st.data?.features ?? []
-        const sorted = [...features].sort(
-          (a, b) => (Number(b.props.viewers) || 0) - (Number(a.props.viewers) || 0),
-        )
+        const features = featuresOf(st)
+        const rank = def.rank ?? ((f) => Number(f.props.viewers) || 0)
+        const sorted = [...features].sort((a, b) => rank(b) - rank(a))
         return (
           <section key={def.id} className="layer" style={{ ['--c' as string]: def.color }}>
             <div className="layer-head">
@@ -54,6 +54,7 @@ export function LayerPanel() {
                 ))}
               </div>
             )}
+            {st.enabled && def.Controls && <def.Controls pin={pin} />}
             {st.enabled && open[def.id] && (
               <ul className="list">
                 {sorted.map((f) => (
@@ -62,7 +63,10 @@ export function LayerPanel() {
                       className={f.id === selectedId ? 'on' : ''}
                       onClick={() => select(f.id)}
                     >
-                      <span className={`dot dot-${f.geoPrecision}`} />
+                      <span
+                        className={`dot dot-${f.geoPrecision}`}
+                        style={{ ['--dc' as string]: def.pin(f).color ?? def.color }}
+                      />
                       <span className="t">{f.title}</span>
                       <span className="s">{def.subtitle(f)}</span>
                     </button>
@@ -75,7 +79,7 @@ export function LayerPanel() {
       })}
       <footer>
         <span className="dot dot-exact" /> exact <span className="dot dot-approximate" /> approx{' '}
-        <span className="dot dot-inferred" /> inferred
+        <span className="dot dot-inferred" /> inferred <span className="dot dot-none" /> unplaced
       </footer>
     </aside>
   )

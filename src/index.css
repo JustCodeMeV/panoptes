@@ -1,6 +1,6 @@
 :root {
   --bg: #0b0f1a;
-  --panel: rgba(11, 15, 26, 0.88);
+  --panel: rgba(11, 15, 26, 0.95);
   --line: rgba(255, 255, 255, 0.1);
   --text: #e6e9f2;
   --dim: #8b93a7;
@@ -15,8 +15,9 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 .panel, .dock {
   position: absolute; top: 12px; bottom: 12px; z-index: 5;
-  background: var(--panel); backdrop-filter: blur(10px);
+  background: var(--panel);
   border: 1px solid var(--line); border-radius: 12px; overflow-y: auto;
+  overscroll-behavior: contain; contain: layout paint; transform: translateZ(0);
 }
 .panel { left: 12px; width: 316px; display: flex; flex-direction: column; }
 .panel header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
@@ -39,7 +40,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .switch input:checked + i { background: var(--c); }
 .switch input:checked + i::after { transform: translateX(16px); }
 
-.list { list-style: none; margin: 0 -8px 6px; padding: 0; max-height: 46vh; overflow-y: auto; }
+.list { list-style: none; margin: 0 -8px 6px; padding: 0; max-height: 28vh; overflow-y: auto; overscroll-behavior: contain; }
 .list button { display: grid; grid-template-columns: 10px 1fr; column-gap: 8px; width: 100%; padding: 6px 8px; border-radius: 6px; }
 .list button:hover { background: rgba(255, 255, 255, 0.06); }
 .list button.on { background: rgba(255, 255, 255, 0.12); }
@@ -48,9 +49,10 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .list .dot { margin-top: 4px; }
 
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: middle; margin: 0 3px 0 8px; }
-.dot-exact { background: #ff3b47; }
-.dot-approximate { background: #ff3b47; box-shadow: 0 0 0 2px rgba(255, 59, 71, 0.4); }
-.dot-inferred { background: rgba(255, 59, 71, 0.45); border: 1px dashed #ff3b47; }
+.dot { background: var(--dc, #ff3b47); }
+.dot-approximate { box-shadow: 0 0 0 2px color-mix(in srgb, var(--dc, #ff3b47) 40%, transparent); }
+.dot-inferred { background: color-mix(in srgb, var(--dc, #ff3b47) 45%, transparent); border: 1px dashed var(--dc, #ff3b47); }
+.dot-none { background: transparent; border: 1px solid var(--dim); }
 .list .dot { margin-left: 0; }
 
 .dock { right: 12px; width: min(460px, calc(100vw - 360px)); padding: 14px; border-top: 3px solid var(--c); }
@@ -71,3 +73,35 @@ dt { color: var(--dim); } dd { margin: 0; } a { color: #8ab4ff; }
 .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .tags span { font-size: 11px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 99px; color: var(--dim); }
 .note { font-size: 11px; color: var(--dim); margin: 14px 0 0; }
+
+.claim { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.claim textarea { resize: none; background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; font-size: 12px; }
+.claim textarea:focus { outline: 1px solid var(--c); }
+.claim button { background: var(--c); color: #fff; font-weight: 600; font-size: 12px; padding: 6px 10px; border-radius: 8px; text-align: center; }
+.claim button:disabled { opacity: 0.4; cursor: default; }
+.claim .err { color: #ff8a8a; font-size: 11px; }
+
+.truth .verdict { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; border-left: 4px solid var(--v); background: color-mix(in srgb, var(--v) 14%, transparent); font-size: 12px; }
+.truth .verdict b { color: var(--v); letter-spacing: 0.14em; font-size: 13px; }
+.truth .risk { position: relative; height: 16px; margin: 8px 0 0; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
+.truth .risk i { position: absolute; inset: 0 auto 0 0; opacity: 0.55; }
+.truth .risk span { position: absolute; inset: 0; font-size: 10px; line-height: 16px; text-align: center; letter-spacing: 0.08em; }
+.truth h3 { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); margin: 16px 0 6px; }
+.reasons { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.45; }
+.evidence { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+.evidence li { display: grid; grid-template-columns: auto 1fr; gap: 0 8px; align-items: baseline; }
+.evidence li > a, .evidence li > span:not(.chip) { grid-column: 2; line-height: 1.3; }
+.evidence li:not(:has(.chip)) > a { grid-column: 1 / -1; }
+.evidence small { grid-column: 2; color: var(--dim); font-size: 11px; }
+.evidence li:not(:has(.chip)) small { grid-column: 1 / -1; }
+.chip { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: #333b52; color: #fff; }
+.truth .stats, .truth .empty { font-size: 12px; color: var(--dim); margin: 0 0 6px; }
+.tags .ok { border-color: #22c55e; color: #86efac; } .tags .warn { border-color: #f97316; color: #fdba74; }
+.truth .tags { margin: 6px 0 10px; }
+.dock { overflow-y: auto; }
+
+.stack { margin-right: 26px !important; display: flex; flex-direction: column; gap: 2px; margin: 0 0 12px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; max-height: 150px; overflow-y: auto; }
+.stack span { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
+.stack button { font-size: 12px; padding: 4px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stack button:hover { background: rgba(255,255,255,0.06); }
+.stack button.on { background: color-mix(in srgb, var(--c) 25%, transparent); }

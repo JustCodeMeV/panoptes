@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { Provider } from '../../core/provider.ts'
-import { LAYER_ID, jitter, youtubeFeature } from './util.ts'
+import { LAYER_ID, youtubeFeature } from './util.ts'
 
 type Seed = {
   externalId: string
@@ -31,7 +31,7 @@ export const seedProvider: Provider = {
         provider: 'seed',
         videoId: `ch-${s.externalId}`,
         title: s.title,
-        position: jitter(s.externalId, s.lat, s.lon, 0.12),
+        position: { lat: s.lat, lon: s.lon },
         geoPrecision: 'approximate',
         geoBasis: `broadcaster base: ${s.location}`,
         channel: s.channel,

@@ -3,8 +3,14 @@ import type { GeoPrecision } from '../../shared/feature'
 const cache = new Map<string, string>()
 
 /** Pin look encodes position confidence: solid = exact, ringed = approx, dashed = inferred. */
-export function pinImage(color: string, size: number, precision: GeoPrecision, selected: boolean): string {
-  const key = `${color}|${size}|${precision}|${selected}`
+export function pinImage(
+  color: string,
+  size: number,
+  precision: GeoPrecision,
+  selected: boolean,
+  glyph: 'play' | 'alert' = 'play',
+): string {
+  const key = `${color}|${size}|${precision}|${selected}|${glyph}`
   const hit = cache.get(key)
   if (hit) return hit
 
@@ -38,15 +44,21 @@ export function pinImage(color: string, size: number, precision: GeoPrecision, s
   g.stroke()
   g.setLineDash([])
 
-  // play glyph
   g.fillStyle = '#fff'
-  g.beginPath()
-  const t = r * 0.45
-  g.moveTo(mid - t * 0.55, mid - t)
-  g.lineTo(mid + t, mid)
-  g.lineTo(mid - t * 0.55, mid + t)
-  g.closePath()
-  g.fill()
+  if (glyph === 'alert') {
+    g.font = `bold ${Math.round(r * 1.25)}px system-ui, sans-serif`
+    g.textAlign = 'center'
+    g.textBaseline = 'middle'
+    g.fillText('!', mid, mid + 1)
+  } else {
+    g.beginPath()
+    const t = r * 0.45
+    g.moveTo(mid - t * 0.55, mid - t)
+    g.lineTo(mid + t, mid)
+    g.lineTo(mid - t * 0.55, mid + t)
+    g.closePath()
+    g.fill()
+  }
 
   const url = c.toDataURL()
   cache.set(key, url)

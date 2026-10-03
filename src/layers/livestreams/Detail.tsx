@@ -1,6 +1,7 @@
 import type { Feature } from '../../../shared/feature'
 
 const PRECISION: Record<Feature['geoPrecision'], { label: string; hint: string }> = {
+  none: { label: 'UNPLACED', hint: 'No known location' },
   exact: { label: 'EXACT', hint: 'Platform-reported coordinates' },
   approximate: { label: 'APPROX', hint: 'Broadcaster base or coarsened location' },
   inferred: { label: 'INFERRED', hint: 'Guessed from text; may be wrong' },
@@ -36,7 +37,9 @@ export function LivestreamDetail({ feature }: { feature: Feature }) {
       <dl>
         <dt>Position</dt>
         <dd>
-          {feature.position.lat.toFixed(3)}, {feature.position.lon.toFixed(3)}
+          {feature.position
+            ? `${feature.position.lat.toFixed(4)}, ${feature.position.lon.toFixed(4)}`
+            : 'unknown'}
         </dd>
         <dt>Source</dt>
         <dd>

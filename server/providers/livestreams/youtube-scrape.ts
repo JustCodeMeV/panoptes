@@ -1,7 +1,7 @@
 import { Innertube } from 'youtubei.js'
 import { geolocate } from '../../geo/gazetteer.ts'
 import type { Provider } from '../../core/provider.ts'
-import { LAYER_ID, jitter, parseViewers, youtubeFeature } from './util.ts'
+import { LAYER_ID, parseViewers, youtubeFeature } from './util.ts'
 
 // Unrest-oriented queries. Add more here; each is one scrape call per refresh.
 const QUERIES = [
@@ -52,14 +52,13 @@ export const youtubeScrapeProvider: Provider = {
         if (NOISE.test(title)) continue
         const hit = geolocate(title, channel)
         if (!hit) continue
-        const pos = jitter(video.video_id, hit.lat, hit.lon, hit.kind === 'country' ? 1.5 : 0.06)
         out.set(
           video.video_id,
           youtubeFeature({
             provider: 'youtube-scrape',
             videoId: video.video_id,
             title,
-            position: pos,
+            position: { lat: hit.lat, lon: hit.lon },
             geoPrecision: 'inferred',
             geoBasis: `matched "${hit.name}" in title/channel (${hit.kind})`,
             channel,
