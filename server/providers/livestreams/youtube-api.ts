@@ -47,6 +47,7 @@ async function api<T>(path: string, params: Record<string, string>, signal: Abor
 export const youtubeApiProvider: Provider = {
   id: 'youtube-api',
   layerId: LAYER_ID,
+  ttlMs: 15 * 60_000,
   enabled: () => Boolean(KEY()),
   fetch({ signal }) {
     return cache.get('sweep', async () => {

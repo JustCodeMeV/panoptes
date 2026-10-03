@@ -35,6 +35,8 @@ async function auth(email: string, password: string): Promise<string> {
 export const acledProvider: Provider = {
   id: 'acled',
   layerId: LAYER_ID,
+  ttlMs: 60 * 60_000,
+  requires: ['ACLED_EMAIL', 'ACLED_PASSWORD'],
   async fetch() {
     const email = process.env.ACLED_EMAIL
     const password = process.env.ACLED_PASSWORD

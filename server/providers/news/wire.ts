@@ -5,6 +5,7 @@ import { LAYER_ID, snapshot } from '../../news/engine.ts'
 export const newsProvider: Provider = {
   id: 'news-wire',
   layerId: LAYER_ID,
+  ttlMs: 15_000,
   async fetch() {
     return snapshot().features
   },

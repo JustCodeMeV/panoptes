@@ -5,6 +5,7 @@ import { LAYER_ID, snapshot } from '../../markets/engine.ts'
 export const marketsProvider: Provider = {
   id: 'markets-engine',
   layerId: LAYER_ID,
+  ttlMs: 15_000,
   async fetch() {
     return snapshot().features
   },

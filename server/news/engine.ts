@@ -11,6 +11,7 @@ import { loadCorpus, matchFactChecks } from '../truth/factchecks.ts'
 import { hash, tokenSet } from '../truth/text.ts'
 import { isTopical } from '../truth/topics.ts'
 import { pollFeed, type NewsItem } from './ingest.ts'
+import { backoffMs } from '../core/aggregate.ts'
 import { NEWS_FEEDS } from './sources.ts'
 
 export const LAYER_ID = 'news'
@@ -250,7 +251,10 @@ const feedPrimed = new Set<string>()
 export function startNewsEngine() {
   if (started) return
   started = true
+  const backoff = new Map<string, { failures: number; tryAt: number }>()
   const pollOne = async (feed: (typeof NEWS_FEEDS)[number], silent: boolean) => {
+    const b = backoff.get(feed.id)
+    if (b && Date.now() < b.tryAt) return // feed is erroring or rate-limiting us: wait it out
     const t0 = Date.now()
     try {
       const items = await pollFeed(feed)
@@ -259,11 +263,19 @@ export function startNewsEngine() {
         feedPrimed.add(feed.id)
       }
       const prev = feedStatus.get(feed.id)
+      if (b) console.log(`[news:${feed.id}] recovered after ${b.failures} failure(s)`)
+      backoff.delete(feed.id)
       feedStatus.set(feed.id, { id: feed.id, ok: true, count: items?.length ?? prev?.count ?? 0, ms: Date.now() - t0 })
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e)
-      console.warn(`[news:${feed.id}] ${error}`)
-      feedStatus.set(feed.id, { id: feed.id, ok: false, count: 0, error, ms: Date.now() - t0 })
+      const failures = (b?.failures ?? 0) + 1
+      const every = feed.everyMs ?? 30_000
+      backoff.set(feed.id, { failures, tryAt: Date.now() + backoffMs(failures, every, Number(error.match(/HTTP (\d{3})/)?.[1]) || 0) })
+      if (failures === 1 || failures % 10 === 0) console.warn(`[news:${feed.id}] failed (${failures}x): ${error}`)
+      // Stories from this feed stay up; one failed poll is not an outage.
+      const prev = feedStatus.get(feed.id)
+      const stale = failures < 3 && !!prev?.count
+      feedStatus.set(feed.id, { id: feed.id, ok: stale, count: prev?.count ?? 0, error, ms: Date.now() - t0, ...(stale ? { stale: true } : {}) })
     }
   }
   void (async () => {

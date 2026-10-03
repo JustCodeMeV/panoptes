@@ -5,6 +5,7 @@ import { LAYER_ID, getNarratives } from '../../truth/engine.ts'
 export const truthProvider: Provider = {
   id: 'truth-engine',
   layerId: LAYER_ID,
+  ttlMs: 30_000,
   async fetch() {
     return (await getNarratives()).features
   },

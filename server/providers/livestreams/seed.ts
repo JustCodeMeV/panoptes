@@ -25,6 +25,7 @@ const seeds: Seed[] = JSON.parse(
 export const seedProvider: Provider = {
   id: 'seed',
   layerId: LAYER_ID,
+  ttlMs: 60 * 60_000,
   async fetch() {
     return seeds.map((s) =>
       youtubeFeature({

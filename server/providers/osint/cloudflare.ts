@@ -23,6 +23,8 @@ type Annotation = {
 export const cloudflareProvider: Provider = {
   id: 'cloudflare-radar',
   layerId: LAYER_ID,
+  ttlMs: 15 * 60_000,
+  requires: ['CLOUDFLARE_RADAR_TOKEN'],
   async fetch() {
     const token = process.env.CLOUDFLARE_RADAR_TOKEN
     if (!token) throw new Error('no CLOUDFLARE_RADAR_TOKEN')

@@ -78,6 +78,7 @@ export async function fetchKalshi(): Promise<RawMarket[]> {
     }
     cursor = d.cursor ?? ''
     if (!cursor) break
+    await new Promise((r) => setTimeout(r, 400)) // pace the pages: Kalshi rate-limits bursts
   }
   return out
 }

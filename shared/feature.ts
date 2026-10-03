@@ -68,6 +68,8 @@ export const ProviderStatusSchema = z.object({
   count: z.number(),
   error: z.string().optional(),
   ms: z.number(),
+  /** Last fetch failed; the data shown is the last good copy. */
+  stale: z.boolean().optional(),
 })
 export type ProviderStatus = z.infer<typeof ProviderStatusSchema>
 

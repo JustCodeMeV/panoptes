@@ -13,12 +13,15 @@ export type FactCheckItem = {
   tokens: Set<string>
 }
 
-type Feed = { publisher: string; url: string; kind: 'checks' | 'fakes' | 'analysis' }
+/** `fallback`: same publisher via Google News, for sites whose bot protection blocks cloud-host IPs. */
+type Feed = { publisher: string; url: string; kind: 'checks' | 'fakes' | 'analysis'; fallback?: string }
+
+const googleNews = (site: string) => `https://news.google.com/rss/search?q=site:${site}&hl=en-US&gl=US&ceid=US:en`
 
 /** Keyless RSS/Atom feeds verified reachable. Add feeds here. */
 const FEEDS: Feed[] = [
   { publisher: 'StopFake', url: 'https://www.stopfake.org/en/feed/', kind: 'fakes' },
-  { publisher: 'EUvsDisinfo', url: 'https://euvsdisinfo.eu/feed/', kind: 'analysis' },
+  { publisher: 'EUvsDisinfo', url: 'https://euvsdisinfo.eu/feed/', kind: 'analysis', fallback: googleNews('euvsdisinfo.eu') },
   { publisher: 'Snopes', url: 'https://www.snopes.com/feed/', kind: 'checks' },
   { publisher: 'FactCheck.org', url: 'https://www.factcheck.org/feed/', kind: 'checks' },
   { publisher: 'Full Fact', url: 'https://fullfact.org/feed/all/', kind: 'checks' },
@@ -53,16 +56,19 @@ const arr = <T>(v: T | T[] | undefined): T[] => (v === undefined ? [] : Array.is
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_', processEntities: true })
 
 async function loadFeed(feed: Feed): Promise<FactCheckItem[]> {
-  const res = await fetch(feed.url, {
-    headers: { 'user-agent': 'Mozilla/5.0 panoptes-research/0.1', accept: 'application/rss+xml, application/atom+xml, text/xml' },
-    redirect: 'follow',
-    signal: AbortSignal.timeout(15_000),
-  })
+  const get = (url: string) =>
+    fetch(url, {
+      headers: { 'user-agent': 'Mozilla/5.0 panoptes-research/0.1', accept: 'application/rss+xml, application/atom+xml, text/xml' },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(15_000),
+    })
+  let res = await get(feed.url)
+  if (!res.ok && feed.fallback && [403, 429, 503].includes(res.status)) res = await get(feed.fallback)
   if (!res.ok) throw new Error(`${feed.publisher} HTTP ${res.status}`)
   const doc = parser.parse(await res.text())
   const rows: Record<string, unknown>[] = doc.rss ? arr(doc.rss.channel?.item) : arr(doc.feed?.entry)
   return rows.map((r) => {
-    const title = stripHtml(text(r.title)).replace(/^fact check:?\s*/i, '')
+    const title = stripHtml(text(r.title)).replace(/^fact check:?\s*/i, '').replace(new RegExp(` - ${feed.publisher}$`), '')
     const summary = stripHtml(text(r.description) || text(r.summary) || text(r['content:encoded']) || text(r.content)).slice(0, 600)
     const link = doc.rss
       ? text(r.link)

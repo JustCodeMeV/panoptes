@@ -25,6 +25,7 @@ export function classify(name: string): { status: 'occupied' | 'contested'; labe
 export const deepstateProvider: Provider = {
   id: 'deepstate',
   layerId: LAYER_ID,
+  ttlMs: 3 * 3600_000,
   fetch() {
     return cache.get('map', async () => {
       const d = JSON.parse(await fetchText('https://deepstatemap.live/api/history/last', 40_000)) as { id: number; datetime?: string; map: { features: GJ[] } }

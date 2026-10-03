@@ -21,6 +21,8 @@ const cache = new TtlCache<Feature[]>(30 * 60_000)
 export const firmsProvider: Provider = {
   id: 'nasa-firms',
   layerId: LAYER_ID,
+  ttlMs: 30 * 60_000,
+  requires: ['FIRMS_MAP_KEY'],
   async fetch() {
     const key = process.env.FIRMS_MAP_KEY
     if (!key) throw new Error('no FIRMS_MAP_KEY')

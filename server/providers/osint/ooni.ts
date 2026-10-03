@@ -14,6 +14,7 @@ const names = new Intl.DisplayNames(['en'], { type: 'region' })
 export const ooniProvider: Provider = {
   id: 'ooni',
   layerId: LAYER_ID,
+  ttlMs: 30 * 60_000,
   async fetch() {
     const day = (d: number) => new Date(Date.now() - d * 86400_000).toISOString().slice(0, 10)
     const url = `https://api.ooni.io/api/v1/aggregation?since=${day(1)}&until=${day(-1)}&axis_x=probe_cc&test_name=web_connectivity`

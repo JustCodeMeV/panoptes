@@ -31,8 +31,16 @@ export const num = (v: unknown): number => {
 }
 export const clamp01 = (n: number) => Math.min(1, Math.max(0, n))
 
+/** One retry on 429 when the server says how long to wait (<= 10 s); otherwise the caller backs off. */
 export async function getJson<T>(url: string, ms = 25_000): Promise<T> {
-  const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 panoptes-research/0.1', accept: 'application/json' }, signal: AbortSignal.timeout(ms) })
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${new URL(url).host}`)
-  return (await res.json()) as T
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 panoptes-research/0.1', accept: 'application/json' }, signal: AbortSignal.timeout(ms) })
+    const wait = Number(res.headers.get('retry-after'))
+    if (res.status === 429 && attempt === 0 && wait > 0 && wait <= 10) {
+      await new Promise((r) => setTimeout(r, wait * 1000))
+      continue
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${new URL(url).host}`)
+    return (await res.json()) as T
+  }
 }

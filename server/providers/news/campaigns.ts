@@ -11,6 +11,7 @@ import { snapshot } from '../../news/engine.ts'
 export const campaignsProvider: Provider = {
   id: 'campaign-detector',
   layerId: 'campaigns',
+  ttlMs: 15_000,
   async fetch() {
     return snapshot()
       .features.filter((f) => isFlagged(f.props.assessment as Assessment))

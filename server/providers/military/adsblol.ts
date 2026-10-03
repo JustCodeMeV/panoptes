@@ -14,6 +14,7 @@ type Ac = { hex: string; flight?: string; r?: string; t?: string; desc?: string;
 export const adsblolProvider: Provider = {
   id: 'adsb-lol',
   layerId: LAYER_ID,
+  ttlMs: 90_000,
   async fetch() {
     const d = JSON.parse(await fetchText('https://api.adsb.lol/v2/mil', 20_000)) as { ac?: Ac[]; now?: number }
     return (d.ac ?? []).map(toFeature).filter((f): f is Feature => !!f)

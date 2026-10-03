@@ -2,6 +2,7 @@
 process.env.UV_THREADPOOL_SIZE ??= '32'
 
 import { existsSync } from 'node:fs'
+import net from 'node:net'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
@@ -21,6 +22,11 @@ import { reloadWatches, startWatchEngine } from './watch/engine.ts'
 import { geolocate } from './geo/gazetteer.ts'
 import { briefFor } from './llm/analysis.ts'
 import { llmEnabled, llmStatus } from './llm/client.ts'
+
+// Node gives each resolved address only 250 ms to connect before trying the next ("happy
+// eyeballs"). Under load or on slow routes every attempt times out and fetch fails with
+// ETIMEDOUT although the host is fine; most of our "fetch failed" errors were this.
+net.setDefaultAutoSelectFamilyAttemptTimeout(2500)
 
 const app = new Hono()
 // Layer snapshots can be large (jamming cells, frontline polygons); SSE streams stay uncompressed.
@@ -113,11 +119,11 @@ app.get('/api/cases/:id/export', (c) => {
 })
 const NOT_CONFIGURED = /^no (credentials|[A-Z_]*(KEY|TOKEN|EMAIL))/
 app.get('/api/health/sources', async (c) => {
-  const rows: { layer: string; id: string; ok: boolean; error?: string }[] = []
+  const rows: { layer: string; id: string; ok: boolean; error?: string; stale?: boolean }[] = []
   for (const [layer, providers] of Object.entries(LAYERS)) {
     const live = streamSource(layer)
     const statuses = live ? live.snapshot().providers : (await loadLayer(layer, providers)).providers
-    for (const p of statuses) rows.push({ layer, id: p.id, ok: p.ok, error: p.error })
+    for (const p of statuses) rows.push({ layer, id: p.id, ok: p.ok, error: p.error, stale: p.stale })
   }
   for (const s of engineStatus()) rows.push({ layer: 'truth', id: s.id, ok: s.ok, error: s.error })
   const l = llmStatus()

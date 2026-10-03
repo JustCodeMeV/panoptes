@@ -16,6 +16,7 @@ const cache = new TtlCache<Feature[]>(6 * 3600_000)
 export const gpsjamProvider: Provider = {
   id: 'gpsjam',
   layerId: LAYER_ID,
+  ttlMs: 3 * 3600_000,
   fetch() {
     return cache.get('cells', async () => {
       // Today's file appears during the day; fall back to the day before.

@@ -13,6 +13,7 @@ type Alert = { datasource: string; entity: { code: string; name: string }; time:
 export const iodaProvider: Provider = {
   id: 'ioda',
   layerId: LAYER_ID,
+  ttlMs: 5 * 60_000,
   async fetch() {
     const now = Math.floor(Date.now() / 1000)
     const url = `https://api.ioda.inetintel.cc.gatech.edu/v2/outages/alerts?from=${now - 6 * 3600}&until=${now}&entityType=country&limit=1000`

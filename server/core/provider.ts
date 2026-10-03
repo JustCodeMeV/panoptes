@@ -13,5 +13,9 @@ export interface Provider {
   layerId: string
   /** Return false to be skipped (e.g. missing API key). */
   enabled?(): boolean
+  /** How long a successful result is reused, however many clients poll. Default 5 min. */
+  ttlMs?: number
+  /** Env vars without which the provider is 'off' (never called). */
+  requires?: string[]
   fetch(ctx: ProviderContext): Promise<Feature[]>
 }

@@ -29,6 +29,7 @@ const yt = () => (client ??= Innertube.create({ retrieve_player: false }))
 export const youtubeScrapeProvider: Provider = {
   id: 'youtube-scrape',
   layerId: LAYER_ID,
+  ttlMs: 10 * 60_000,
   async fetch({ signal }) {
     const tube = await yt()
     const settled = await Promise.allSettled(

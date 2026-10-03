@@ -11,6 +11,7 @@ const TYPE: Record<string, string> = { EQ: 'earthquake', TC: 'cyclone', FL: 'flo
 export const gdacsProvider: Provider = {
   id: 'gdacs',
   layerId: LAYER_ID,
+  ttlMs: 10 * 60_000,
   async fetch() {
     const doc = parser.parse(await fetchText('https://www.gdacs.org/xml/rss.xml'))
     const out = []

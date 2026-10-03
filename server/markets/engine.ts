@@ -6,6 +6,7 @@ import { registerMarkets, relatedStories } from '../core/xref.ts'
 import { tokenSet } from '../truth/text.ts'
 import { gate, locateMarket } from './gate.ts'
 import { fetchKalshi, kalshiHistory } from './sources/kalshi.ts'
+import { backoffMs } from '../core/aggregate.ts'
 import { fetchManifold } from './sources/manifold.ts'
 import { fetchPolymarket, polymarketHistory } from './sources/polymarket.ts'
 import type { RawMarket } from './types.ts'
@@ -171,17 +172,26 @@ export function startMarketsEngine() {
   if (started) return
   started = true
   for (const src of SOURCES) {
+    let failures = 0
+    let tryAt = 0
     const tick = async () => {
+      if (Date.now() < tryAt) return // backing off after errors
       const t0 = Date.now()
       try {
         const raws = await src.run()
         apply(src.id, raws)
         const count = [...entries.values()].filter((e) => e.raw.platform === src.id).length
+        if (failures) console.log(`[markets:${src.id}] recovered after ${failures} failure(s)`)
+        failures = 0
         status.set(src.id, { id: src.id, ok: true, count, ms: Date.now() - t0 })
       } catch (e) {
         const error = e instanceof Error ? e.message : String(e)
-        console.warn(`[markets:${src.id}] ${error}`)
-        status.set(src.id, { id: src.id, ok: false, count: 0, error, ms: Date.now() - t0 })
+        failures++
+        tryAt = Date.now() + backoffMs(failures, src.every, Number(error.match(/HTTP (\d{3})/)?.[1]) || 0)
+        if (failures === 1 || failures % 10 === 0) console.warn(`[markets:${src.id}] failed (${failures}x): ${error}`)
+        // Markets already loaded stay on the map; report them as stale rather than gone.
+        const count = [...entries.values()].filter((x) => x.raw.platform === src.id).length
+        status.set(src.id, { id: src.id, ok: count > 0, count, ms: Date.now() - t0, error: count ? `${error} (showing last good prices)` : error, ...(count ? { stale: true } : {}) })
       }
     }
     void tick().then(() => console.log(`[markets] ${src.id}: ${[...entries.values()].filter((e) => e.raw.platform === src.id).length} markets`))

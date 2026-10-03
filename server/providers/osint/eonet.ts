@@ -20,6 +20,7 @@ function firstPoint(g: Geo): [number, number] | null {
 export const eonetProvider: Provider = {
   id: 'eonet',
   layerId: LAYER_ID,
+  ttlMs: 15 * 60_000,
   async fetch() {
     const d = JSON.parse(await fetchText('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=120')) as { events: Ev[] }
     const out = []

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-type Row = { layer: string; id: string; ok: boolean; error?: string; off?: boolean }
+type Row = { layer: string; id: string; ok: boolean; error?: string; off?: boolean; stale?: boolean }
 
 /** Is every data source alive? A dead feed should be obvious BEFORE you present. */
 export function Health() {
@@ -23,7 +23,12 @@ export function Health() {
   const off = rows.filter((r) => r.off)
   const on = rows.filter((r) => !r.off)
   const bad = on.filter((r) => !r.ok)
-  const title = [...bad.map((b) => `${b.layer}/${b.id}: ${b.error ?? 'down'}`), ...off.map((b) => `${b.layer}/${b.id}: off (${b.error})`)].join('\n')
+  const stale = on.filter((r) => r.ok && r.stale)
+  const title = [
+    ...bad.map((b) => `${b.layer}/${b.id}: ${b.error ?? 'down'}`),
+    ...stale.map((b) => `${b.layer}/${b.id}: stale, ${b.error}`),
+    ...off.map((b) => `${b.layer}/${b.id}: off (${b.error})`),
+  ].join('\n')
   return (
     <span className={`health ${bad.length ? 'warn' : 'ok'}`} title={title || 'all sources responding'}>
       ● {on.length - bad.length}/{on.length} sources

@@ -7,6 +7,7 @@ type Quake = { id: string; properties: { mag: number; place: string; time: numbe
 export const usgsProvider: Provider = {
   id: 'usgs',
   layerId: LAYER_ID,
+  ttlMs: 5 * 60_000,
   async fetch() {
     const d = JSON.parse(await fetchText('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson')) as { features: Quake[] }
     return d.features.map((q) => {
