@@ -1,7 +1,12 @@
+import { geoArea, geoBounds, geoCentroid, geoContains, type GeoPermissibleObjects } from 'd3-geo'
+import { feature } from 'topojson-client'
+import type { GeometryCollection, Topology } from 'topojson-specification'
+import countries50 from 'world-atlas/countries-50m.json' with { type: 'json' }
+
 /**
- * Small offline gazetteer: [name, lat, lon, kind, ...aliases].
- * Cities/landmarks beat countries when both match. Extend freely; it is only
- * a fast first pass. (A real geocoder can be slotted in behind `geolocate`.)
+ * Offline gazetteer: [name, lat, lon, kind, ...aliases], plus every country from Natural Earth.
+ * Each place is assigned to the country polygon it sits in, so a mention of a
+ * city counts as evidence for its country (see `scoreLocations`). Extend freely.
  */
 type Kind = 'place' | 'country'
 type Row = [name: string, lat: number, lon: number, kind: Kind, ...aliases: string[]]
@@ -276,49 +281,278 @@ const ROWS: Row[] = [
   ['Brazil', -14.2, -51.9, 'country'],
 ]
 
+// --- Every other country, from Natural Earth polygons (world-atlas) ---
+// Rows above keep their hand-picked centroids; anything missing (Uganda,
+// Rwanda, ...) is added from the polygons with a cleaned-up name.
+
+const NE_NAMES: Record<string, string> = {
+  'United States of America': 'United States',
+  'Dem. Rep. Congo': 'Congo',
+  Congo: 'Republic of the Congo',
+  'S. Sudan': 'South Sudan',
+  'Central African Rep.': 'Central African Republic',
+  'Eq. Guinea': 'Equatorial Guinea',
+  'Dominican Rep.': 'Dominican Republic',
+  'Bosnia and Herz.': 'Bosnia and Herzegovina',
+  'W. Sahara': 'Western Sahara',
+  'Solomon Is.': 'Solomon Islands',
+  'Marshall Is.': 'Marshall Islands',
+  'Falkland Is.': 'Falkland Islands',
+  'Fr. Polynesia': 'French Polynesia',
+  'N. Cyprus': 'Northern Cyprus',
+  "Côte d'Ivoire": 'Ivory Coast',
+  eSwatini: 'Eswatini',
+  Macedonia: 'North Macedonia',
+  'Czechia': 'Czech Republic',
+}
+const NE_ALIASES: Record<string, string[]> = {
+  'Ivory Coast': ["Côte d'Ivoire", "Cote d'Ivoire"],
+  'Czech Republic': ['Czechia'],
+  'Bosnia and Herzegovina': ['Bosnia'],
+  'North Macedonia': ['Macedonia'],
+  'Eswatini': ['Swaziland'],
+  'Republic of the Congo': ['Congo-Brazzaville'],
+  'Timor-Leste': ['East Timor'],
+}
+
+type Shape = { id: string; name: string; geo: GeoPermissibleObjects; box: [[number, number], [number, number]] }
+const topo = countries50 as unknown as Topology<{ countries: GeometryCollection<{ name: string }> }>
+const SHAPES: Shape[] = feature(topo, topo.objects.countries).features.map((f) => {
+  const name = f.properties.name
+  return { id: String(f.id ?? name), name: NE_NAMES[name] ?? name, geo: f as GeoPermissibleObjects, box: geoBounds(f as GeoPermissibleObjects) }
+})
+
+const inBox = (s: Shape, lon: number, lat: number) => {
+  const [[x0, y0], [x1, y1]] = s.box
+  return lat >= y0 - 0.2 && lat <= y1 + 0.2 && (x0 <= x1 ? lon >= x0 - 0.2 && lon <= x1 + 0.2 : lon >= x0 - 0.2 || lon <= x1 + 0.2)
+}
+/** Country polygon containing a point; nudges a little for coastal cities that the 1:50m outline clips. */
+function shapeAt(lat: number, lon: number): Shape | undefined {
+  for (const [dx, dy] of [[0, 0], [0.08, 0], [-0.08, 0], [0, 0.08], [0, -0.08], [0.15, 0.15], [-0.15, -0.15], [0.15, -0.15], [-0.15, 0.15]]) {
+    const s = SHAPES.find((s) => inBox(s, lon + dx, lat + dy) && geoContains(s.geo, [lon + dx, lat + dy]))
+    if (s) return s
+  }
+}
+
+/** Largest polygon's centroid: France's pin belongs in Europe, not between Paris and Guiana. */
+function mainCentroid(s: Shape): [number, number] {
+  const g = (s.geo as unknown as { geometry: { type: string; coordinates: number[][][][] } }).geometry
+  if (g.type !== 'MultiPolygon') return geoCentroid(s.geo)
+  let best: number[][][] = g.coordinates[0]
+  let area = -1
+  for (const poly of g.coordinates) {
+    const a = geoArea({ type: 'Polygon', coordinates: poly })
+    if (a > area) [area, best] = [a, poly]
+  }
+  return geoCentroid({ type: 'Polygon', coordinates: best })
+}
+
+// Water bodies and straits belong to no country: they compete as their own location.
+const NO_COUNTRY = new Set(['Strait of Hormuz', 'Bab el-Mandeb', 'Taiwan Strait', 'Suez Canal'])
+// Where the 1:50m polygons disagree with how news names the place.
+const PARENT: Record<string, string> = { Sevastopol: 'Ukraine', Jerusalem: 'Israel', 'Hong Kong': 'China', Knesset: 'Israel' }
+
+type Entry = { name: string; lat: number; lon: number; kind: Kind; country?: string; site: boolean }
+
+// Polygon id -> hand-written country name ("Congo" row sits in the DRC polygon).
+const handById = new Map<string, string>()
+for (const [name, lat, lon, kind] of ROWS) {
+  const s = kind === 'country' ? shapeAt(lat, lon) : undefined
+  if (s && !handById.has(s.id)) handById.set(s.id, name)
+}
+
+const LOCS: Entry[] = []
+{
+  let site = false
+  for (const [name, lat, lon, kind] of ROWS) {
+    if (name === 'Plaza de Cibeles') site = true // rows from the "sites" block on are specific spots
+    if (kind === 'country') site = false
+    const shape = kind === 'country' || NO_COUNTRY.has(name) ? undefined : shapeAt(lat, lon)
+    const country = kind === 'country' ? name : (PARENT[name] ?? (shape ? (handById.get(shape.id) ?? shape.name) : undefined))
+    LOCS.push({ name, lat, lon, kind, country, site: site && kind === 'place' })
+  }
+}
+
+const autoRows: Row[] = []
+for (const s of SHAPES) {
+  if (handById.has(s.id) || LOCS.some((l) => l.name === s.name) || /Antarctic|Ter\.|I\. and|Is\.$|Siachen/.test(s.name)) continue
+  const [lon, lat] = mainCentroid(s)
+  const row: Row = [s.name, Math.round(lat * 100) / 100, Math.round(lon * 100) / 100, 'country', ...(NE_ALIASES[s.name] ?? [])]
+  autoRows.push(row)
+  LOCS.push({ name: s.name, lat: row[1], lon: row[2], kind: 'country', country: s.name, site: false })
+}
+
+// --- Demonyms: "Ugandan police", "French files". Capitalised, matched case-sensitively, weigh less than names. ---
+// Ambiguous ones are left out on purpose (Congolese, Korean, Guinean, Georgian).
+const DEMONYMS: Record<string, string[]> = {
+  Ukraine: ['Ukrainian', 'Ukrainians'], Russia: ['Russian', 'Russians'], Belarus: ['Belarusian'], Poland: ['Polish', 'Poles'],
+  Germany: ['German', 'Germans'], France: ['French'], 'United Kingdom': ['British', 'Briton', 'Britons'], Ireland: ['Irish'],
+  Spain: ['Spanish', 'Spaniards'], Portugal: ['Portuguese'], Italy: ['Italian', 'Italians'], Greece: ['Greek', 'Greeks'],
+  Netherlands: ['Dutch'], Belgium: ['Belgian'], Serbia: ['Serbian', 'Serbs'], Armenia: ['Armenian', 'Armenians'],
+  Azerbaijan: ['Azerbaijani', 'Azeri'], Turkey: ['Turkish', 'Turks'], Israel: ['Israeli', 'Israelis'],
+  Palestine: ['Palestinian', 'Palestinians'], Lebanon: ['Lebanese'], Syria: ['Syrian', 'Syrians'], Iraq: ['Iraqi', 'Iraqis'],
+  Iran: ['Iranian', 'Iranians'], 'Saudi Arabia': ['Saudi', 'Saudis'], Yemen: ['Yemeni', 'Yemenis', 'Houthi', 'Houthis'],
+  Egypt: ['Egyptian', 'Egyptians'], Libya: ['Libyan', 'Libyans'], Sudan: ['Sudanese'], 'South Sudan': ['South Sudanese'],
+  Ethiopia: ['Ethiopian', 'Ethiopians'], Somalia: ['Somali', 'Somalis'], Kenya: ['Kenyan', 'Kenyans'],
+  Nigeria: ['Nigerian', 'Nigerians'], Mali: ['Malian'], Niger: ['Nigerien'], 'Burkina Faso': ['Burkinabe'],
+  'South Africa': ['South African', 'South Africans'], Morocco: ['Moroccan', 'Moroccans'], Tunisia: ['Tunisian'],
+  Algeria: ['Algerian', 'Algerians'], India: ['Indian', 'Indians'], Pakistan: ['Pakistani', 'Pakistanis'],
+  Afghanistan: ['Afghan', 'Afghans', 'Taliban'], Bangladesh: ['Bangladeshi'], Nepal: ['Nepali', 'Nepalese'],
+  'Sri Lanka': ['Sri Lankan'], Myanmar: ['Burmese'], Thailand: ['Thai'], Vietnam: ['Vietnamese'],
+  Indonesia: ['Indonesian', 'Indonesians'], Philippines: ['Filipino', 'Filipinos', 'Philippine'], Malaysia: ['Malaysian'],
+  China: ['Chinese'], Taiwan: ['Taiwanese'], 'North Korea': ['North Korean', 'North Koreans'],
+  'South Korea': ['South Korean', 'South Koreans'], Japan: ['Japanese'], Australia: ['Australian', 'Australians'],
+  'New Zealand': ['New Zealander'], 'United States': ['American', 'Americans'], Canada: ['Canadian', 'Canadians'],
+  Mexico: ['Mexican', 'Mexicans'], Cuba: ['Cuban', 'Cubans'], Haiti: ['Haitian', 'Haitians'],
+  Venezuela: ['Venezuelan', 'Venezuelans'], Colombia: ['Colombian', 'Colombians'], Ecuador: ['Ecuadorian'],
+  Peru: ['Peruvian', 'Peruvians'], Bolivia: ['Bolivian'], Chile: ['Chilean', 'Chileans'],
+  Argentina: ['Argentine', 'Argentinian'], Brazil: ['Brazilian', 'Brazilians'], Uganda: ['Ugandan', 'Ugandans'],
+  Rwanda: ['Rwandan', 'Rwandans'], Tanzania: ['Tanzanian'], Ghana: ['Ghanaian'], Senegal: ['Senegalese'],
+  Cameroon: ['Cameroonian'], Chad: ['Chadian'], Zimbabwe: ['Zimbabwean'], Mozambique: ['Mozambican'],
+  Angola: ['Angolan'], Eritrea: ['Eritrean'], Hungary: ['Hungarian'], Romania: ['Romanian', 'Romanians'],
+  Bulgaria: ['Bulgarian'], Moldova: ['Moldovan'], Lithuania: ['Lithuanian'], Latvia: ['Latvian'], Estonia: ['Estonian'],
+  Finland: ['Finnish'], Sweden: ['Swedish'], Norway: ['Norwegian'], Denmark: ['Danish'], Austria: ['Austrian'],
+  Switzerland: ['Swiss'], 'Czech Republic': ['Czech'], Slovakia: ['Slovak'], Croatia: ['Croatian'],
+  Kazakhstan: ['Kazakh'], Uzbekistan: ['Uzbek'], Kyrgyzstan: ['Kyrgyz'], Tajikistan: ['Tajik'], Mongolia: ['Mongolian'],
+  Jordan: ['Jordanian'], Kuwait: ['Kuwaiti'], Qatar: ['Qatari'], 'United Arab Emirates': ['Emirati'], Oman: ['Omani'],
+  Bahrain: ['Bahraini'], Nicaragua: ['Nicaraguan'], Guatemala: ['Guatemalan'], Honduras: ['Honduran'],
+  'El Salvador': ['Salvadoran'], Panama: ['Panamanian'], Paraguay: ['Paraguayan'], Uruguay: ['Uruguayan'],
+}
+
+// Phrases that contain a place name but are not about that place: outlets, sports, other territories.
+const EXCLUSIONS = [
+  'France 24', 'France24', 'Radio France', 'France Info', 'France Télévisions', 'Agence France-Presse', 'Agence France Presse',
+  'Paris-based', 'Paris based', 'Paris Agreement', 'Paris climate', 'Paris Saint-Germain', 'Paris St-Germain', 'Paris Club',
+  'London-based', 'London based', 'Washington-based', 'Washington based', 'New York-based', 'New York Times', 'Washington Post',
+  'Doha-based', 'Dubai-based', 'Brussels-based', 'Geneva-based', 'Berlin-based', 'Moscow-based', 'Tehran-based',
+  'Al Jazeera', 'Voice of America', 'Radio Free Europe', 'Deutsche Welle', 'BBC', 'Sky News', 'Russia Today', 'China Daily',
+  'Times of India', 'Times of Israel', 'Jerusalem Post', 'Kyiv Independent', 'Kyiv Post', 'Moscow Times', 'Tehran Times',
+  'South China Morning Post', 'Japan Times', 'Korea Herald', 'Hong Kong Free Press', 'Iran International',
+  'French Open', 'French Polynesia', 'French Guiana', 'British Columbia', 'British Virgin Islands', 'Northern Ireland',
+  'New Mexico', 'Indian Ocean', 'Indian Premier League', 'American Samoa', 'Latin American', 'South American',
+  'Turks and Caicos', 'Papua New Guinea', 'Guinea-Bissau', 'Equatorial Guinea', 'Georgia Tech', 'Jordan Bardella',
+  'Michael Jordan', 'Paris Hilton', 'Chad Smith', 'Washington Commanders', 'Real Madrid', 'Atletico Madrid',
+  'Manchester United', 'Manchester City', 'Inter Milan', 'AC Milan',
+]
+
 export type GeoHit = {
   name: string
   lat: number
   lon: number
   kind: Kind
+  /** Country the hit belongs to (its own name for a country hit), when known. */
+  country?: string
+}
+
+export type GeoResult = GeoHit & {
+  /** Share of all location evidence that points to the winning country (0..1). */
+  confidence: number
+  /** How many documents name the winning country (directly or through a place in it). */
+  docs: number
 }
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-// Short all-caps aliases (UK, LA, US) must match case-sensitively to avoid noise.
-const entries = ROWS.flatMap(([name, lat, lon, kind, ...aliases]) =>
-  [name, ...aliases].map((alias) => ({
-    alias,
-    hit: { name, lat, lon, kind } satisfies GeoHit,
-    re: new RegExp(
-      `(?<![\\p{L}\\p{N}])${escape(alias)}(?![\\p{L}\\p{N}])`,
-      alias.length <= 3 ? 'u' : 'iu',
-    ),
-  })),
-).sort((a, b) => b.alias.length - a.alias.length)
+type Matcher = { loc: Entry; weight: number }
+const locByName = new Map(LOCS.map((l) => [l.name, l]))
+// Short all-caps aliases (UK, LA, US) and demonyms match case-sensitively to avoid noise; the rest ignore case.
+const exact = new Map<string, Matcher>()
+const folded = new Map<string, Matcher>()
+for (const [name, , , , ...aliases] of [...ROWS, ...autoRows]) {
+  const loc = locByName.get(name)!
+  for (const alias of [name, ...aliases]) {
+    if (alias.length <= 3) exact.set(alias, { loc, weight: 1 })
+    else if (!folded.has(alias.toLowerCase())) folded.set(alias.toLowerCase(), { loc, weight: 1 })
+  }
+}
+for (const [country, words] of Object.entries(DEMONYMS)) {
+  const loc = locByName.get(country)
+  if (loc) for (const w of words) exact.set(w, { loc, weight: 0.6 })
+}
+// One alternation per case mode, longest first: at any position the longest alias wins,
+// so "South Sudan" is consumed before "Sudan" can match inside it.
+const alternation = (words: string[], flags: string) =>
+  new RegExp(`(?<![\\p{L}\\p{N}])(?:${words.sort((x, y) => y.length - x.length).map(escape).join('|')})(?![\\p{L}\\p{N}])`, flags)
+const EXACT_RE = alternation([...exact.keys()], 'gu')
+const FOLDED_RE = alternation([...folded.keys()], 'giu')
+const EXCLUDE_RE = alternation(EXCLUSIONS, 'giu')
 
-/** First pass: best (most specific) place mentioned in free text, or null. */
+const blank = (s: string) => ' '.repeat(s.length)
+
+type Hit = { at: number; len: number; m: Matcher }
+function mentions(text: string): Hit[] {
+  // "Kuwait-born", "Iranian-backed": origin or sponsor, not where it happens.
+  const work = text.replace(EXCLUDE_RE, blank).replace(/[\p{L}.]+-(?:born|backed|based|made|led|funded|linked|flagged)(?![\p{L}])/gu, blank)
+  const hits: Hit[] = []
+  for (const r of work.matchAll(FOLDED_RE)) hits.push({ at: r.index, len: r[0].length, m: folded.get(r[0].toLowerCase())! })
+  for (const r of work.matchAll(EXACT_RE)) hits.push({ at: r.index, len: r[0].length, m: exact.get(r[0])! })
+  hits.sort((x, y) => x.at - y.at || y.len - x.len)
+  const out: Hit[] = []
+  let end = -1
+  for (const h of hits) {
+    if (h.at < end) continue // inside a longer match
+    out.push(h)
+    end = h.at + h.len
+  }
+  return out
+}
+
+export type GeoDoc = { text: string | undefined; weight?: number }
+
+/**
+ * Where a set of documents is about. Every mention is evidence for its country
+ * (a city counts for the country it is in), weighted by the document's weight,
+ * by how early it appears, and by repetition; the best-supported country wins,
+ * then its best-supported place is returned (or the country centroid).
+ * Outlet names ("France 24", "Paris-based"), sports clubs and similar phrases
+ * are masked first, and a longer alias masks the shorter ones inside it.
+ */
+export function scoreLocations(docs: GeoDoc[], opts: { avoid?: string[] } = {}): GeoResult | null {
+  const country = new Map<string, { score: number; docs: number }>()
+  const place = new Map<string, number>()
+  let total = 0
+  for (const { text, weight = 1 } of docs) {
+    if (!text) continue
+    const seenHere = new Map<string, number>()
+    const countriesHere = new Set<string>()
+    for (const { at, m } of mentions(text)) {
+      const key = m.loc.country ?? m.loc.name
+      const n = seenHere.get(m.loc.name) ?? 0
+      seenHere.set(m.loc.name, n + 1)
+      const early = 1 + 0.5 * (1 - at / Math.max(1, text.length))
+      let pts = weight * m.weight * early * (n === 0 ? 1 : 0.3)
+      if (opts.avoid?.includes(key)) pts *= 0.2
+      const c = country.get(key) ?? { score: 0, docs: 0 }
+      c.score += pts
+      if (!countriesHere.has(key)) {
+        countriesHere.add(key)
+        c.docs++
+      }
+      country.set(key, c)
+      if (m.loc.kind === 'place') place.set(m.loc.name, (place.get(m.loc.name) ?? 0) + pts * (m.loc.site ? 1.2 : 1))
+      total += pts
+    }
+  }
+  if (!total) return null
+  const [key, best] = [...country.entries()].sort((a, b) => b[1].score - a[1].score)[0]
+  const inside = [...place.entries()].filter(([n]) => (locByName.get(n)!.country ?? n) === key).sort((a, b) => b[1] - a[1])[0]
+  const loc = inside ? locByName.get(inside[0])! : locByName.get(key)!
+  return { name: loc.name, lat: loc.lat, lon: loc.lon, kind: loc.kind, country: loc.country, confidence: best.score / total, docs: best.docs }
+}
+
+/** Best location for free text; the first text weighs most (usually a title). */
 export function geolocate(...texts: (string | undefined)[]): GeoHit | null {
   return geolocateAvoiding([], ...texts)
 }
 
 /**
- * Like `geolocate`, but skips the named countries when something else matches.
+ * Like `geolocate`, but discounts the named countries so something else wins when present.
  * "Will the U.S. invade Iran?" is about Iran, not the United States.
  */
 export function geolocateAvoiding(avoid: string[], ...texts: (string | undefined)[]): GeoHit | null {
-  const text = texts.filter(Boolean).join(' \n ')
-  if (!text) return null
-  let bestCountry: GeoHit | null = null
-  let fallback: GeoHit | null = null
-  for (const e of entries) {
-    if (!e.re.test(text)) continue
-    if (avoid.includes(e.hit.name)) {
-      fallback ??= e.hit
-      continue
-    }
-    if (e.hit.kind === 'place') return e.hit
-    bestCountry ??= e.hit
-  }
-  return bestCountry ?? fallback
+  const r = scoreLocations(texts.map((text, i) => ({ text, weight: i === 0 ? 2 : 1 })), { avoid })
+  return r && { name: r.name, lat: r.lat, lon: r.lon, kind: r.kind, country: r.country }
 }
+
+/** Country a known location belongs to (for clustering vetoes and filters). */
+export const countryOf = (name: string): string | undefined => locByName.get(name)?.country

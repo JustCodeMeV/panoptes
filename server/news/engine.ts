@@ -3,7 +3,7 @@ import type { LiveEvent } from '../../shared/live.ts'
 import { eventsPerMin, publish, registerStream } from '../core/hub.ts'
 import { registerStories, relatedMarkets } from '../core/xref.ts'
 import type { Assessment, Coverage, Signal } from '../../shared/truth.ts'
-import { geolocate } from '../geo/gazetteer.ts'
+import { scoreLocations } from '../geo/gazetteer.ts'
 import { assess } from '../truth/assess.ts'
 import type { Campaign, CampaignFlag, SourceClass } from '../../shared/truth.ts'
 import { establishedOutlet, socialSource, stateBloc, stateOutlet } from '../truth/domains.ts'
@@ -40,20 +40,63 @@ registerStream(LAYER_ID, { snapshot, heartbeat })
 
 const itemTokens = (i: NewsItem) => tokenSet(i.title)
 
+// Newsroom vocabulary: frequent in unrelated security stories, so it never makes two headlines "the same story".
+const GENERIC = new Set(
+  `police protest protester killed attack attacks strike strikes clash clashes military troops army forces government minister
+president official officials leader leaders country countries people dozen dozens injured dead death deaths arrest arrested
+security election vote opposition border state city capital world global international warns urges calls amid`.split(/\s+/),
+)
+
+/** Shared generic words ("police", "protest", "killed") are not enough: at least one shared word must be distinctive. */
 export function similar(a: Set<string>, b: Set<string>): boolean {
   let shared = 0
-  let long = false
+  let strong = 0
   for (const t of a) {
     if (!b.has(t)) continue
     shared++
-    if (t.length >= 7) long = true
+    if (t.length >= 5 && !GENERIC.has(t)) strong++
   }
-  return shared >= 3 || (shared >= 2 && shared / Math.min(a.size, b.size) >= 0.6) || (shared >= 2 && long && shared / Math.min(a.size, b.size) >= 0.5)
+  if (!strong) return false
+  const ratio = shared / Math.min(a.size, b.size)
+  return (shared >= 3 && strong >= 2) || (shared >= 2 && ratio >= 0.6) || (shared >= 2 && strong >= 1 && ratio >= 0.5 && [...a].some((t) => t.length >= 7 && b.has(t)))
 }
 
-function findStory(tokens: Set<string>): Story | undefined {
+/** Country an item is about, from its own title (weighs most) and summary. */
+const itemCountry = new Map<string, string | undefined>()
+function countryOfItem(i: NewsItem): string | undefined {
+  if (!itemCountry.has(i.id)) {
+    const r = scoreLocations([{ text: i.title, weight: 3 }, { text: i.summary, weight: 1 }])
+    itemCountry.set(i.id, r && r.confidence >= 0.5 ? (r.country ?? r.name) : undefined)
+  }
+  return itemCountry.get(i.id)
+}
+
+/** Most common country among a story's items, if any item names one. */
+function storyCountry(s: Story): string | undefined {
+  const n = new Map<string, number>()
+  for (const i of s.items) {
+    const c = countryOfItem(i)
+    if (c) n.set(c, (n.get(c) ?? 0) + 1)
+  }
+  return [...n.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+}
+
+/**
+ * Story an item belongs to. Compared against the story's opening reports and
+ * its latest ones (not every item ever, which let stories drift by chaining),
+ * and never across countries: a Ugandan story cannot join a French one just
+ * because both mention police and protests.
+ */
+function findStory(tokens: Set<string>, item: NewsItem): Story | undefined {
   if (tokens.size < 2) return undefined
-  for (const s of stories.values()) if (s.tokens.some((t) => similar(tokens, t))) return s
+  const country = countryOfItem(item)
+  for (const s of stories.values()) {
+    const probe = s.tokens.length > 11 ? [...s.tokens.slice(0, 3), ...s.tokens.slice(-8)] : s.tokens
+    if (!probe.some((t) => similar(tokens, t))) continue
+    const sc = country && storyCountry(s)
+    if (sc && sc !== country) continue
+    return s
+  }
 }
 
 // ---------- analysis ----------
@@ -140,7 +183,9 @@ async function analyze(story: Story): Promise<Feature> {
   const a: Assessment = assess({ signals, factChecks, coverage, markets })
   a.campaign = campaignOf(story, a.verdict === 'debunked', markets.some((m) => !m.playMoney && Math.abs(m.change24h ?? 0) >= 0.08))
 
-  const hit = geolocate(...items.map((i) => i.title), best.summary)
+  // Titles carry the location; summaries only nudge (they mention sources, other places, background).
+  const hit = scoreLocations(items.slice(0, 12).flatMap((i) => [{ text: i.title, weight: 3 }, { text: i.summary, weight: 0.5 }]))
+  const naming = hit ? items.filter((i) => countryOfItem(i) === (hit.country ?? hit.name)).length : 0
   const now = new Date().toISOString()
   return {
     id: story.id,
@@ -148,7 +193,9 @@ async function analyze(story: Story): Promise<Feature> {
     title: best.title,
     position: hit ? { lat: hit.lat, lon: hit.lon } : undefined,
     geoPrecision: hit ? 'inferred' : 'none',
-    geoBasis: hit ? `story mentions "${hit.name}" (${hit.kind})` : 'no location named in the story',
+    geoBasis: hit
+      ? `${naming > 1 ? `${naming} of ${items.length} reports name` : 'story names'} ${hit.kind === 'place' ? `"${hit.name}" (${hit.country ?? hit.kind})` : `"${hit.name}"`}`
+      : 'no location named in the story',
     observedAt: new Date(first.published).toISOString(),
     source: { provider: 'news-wire', platform: best.domain, url: best.url, retrievedAt: now },
     tags: [a.verdict, 'news', ...state.map(() => 'state-media')],
@@ -182,7 +229,7 @@ async function ingest(list: NewsItem[], silent: boolean) {
     seenTitles.add(key)
     if (!isTopical(`${it.title} ${it.summary}`)) continue
     const tk = itemTokens(it)
-    const existing = findStory(tk)
+    const existing = findStory(tk, it)
     if (existing) {
       if (existing.items.some((x) => x.domain === it.domain && x.title === it.title)) continue
       existing.items.push(it)
@@ -231,6 +278,7 @@ function prune() {
   }
   if (!gone.length) return
   for (const id of gone) {
+    for (const i of stories.get(id)?.items ?? []) itemCountry.delete(i.id)
     stories.delete(id)
     features.delete(id)
   }
