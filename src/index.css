@@ -176,3 +176,9 @@ h3.tabs button.on { color: var(--text); border-color: var(--c, var(--color-accen
 .cii-bars em { display: block; height: 100%; }
 .cii-bars b { font-family: var(--font-mono); font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
 .cii-bars small { grid-column: 1 / -1; color: var(--dim); font-size: 10px; }
+
+/* ---- sensor looks ---- */
+.sensor-modes { display: flex; flex-direction: column; gap: 2px; border: 1px solid color-mix(in srgb, var(--color-accent-2) 45%, transparent); background: color-mix(in srgb, var(--color-bg, #000) 85%, transparent); backdrop-filter: blur(4px); }
+.sensor-modes button { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; padding: 6px 8px; color: var(--dim); background: none; border: 0; cursor: pointer; }
+.sensor-modes button:hover { color: var(--color-ink); }
+.sensor-modes button.on { color: var(--color-bg, #000); background: var(--color-accent-2); }

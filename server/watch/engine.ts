@@ -28,8 +28,11 @@ export function haversineKm(a: { lat: number; lon: number }, b: { lat: number; l
 }
 
 /** Which watches a feature falls into (layer filter: empty = all layers). */
+/** High-volume layers alert only on what an analyst would want pushed: Telegram from official/newsroom channels or coordinated copies. */
+const alertWorthy = (f: Feature) => f.layerId !== 'telegram' || Number(f.props.tier) <= 2 || f.tags.includes('coordinated')
+
 export function matchWatches(f: Feature, watches: WatchRow[]): { watch: WatchRow; km: number }[] {
-  if (!f.position || f.layerId === LAYER_ID) return []
+  if (!f.position || f.layerId === LAYER_ID || !alertWorthy(f)) return []
   const out: { watch: WatchRow; km: number }[] = []
   for (const w of watches) {
     if (!(w.layers.length ? w.layers : DEFAULT_LAYERS).includes(f.layerId)) continue

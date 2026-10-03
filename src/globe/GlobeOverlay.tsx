@@ -7,6 +7,7 @@ import { GlobeControls } from '../../gui_elements/GlobeControls'
 import { useNow } from '../ui/useNow'
 import { useGlobeUi } from './globeUi'
 import { useViewer } from './viewerContext'
+import { SensorModes } from './sensor/SensorModes'
 
 const HOME = { lon: 15, lat: 30, height: 20_000_000 }
 // Zoom readout Z1–Z4 maps to camera height: Z1 = whole globe, each step ×4 closer
@@ -87,6 +88,9 @@ export function GlobeOverlay() {
   return (
     <div className="pointer-events-none absolute inset-0">
       <GlobeHUD lat={cam.lat} lon={cam.lon} altKm={cam.height / 1000} time={new Date(now)} />
+      <div className="pointer-events-auto absolute right-[76px] bottom-3">
+        <SensorModes />
+      </div>
       <div className="pointer-events-auto absolute right-3 bottom-3">
         <GlobeControls
           zoom={Math.round(zoomFor(cam.height) * 10) / 10}
