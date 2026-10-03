@@ -186,3 +186,11 @@ dt { color: var(--dim); } dd { margin: 0; } a { color: #8ab4ff; }
 .health { font-size: 10px; margin-left: 8px; letter-spacing: 0.04em; }
 .health.ok { color: #4ade80; } .health.warn { color: #fbbf24; cursor: help; } .health.bad { color: #f87171; }
 .boot { display: grid; place-items: center; color: var(--dim); font-size: 13px; }
+
+.demo-btn { margin-left: 8px; font-size: 10px; padding: 2px 8px; border: 1px solid #a855f7; color: #d8b4fe; border-radius: 99px; }
+.demo-btn:hover { background: rgba(168,85,247,0.2); }
+.demo-banner { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 8; width: min(640px, calc(100vw - 820px)); min-width: 380px; background: rgba(76,29,149,0.92); border: 1px solid #a855f7; border-radius: 12px; padding: 10px 16px; text-align: center; box-shadow: 0 6px 30px rgba(0,0,0,0.5); animation: slidein2 0.35s ease-out; }
+.demo-tag { font-size: 9px; letter-spacing: 0.2em; color: #e9d5ff; opacity: 0.8; }
+.demo-cap { font-size: 18px; font-weight: 700; margin: 4px 0 2px; }
+.demo-sub { font-size: 12px; color: #e9d5ff; line-height: 1.4; }
+@keyframes slidein2 { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }

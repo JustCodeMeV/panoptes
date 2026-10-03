@@ -161,6 +161,31 @@ verdict   debunked | disputed | unverified | corroborated | insufficient
   coverage counts are a proxy for corroboration, not proof. Always follow the evidence
   links. `GET /api/truth/status` shows per-source health.
 
+## Demo replay (presenter walk-through)
+
+A scripted, offline replay of one rumour from first post to debunk, played through
+the real UI and data shapes. Every item is tagged `demo` and titled `DEMO:` so it can't
+be mistaken for a live event. Start it with **▶ Run demo** in the layer panel, or open
+`http://localhost:5173/?demo` to start it automatically after 6 s. Press Esc or
+**■ Stop demo** to stop. About 75 s end to end.
+
+| Step | On screen | Say |
+|---|---|---|
+| 1 | A Telegram post appears near the Strait of Hormuz, flagged *Social-first* | "It starts on one channel. No outlet has it." |
+| 2 | Three more accounts on Telegram and Bluesky, *Social surge* | "Amplification across platforms, still no confirmation." |
+| 3 | Polymarket "US–Iran Hormuz agreement" drops 18 pts, *Market reacting* | "People are putting money on it. That's a signal, not proof." |
+| 4 | TASS and Press TV pick it up, *Aligned state outlets* (RU + IR) | "State media from two blocs frame it before any established outlet." |
+| 5 | A Lead Stories fact-check lands, verdict flips to **debunked**, *Contradicted* | "The footage is from 2023. The campaign pattern was visible before the debunk." |
+| 6 | The market drifts lower again; nothing in the OSINT layer | "Nothing physical backs it up, yet the fear premium stays." |
+| 7 | Al Jazeera English plays live in the dock, pinned at Doha | "Analysts can watch live regional coverage without leaving the map." |
+| 8 | The story is saved to the `DEMO: Hormuz tanker rumour` case | "A frozen snapshot with the timeline and every source, ready for handoff." |
+| 9 | Replay complete; demo pins are cleared | "Claim → money → media → campaign → verdict → evidence." |
+
+Notes for presenting:
+- Run `npm run dev` first. The replay itself needs no live data, but saving to the case needs the API. If the API is down, step 8 says so and moves on.
+- Replays reuse one demo case and refresh its snapshot, so running the demo several times doesn't pile up duplicates. Your previously active case is restored afterwards.
+- Step 7 embeds Al Jazeera's real 24/7 channel. It shows whatever they are broadcasting at the time, not footage of the scripted event.
+
 ## Notes
 
 - Inferred locations can be wrong. Treat as leads.

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { LAYERS } from '../layers'
 import { featuresOf, useStore } from '../core/store'
 import { CasePanel } from './CasePanel'
+import { DemoButton } from './DemoBanner'
 import { Health } from './Health'
 import { ago, useNow } from './useNow'
 
@@ -19,7 +20,7 @@ export function LayerPanel() {
     <aside className="panel">
       <header>
         <h1>PANOPTES</h1>
-        <span>open-source unrest &amp; influence mapping</span> <Health />
+        <span>open-source unrest &amp; influence mapping</span> <Health /> <DemoButton />
       </header>
       {LAYERS.map((def) => {
         const st = layers[def.id]

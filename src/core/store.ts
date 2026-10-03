@@ -54,6 +54,8 @@ type State = {
   setLoading(id: string, loading: boolean): void
   setData(id: string, data: LayerResponse): void
   setError(id: string, error: string): void
+  /** Drop features (fetched and pinned) plus their wire rows; used to clean up the demo replay. */
+  removeFeatures(layerId: string, ids: string[]): void
 }
 
 export const useStore = create<State>((set) => ({
@@ -137,11 +139,29 @@ export const useStore = create<State>((set) => ({
   setLoading: (id, loading) =>
     set((s) => ({ layers: { ...s.layers, [id]: { ...s.layers[id], loading } } })),
   setData: (id, data) =>
-    set((s) => ({
-      layers: { ...s.layers, [id]: { ...s.layers[id], data, error: undefined, loading: false } },
-    })),
+    set((s) => {
+      // A snapshot or poll must not wipe an in-flight demo replay's features.
+      const ids = new Set(data.features.map((f) => f.id))
+      const demo = (s.layers[id].data?.features ?? []).filter((f) => f.tags.includes('demo') && !ids.has(f.id))
+      const merged = demo.length ? { ...data, features: [...demo, ...data.features] } : data
+      return { layers: { ...s.layers, [id]: { ...s.layers[id], data: merged, error: undefined, loading: false } } }
+    }),
   setError: (id, error) =>
     set((s) => ({ layers: { ...s.layers, [id]: { ...s.layers[id], error, loading: false } } })),
+  removeFeatures: (layerId, ids) =>
+    set((s) => {
+      const ls = s.layers[layerId]
+      if (!ls) return s
+      const gone = new Set(ids)
+      const data = ls.data && { ...ls.data, features: ls.data.features.filter((f) => !gone.has(f.id)) }
+      return {
+        layers: { ...s.layers, [layerId]: { ...ls, data, pinned: ls.pinned.filter((f) => !gone.has(f.id)) } },
+        ticker: s.ticker.filter((t) => !gone.has(t.featureId)),
+        fresh: Object.fromEntries(Object.entries(s.fresh).filter(([id]) => !gone.has(id))),
+        selectedId: s.selectedId && gone.has(s.selectedId) ? null : s.selectedId,
+        stack: s.stack.filter((id) => !gone.has(id)),
+      }
+    }),
 }))
 
 /** Pinned (analyst-created) features first, then fetched ones, deduped by id. */
