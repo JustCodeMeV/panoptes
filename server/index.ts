@@ -6,6 +6,7 @@ import { LAYERS } from './layers.ts'
 import { streamSource, subscribe } from './core/hub.ts'
 import { marketHistory, startMarketsEngine } from './markets/engine.ts'
 import { startNewsEngine } from './news/engine.ts'
+import { startUnrestEngine } from './unrest/engine.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
 
 const app = new Hono()
@@ -82,6 +83,7 @@ app.get('/api/stream/:id', (c) => {
 
 startNewsEngine()
 startMarketsEngine()
+startUnrestEngine()
 
 const port = Number(process.env.PORT ?? 8787)
 serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }, () =>
