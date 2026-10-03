@@ -17,7 +17,7 @@ async function auth(email: string, password: string): Promise<string> {
   const res = await fetch('https://acleddata.com/oauth/token', {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ username: email, password, grant_type: 'password', client_id: 'acled' }),
+    body: new URLSearchParams({ username: email, password, grant_type: 'password', client_id: 'acled', scope: 'authenticated' }),
     signal: AbortSignal.timeout(20_000),
   })
   if (!res.ok) throw new Error(`ACLED auth HTTP ${res.status}`)
@@ -45,6 +45,8 @@ export const acledProvider: Provider = {
       const q = new URLSearchParams({ _format: 'json', event_date: `${day(14)}|${day(0)}`, event_date_where: 'BETWEEN', limit: '4000' })
       const res = await fetch(`https://acleddata.com/api/acled/read?${q}`, { headers: { authorization: `Bearer ${bearer}` }, signal: AbortSignal.timeout(60_000) })
       if (res.status === 401) token = null
+      // Login works but the account lacks ACLED's "API" access group (granted by ACLED on request).
+      if (res.status === 403) throw new Error('ACLED: account has no API access yet (ask access@acleddata.com)')
       if (!res.ok) throw new Error(`ACLED HTTP ${res.status}`)
       const j = (await res.json()) as { data?: Ev[]; status?: number; error?: { message?: string } }
       if (!j.data) throw new Error(`ACLED: ${j.error?.message ?? 'no data'}`)
