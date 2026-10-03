@@ -2,7 +2,9 @@
 
 Open-source map of unrest and influence activity on a 3D globe (CesiumJS), built for defense analysts.
 
-- **Live wire**: 22 news feeds polled every 30-40 s, grouped into stories and re-analyzed as more outlets pick them up, pushed to the browser over SSE.
+- **Live wire**: news feeds polled every 30-40 s, grouped into stories (never across countries) and re-analyzed as more outlets pick them up, pushed to the browser over SSE.
+- **Telegram scouts**: a swarm reading ~70 public channels (official, newsroom, OSINT, state-affiliated, partisan) through the keyless web preview; same text on several channels is flagged as a coordinated copy, channels others keep forwarding are discovered automatically, posts can be translated on demand.
+- **Instability index**: one explainable 0-100 score per country from every other layer (clashes, attention, flagged narratives, shutdowns, jamming, markets, search trends), shaded on the globe.
 - **Markets**: Polymarket, Kalshi and Manifold odds on conflict and security, with live probability moves, price history, and links to the news stories they relate to.
 - **OSINT signals**: internet blackouts (IODA), UN disaster alerts (GDACS), earthquakes (USGS), NASA natural events.
 - **Live streams**: social-media livestreams, playable in-place from the pin.
@@ -10,7 +12,9 @@ Open-source map of unrest and influence activity on a 3D globe (CesiumJS), built
 - **Campaign watch + influence network**: stories whose spread looks coordinated, and a graph of which sources co-amplify them and who usually goes first (recurring pairs highlighted).
 - **AI analyst brief** (optional, Claude): a sourced summary of why a story is flagged, how each bloc frames it and what to check next; also semantic fact-check matching for the claim checker.
 - **Region watch**: draw a circle around a place; anything new from any layer inside it raises an alert in the live wire.
-- **Physical layers**: GPS jamming (GPSJam), military aircraft (adsb.lol), Ukraine frontline (DeepState), web censorship (OONI), submarine cables; ACLED, NASA FIRMS and Cloudflare Radar when keys are set.
+- **Physical layers**: GPS jamming (GPSJam), military aircraft (adsb.lol), satellites overhead (CelesTrak, SGP4), Ukraine frontline (DeepState), web censorship (OONI), submarine cables; ships at chokepoints (AISStream), ACLED, NASA FIRMS and Cloudflare Radar when keys are set.
+- **Conflict events and search trends**: Wikipedia Current Events (cited, last 3 days) beside ACLED; Google Trends per country with security terms in 12 languages.
+- **Sensor looks**: night vision, FLIR and CRT post-processing on the globe (press V), adapted from God's Eye View (MIT).
 
 ```
 npm install
@@ -18,7 +22,7 @@ cp .env.example .env     # optional
 npm run dev              # web :5173 + api :8787
 ```
 
-No keys required. Keyed sources (Claude, ACLED, FIRMS, Cloudflare Radar, YouTube API,
+No keys required. Keyed sources (Claude, ACLED, FIRMS, Cloudflare Radar, AISStream, YouTube API,
 Google Fact Check) are listed in `.env.example`; until set they show as *off* in the
 health chip and everything else works.
 
@@ -76,6 +80,23 @@ entry (a named site if the text names one, else city, else country centroid), la
 `inferred`, so overlapping pins stack at one point; clicking a stack opens a chooser.
 Scraping is best-effort and may break when YouTube changes; a failing provider never
 takes the layer down (see provider chips in the panel).
+
+## Telegram scouts (`telegram` layer, real-time)
+
+```
+server/telegram/channels.ts   curated channels: tier, type (gov/media/osint/state/milblog), bloc, region
+server/telegram/parse.ts      t.me/s/<handle> preview -> posts (text, views, media, forwards, mentions)
+server/telegram/engine.ts     scout pool, adaptive cadence, coordination clusters, discovery, SSE
+GET /api/telegram/swarm       scouts, requests/min, discovered channels, busiest channels
+POST /api/llm/translate       on-demand translation of one post (Claude, rate-limited)
+```
+
+- **Polite by construction**: 6 scouts, one request start per 350 ms swarm-wide, each channel
+  polled at a cadence that follows its posting rate (30 s to 10 min), exponential backoff on errors.
+  No account and no bot: bots cannot read channels they do not administer; the preview needs neither.
+- **Signals**: posts are geolocated (Latin, Cyrillic and Arabic place names) and join live-wire
+  stories as social reports; unplaced posts are listed, not pinned. Near-identical text on 3+
+  channels within an hour is a coordination cluster; clusters and forwards feed the network graph.
 
 ## Live wire (`news` layer, real-time)
 
