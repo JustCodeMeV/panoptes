@@ -167,9 +167,10 @@ The app needs its Node server (polling engines, SSE, SQLite), so a static host
 like Netlify alone won't work. One Render web service serves both the API and
 the built frontend; `render.yaml` describes it.
 
-1. Render dashboard → **New → Blueprint** → pick this repo (or a **Web Service** with
-   build `npm ci && npm run build`, start `npm start`, env `NODE_VERSION=24`, `HOST=0.0.0.0`).
-2. Optional keys: `YOUTUBE_API_KEY`, `GOOGLE_FACTCHECK_API_KEY`.
+1. Render dashboard → **New → Web Service** → pick this repo, build `npm install; npm run build`,
+   start `npm start`. The server binds `0.0.0.0` when `RENDER` is set; any Node ≥ 24 works.
+   (`render.yaml` describes the same service if you prefer **New → Blueprint**.)
+2. Optional keys: see `.env.example`. Every source works without them or shows why it is idle.
 3. Free plan sleeps after ~15 min idle (about a minute to wake, a few more for feeds
    to fill). Use **Starter** or open the site ~10 min before a demo.
 4. Cases live on the instance disk and are wiped on redeploy. To keep them, attach
