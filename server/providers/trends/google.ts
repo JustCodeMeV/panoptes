@@ -1,6 +1,7 @@
 import { XMLParser } from 'fast-xml-parser'
 import type { Feature } from '../../../shared/feature.ts'
 import type { Provider } from '../../core/provider.ts'
+import { cached, refresh, trendsError } from '../../core/googletrends.ts'
 import { centroidOf } from '../../geo/gazetteer.ts'
 
 /**
@@ -11,15 +12,12 @@ import { centroidOf } from '../../geo/gazetteer.ts'
  * country, listing its trending searches and how many are security-related.
  */
 
-// ISO 3166 code -> gazetteer country name.
+// ISO 3166 code -> gazetteer country name. Kept to ~30: Google rate-limits trending RSS per IP.
 const GEOS: Record<string, string> = {
-  UA: 'Ukraine', RU: 'Russia', BY: 'Belarus', PL: 'Poland', RO: 'Romania', MD: 'Moldova', GE: 'Georgia', AM: 'Armenia',
-  AZ: 'Azerbaijan', TR: 'Turkey', IL: 'Israel', SA: 'Saudi Arabia', AE: 'United Arab Emirates', EG: 'Egypt', IQ: 'Iraq',
-  JO: 'Jordan', LB: 'Lebanon', MA: 'Morocco', DZ: 'Algeria', TN: 'Tunisia', NG: 'Nigeria', KE: 'Kenya', ZA: 'South Africa',
-  ET: 'Ethiopia', GH: 'Ghana', SN: 'Senegal', IN: 'India', PK: 'Pakistan', BD: 'Bangladesh', NP: 'Nepal', LK: 'Sri Lanka',
-  ID: 'Indonesia', PH: 'Philippines', TH: 'Thailand', VN: 'Vietnam', MY: 'Malaysia', TW: 'Taiwan', KR: 'South Korea', JP: 'Japan',
-  US: 'United States', CA: 'Canada', MX: 'Mexico', BR: 'Brazil', AR: 'Argentina', CO: 'Colombia', PE: 'Peru', CL: 'Chile',
-  VE: 'Venezuela', FR: 'France', DE: 'Germany', GB: 'United Kingdom', ES: 'Spain', IT: 'Italy', RS: 'Serbia', HU: 'Hungary', GR: 'Greece',
+  UA: 'Ukraine', RU: 'Russia', BY: 'Belarus', PL: 'Poland', MD: 'Moldova', GE: 'Georgia', TR: 'Turkey', IL: 'Israel',
+  SA: 'Saudi Arabia', AE: 'United Arab Emirates', EG: 'Egypt', IQ: 'Iraq', LB: 'Lebanon', NG: 'Nigeria', KE: 'Kenya',
+  ZA: 'South Africa', ET: 'Ethiopia', IN: 'India', PK: 'Pakistan', BD: 'Bangladesh', ID: 'Indonesia', PH: 'Philippines',
+  TW: 'Taiwan', KR: 'South Korea', US: 'United States', MX: 'Mexico', BR: 'Brazil', VE: 'Venezuela', FR: 'France', GB: 'United Kingdom',
 }
 
 // Security vocabulary in the languages people search in (stems).
@@ -46,10 +44,8 @@ export const isSecurity = (text: string) => SECURITY.test(text) && !SPORT.test(t
 
 type Trend = { query: string; traffic: string; at: number; news: { title: string; url: string; source: string }[]; security: boolean }
 
-async function country(geo: string, signal: AbortSignal): Promise<Trend[]> {
-  const res = await fetch(`https://trends.google.com/trending/rss?geo=${geo}`, { headers: { 'user-agent': 'Mozilla/5.0 panoptes-research/0.1' }, signal })
-  if (!res.ok) throw new Error(`HTTP ${res.status} trends.google.com`)
-  const doc = parser.parse(await res.text())
+function parse(xml: string): Trend[] {
+  const doc = parser.parse(xml)
   return arr(doc.rss?.channel?.item as Record<string, unknown>[]).map((it) => {
     const news = arr(it['ht:news_item'] as Record<string, string>[]).map((n) => ({ title: String(n['ht:news_item_title'] ?? ''), url: String(n['ht:news_item_url'] ?? ''), source: String(n['ht:news_item_source'] ?? '') }))
     const query = String(it.title ?? '')
@@ -62,37 +58,33 @@ export const googleTrendsProvider: Provider = {
   id: 'google-trends',
   layerId: 'trends',
   ttlMs: 15 * 60_000,
-  async fetch({ signal }) {
+  // Never waits on Google: serves what the shared client has cached and queues refreshes in the background.
+  async fetch() {
     const now = new Date().toISOString()
     const out: Feature[] = []
-    const queue = Object.entries(GEOS)
-    let failed = 0
-    await Promise.all(
-      Array.from({ length: 4 }, async () => {
-        for (let next = queue.shift(); next; next = queue.shift()) {
-          const [geo, name] = next
-          const pos = centroidOf(name)
-          if (!pos) continue
-          const trends = await country(geo, signal).catch(() => (failed++, null))
-          if (!trends?.length) continue
-          const sec = trends.filter((t) => t.security)
-          out.push({
-            id: `trends:${geo}`,
-            layerId: 'trends',
-            title: sec.length ? `${name}: ${sec.length} security search${sec.length > 1 ? 'es' : ''} trending (${sec[0].query})` : `${name}: trending searches`,
-            // Pinned only when something security-related trends; the rest stay in the list.
-            ...(sec.length ? { position: pos } : {}),
-            geoPrecision: sec.length ? 'approximate' : 'none',
-            geoBasis: `country-level trending searches (Google Trends, ${geo})`,
-            observedAt: new Date(Math.max(...trends.map((t) => t.at))).toISOString(),
-            source: { provider: 'google-trends', platform: 'trends.google.com', url: `https://trends.google.com/trending?geo=${geo}`, retrievedAt: now },
-            tags: ['trends', ...(sec.length ? ['security'] : [])],
-            props: { kind: 'trends', country: name, geo, securityTerms: sec.length, trends: [...sec, ...trends.filter((t) => !t.security)].slice(0, 12) },
-          })
-        }
-      }),
-    )
-    if (!out.length && failed) throw new Error(`HTTP 429 trends.google.com (all ${failed} countries failed)`)
+    for (const [geo, name] of Object.entries(GEOS)) {
+      refresh(geo)
+      const c = cached(geo)
+      const pos = centroidOf(name)
+      if (!c || !pos) continue
+      const trends = parse(c.xml)
+      if (!trends.length) continue
+      const sec = trends.filter((t) => t.security)
+      out.push({
+        id: `trends:${geo}`,
+        layerId: 'trends',
+        title: sec.length ? `${name}: ${sec.length} security search${sec.length > 1 ? 'es' : ''} trending (${sec[0].query})` : `${name}: trending searches`,
+        // Pinned only when something security-related trends; the rest stay in the list.
+        ...(sec.length ? { position: pos } : {}),
+        geoPrecision: sec.length ? 'approximate' : 'none',
+        geoBasis: `country-level trending searches (Google Trends, ${geo})`,
+        observedAt: new Date(Math.max(...trends.map((t) => t.at))).toISOString(),
+        source: { provider: 'google-trends', platform: 'trends.google.com', url: `https://trends.google.com/trending?geo=${geo}`, retrievedAt: now },
+        tags: ['trends', ...(sec.length ? ['security'] : [])],
+        props: { kind: 'trends', country: name, geo, securityTerms: sec.length, trends: [...sec, ...trends.filter((t) => !t.security)].slice(0, 12) },
+      })
+    }
+    if (!out.length && trendsError()) throw new Error(trendsError())
     return out
   },
 }

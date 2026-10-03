@@ -1,5 +1,6 @@
 import { XMLParser } from 'fast-xml-parser'
 import type { Signal } from '../../shared/truth.ts'
+import { trendingRss } from '../core/googletrends.ts'
 import { stripHtml } from './text.ts'
 
 /** A raw social/search trend. `context` = related headlines, used for topic gating & matching. */
@@ -24,12 +25,7 @@ function parseTraffic(t: string): number {
 const GEOS = ['US', 'GB', 'IN', 'AU', 'CA', 'IE', 'ZA', 'NG', 'KE', 'PH', 'SG', 'PK']
 
 async function googleTrends(geo: string): Promise<RawSignal[]> {
-  const res = await fetch(`https://trends.google.com/trending/rss?geo=${geo}`, {
-    headers: { 'user-agent': 'Mozilla/5.0 panoptes-research/0.1' },
-    signal: AbortSignal.timeout(15_000),
-  })
-  if (!res.ok) throw new Error(`Google Trends ${geo} HTTP ${res.status}`)
-  const doc = parser.parse(await res.text())
+  const doc = parser.parse(await trendingRss(geo)) // shared, rate-limited client
   return arr<Record<string, unknown>>(doc.rss?.channel?.item).map((it) => {
     const news = arr<Record<string, unknown>>(it['ht:news_item'] as never)
     return {

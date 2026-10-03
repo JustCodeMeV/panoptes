@@ -5,7 +5,7 @@ import { TrendsDetail } from './Detail'
 export const trends: LayerDef = {
   id: 'trends',
   label: 'Search trends',
-  description: 'What people search for right now in ~55 countries (Google Trends). Pinned where searches for explosions, protests, curfews or attacks are trending.',
+  description: 'What people search for right now in 30 countries (Google Trends). Pinned where searches for explosions, protests, curfews or attacks are trending.',
   color: '#f97316',
   refreshMs: 5 * 60_000,
   defaultEnabled: false,
