@@ -1,4 +1,5 @@
 import { mkdirSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { Feature } from '../../shared/feature.ts'
 
@@ -7,8 +8,9 @@ import type { Feature } from '../../shared/feature.ts'
  * at save time (live data keeps changing; an investigation needs what was seen
  * when). Every action is written to an audit log.
  */
-mkdirSync('data', { recursive: true })
-const db = new DatabaseSync(process.env.PANOPTES_DB ?? 'data/panoptes.db')
+const DB = process.env.PANOPTES_DB ?? 'data/panoptes.db'
+if (DB !== ':memory:') mkdirSync(dirname(DB), { recursive: true })
+const db = new DatabaseSync(DB)
 db.exec(`
   PRAGMA journal_mode = WAL;
   CREATE TABLE IF NOT EXISTS cases (id INTEGER PRIMARY KEY, title TEXT NOT NULL, created TEXT NOT NULL);

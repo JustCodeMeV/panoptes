@@ -10,7 +10,11 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "start": "tsx server/index.ts",
     "test": "PANOPTES_DB=:memory: node --import tsx --test 'tests/**/*.test.ts'"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.3",

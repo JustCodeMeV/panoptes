@@ -1,0 +1,20 @@
+# Render blueprint: one web service serves the API (SSE, polling engines, SQLite) and the built frontend.
+services:
+  - type: web
+    name: panoptes
+    runtime: node
+    plan: free # free sleeps after ~15 min idle; use "starter" to keep it warm for a demo
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: HOST
+        value: 0.0.0.0
+      # Case file lives on the instance disk and is wiped on redeploy. Attach a disk
+      # (paid plans) and point PANOPTES_DB at it to keep cases, e.g. /var/data/panoptes.db
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: GOOGLE_FACTCHECK_API_KEY
+        sync: false

@@ -161,6 +161,22 @@ verdict   debunked | disputed | unverified | corroborated | insufficient
   coverage counts are a proxy for corroboration, not proof. Always follow the evidence
   links. `GET /api/truth/status` shows per-source health.
 
+## Deploy (Render)
+
+The app needs its Node server (polling engines, SSE, SQLite), so a static host
+like Netlify alone won't work. One Render web service serves both the API and
+the built frontend; `render.yaml` describes it.
+
+1. Render dashboard → **New → Blueprint** → pick this repo (or a **Web Service** with
+   build `npm ci && npm run build`, start `npm start`, env `NODE_VERSION=24`, `HOST=0.0.0.0`).
+2. Optional keys: `YOUTUBE_API_KEY`, `GOOGLE_FACTCHECK_API_KEY`.
+3. Free plan sleeps after ~15 min idle (about a minute to wake, a few more for feeds
+   to fill). Use **Starter** or open the site ~10 min before a demo.
+4. Cases live on the instance disk and are wiped on redeploy. To keep them, attach
+   a disk and set `PANOPTES_DB=/var/data/panoptes.db`.
+
+Locally, `npm run build && npm start` runs the same production setup on :8787.
+
 ## Demo replay (presenter walk-through)
 
 A scripted, offline replay of one rumour from first post to debunk, played through

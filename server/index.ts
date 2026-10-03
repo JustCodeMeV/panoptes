@@ -1,8 +1,11 @@
 // Many sources are polled concurrently; the default 4-thread DNS pool makes start-up bursts fail.
 process.env.UV_THREADPOOL_SIZE ??= '32'
 
+import { existsSync } from 'node:fs'
 import { serve } from '@hono/node-server'
+import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
+import { compress } from 'hono/compress'
 import { streamSSE } from 'hono/streaming'
 import { FeatureSchema } from '../shared/feature.ts'
 import { loadLayer } from './core/aggregate.ts'
@@ -135,7 +138,16 @@ startNewsEngine()
 startMarketsEngine()
 startUnrestEngine()
 
+// Production (e.g. Render): one service serves the API and the built frontend.
+// Skipped in dev, where Vite serves the frontend and proxies /api here.
+if (existsSync('dist/index.html')) {
+  app.use('*', async (c, next) => (c.req.path.startsWith('/api/') ? next() : compress()(c, next)))
+  app.use('/assets/*', async (c, next) => (await next(), c.res.headers.set('cache-control', 'public, max-age=31536000, immutable')))
+  app.use('*', serveStatic({ root: './dist' }))
+  app.get('*', (c, next) => (c.req.path.startsWith('/api/') ? next() : serveStatic({ path: './dist/index.html' })(c, next)))
+}
+
 const port = Number(process.env.PORT ?? 8787)
-serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }, () =>
-  console.log(`[panoptes] api on http://localhost:${port}`),
-)
+// Loopback by default; set HOST=0.0.0.0 on a host that routes traffic in (Render).
+const hostname = process.env.HOST ?? '127.0.0.1'
+serve({ fetch: app.fetch, port, hostname }, () => console.log(`[panoptes] listening on http://${hostname}:${port}`))
