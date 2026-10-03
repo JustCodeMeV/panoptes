@@ -28,7 +28,7 @@ jobs:
         run: git fetch --depth=1 origin data && git show FETCH_HEAD:trends.json > trends.json || echo 'no previous data'
       - name: Fetch feeds
         run: node scripts/trends-relay.ts trends.json
-      - name: Publish to data branch (single commit, force-pushed: no history growth)
+      - name: 'Publish to data branch (single commit, force-pushed, no history growth)'
         run: |
           mkdir pub && mv trends.json pub/ && cd pub
           git init -q -b data
