@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Badge } from '../../gui_elements/Badge'
 
 type Row = { layer: string; id: string; ok: boolean; error?: string; off?: boolean; stale?: boolean }
 
@@ -19,7 +20,12 @@ export function Health() {
       clearInterval(t)
     }
   }, [])
-  if (!rows) return <span className="health bad" title="API unreachable">● API down</span>
+  if (!rows)
+    return (
+      <span title="API unreachable">
+        <Badge tone="err">API down</Badge>
+      </span>
+    )
   const off = rows.filter((r) => r.off)
   const on = rows.filter((r) => !r.off)
   const bad = on.filter((r) => !r.ok)
@@ -30,8 +36,10 @@ export function Health() {
     ...off.map((b) => `${b.layer}/${b.id}: off (${b.error})`),
   ].join('\n')
   return (
-    <span className={`health ${bad.length ? 'warn' : 'ok'}`} title={title || 'all sources responding'}>
-      ● {on.length - bad.length}/{on.length} sources
+    <span title={title || 'all sources responding'} className={bad.length ? 'cursor-help' : undefined}>
+      <Badge tone={bad.length ? 'warn' : 'ok'}>
+        {on.length - bad.length}/{on.length} sources
+      </Badge>
     </span>
   )
 }

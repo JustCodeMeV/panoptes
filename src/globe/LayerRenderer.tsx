@@ -20,6 +20,9 @@ import {
 import type { Feature } from '../../shared/feature'
 import type { LayerDef } from '../core/types'
 import { featuresOf, useStore } from '../core/store'
+import { FLIGHTS } from '../../gui_elements/flights'
+import { useDesign } from '../../gui_elements/context'
+import { useGlobeUi } from './globeUi'
 import { clusterImage, pinImage } from './pins'
 import { useViewer } from './viewerContext'
 
@@ -62,6 +65,12 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
   const viewer = useViewer()!
   const sources = useRef(new Map<string, CustomDataSource>())
   const featureById = useRef(new Map<string, { feature: Feature; def: LayerDef }>())
+  // Camera flight time follows the design's fly-to feel
+  const flight = FLIGHTS[useDesign().flyto]
+  const flightSeconds = useRef(flight.dur / 1000)
+  useEffect(() => {
+    flightSeconds.current = flight.dur / 1000
+  }, [flight])
 
   // One DataSource per layer, created once.
   useEffect(() => {
@@ -78,6 +87,8 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
         cluster.billboard.image = clusterImage(def.color, members.length)
         cluster.billboard.verticalOrigin = VerticalOrigin.CENTER
         cluster.billboard.disableDepthTestDistance = Number.POSITIVE_INFINITY
+        // Images are drawn at 2× for sharpness
+        cluster.billboard.scale = 0.5
       })
       void viewer.dataSources.add(ds)
       sources.current.set(def.id, ds)
@@ -93,12 +104,13 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
   useEffect(() => {
     const sync = () => {
       const { layers: state, selectedId } = useStore.getState()
+      const hidden = useGlobeUi.getState().pinsHidden
       featureById.current.clear()
       for (const def of layers) {
         const ds = sources.current.get(def.id)
         if (!ds) continue
         const ls = state[def.id]
-        ds.show = ls.enabled
+        ds.show = ls.enabled && !hidden
         const features = featuresOf(ls)
         const want = new Map(features.filter((f) => f.position || f.geometry).map((f) => [f.id, f]))
         for (const e of [...ds.entities.values]) if (!want.has(e.id.split('#')[0])) ds.entities.remove(e)
@@ -121,6 +133,8 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
             disableDepthTestDistance: Number.POSITIVE_INFINITY,
             scaleByDistance: new NearFarScalar(2e5, 1.2, 2e7, 0.75),
             pixelOffset: new Cartesian2(0, 0),
+            // Images are drawn at 2× for sharpness
+            scale: 0.6,
           }
           const existing = ds.entities.getById(f.id)
           if (existing) {
@@ -132,10 +146,20 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
         }
       }
     }
+    // Pin images load asynchronously; with render-on-demand, ask for a few frames so they show up
+    const settle = () => {
+      viewer.scene.requestRender()
+      for (const ms of [150, 500, 1200]) setTimeout(() => !viewer.isDestroyed() && viewer.scene.requestRender(), ms)
+    }
     sync()
+    settle()
     // Only re-sync pins when pin-relevant state changed (not on loading flags etc).
     let prev = useStore.getState()
-    return useStore.subscribe((s) => {
+    const unsubUi = useGlobeUi.subscribe(() => {
+      sync()
+      settle()
+    })
+    const unsub = useStore.subscribe((s) => {
       const relevant =
         s.selectedId !== prev.selectedId ||
         layers.some((d) => {
@@ -146,17 +170,22 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
       prev = s
       if (relevant) {
         sync()
-        viewer.scene.requestRender()
+        settle()
       }
     })
+    return () => {
+      unsub()
+      unsubUi()
+    }
   }, [layers, viewer])
 
-  // Sonar ripples where a story just arrived/changed, so live events are impossible to miss.
+  // Flash burst where a story just arrived/changed (design: Event flash "Flash burst"): a bright
+  // pop that blooms out and fades to the layer colour, so live events are impossible to miss.
   useEffect(() => {
     const ds = new CustomDataSource('ripples')
     void viewer.dataSources.add(ds)
     const done = new Set<string>()
-    const LIFE = 5000
+    const LIFE = 900
     let raf = 0
     const pump = () => {
       viewer.scene.requestRender()
@@ -168,10 +197,10 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
       // Evaluated once per frame and shared: Cesium reads major/minor axes separately and
       // requires major >= minor, so two live evaluations would race.
       let p = 0
-      let r = 30_000
+      let r = 20_000
       const tick = () => {
         p = Math.min(1, Math.max(0, (performance.now() - t0) / LIFE))
-        r = 30_000 + viewer.camera.positionCartographic.height * 0.06 * p
+        r = 20_000 + viewer.camera.positionCartographic.height * 0.025 * Math.sqrt(p)
       }
       tick()
       viewer.scene.preRender.addEventListener(tick)
@@ -183,7 +212,9 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
           semiMajorAxis: radius,
           semiMinorAxis: radius,
           height: 0,
-          material: new ColorMaterialProperty(new CallbackProperty(() => base.withAlpha(progress() === 0 ? 0 : 0.5 * (1 - progress()) ** 1.5), false)),
+          material: new ColorMaterialProperty(
+            new CallbackProperty(() => (progress() === 0 ? Color.TRANSPARENT : Color.lerp(Color.WHITE, base, Math.min(1, progress() * 2.5), new Color()).withAlpha(0.9 * (1 - progress()) ** 2)), false),
+          ),
         },
       })
       setTimeout(() => {
@@ -201,7 +232,6 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
         const color = hit.def.pin(hit.feature).color ?? hit.def.color
         const { lon, lat } = hit.feature.position
         ripple(id, lon, lat, color, 0)
-        ripple(id, lon, lat, color, 700)
       }
       if (!raf && ds.entities.values.length) raf = requestAnimationFrame(pump)
     })
@@ -227,7 +257,7 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
           hit.feature.position.lat - (here > 2e6 ? 0 : 0.4),
           Math.min(here, 1_800_000),
         ),
-        duration: 1.4,
+        duration: flightSeconds.current,
       })
     })
   }, [viewer])

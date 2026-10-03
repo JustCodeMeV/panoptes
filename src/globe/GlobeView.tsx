@@ -1,5 +1,6 @@
 import { LAYERS } from '../layers'
 import { GlobeHost } from './GlobeHost'
+import { GlobeOverlay } from './GlobeOverlay'
 import { LayerRenderer } from './LayerRenderer'
 import { WatchCircles } from './WatchCircles'
 
@@ -9,6 +10,7 @@ export default function GlobeView() {
     <GlobeHost>
       <LayerRenderer layers={LAYERS} />
       <WatchCircles />
+      <GlobeOverlay />
     </GlobeHost>
   )
 }

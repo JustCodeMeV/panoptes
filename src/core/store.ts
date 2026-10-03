@@ -25,7 +25,7 @@ const neutral = (f: Feature, e: { change?: string; source?: string }): TickerVie
   detail: e.change ?? e.source,
 })
 
-type LayerState = {
+export type LayerState = {
   /** Analyst-created features (e.g. ad-hoc claim checks); survive refreshes. */
   pinned: Feature[]
   enabled: boolean

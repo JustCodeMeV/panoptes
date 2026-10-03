@@ -7,11 +7,12 @@ import { IconButton, Marker, type Precision } from './Controls'
 import { Icon } from './Icon'
 import { Toggle } from './Toggle'
 
-export type Layer = { id: string; label: string; count: number; on: boolean; desc: string; status: string; color: number; spark?: number[] }
-export type FeedEntry = { id: string; title: string; sub: string; p: Precision; time: string; viewers: string }
+/** `color` is a CSS colour, or a 1-based index into the design's layer palette. `extra` shows when the layer is expanded. */
+export type Layer = { id: string; label: string; count: number | string; on: boolean; desc: string; status: string; color: number | string; spark?: number[]; extra?: ReactNode }
+export type FeedEntry = { id: string; title: string; sub: string; p: Precision; time: string; viewers: string; color?: string }
 export type MetaItem = { k: string; v: string }
 
-const layerColor = (n: number) => `var(--layer-${n})`
+const layerColor = (c: number | string) => (typeof c === 'number' ? `var(--layer-${c})` : c)
 
 /* ---------------- Header / wordmark ---------------- */
 
@@ -88,9 +89,9 @@ export function LayerRow({ layer, onToggle }: { layer: Layer; onToggle: (on: boo
   }
 }
 
-export function LayerPanel({ layers, onToggle }: { layers: Layer[]; onToggle: (id: string, on: boolean) => void }) {
+export function LayerPanel({ layers, onToggle, defaultOpen }: { layers: Layer[]; onToggle: (id: string, on: boolean) => void; defaultOpen?: string }) {
   const v = useDesign().layerPanel
-  const [open, setOpen] = useState<string | undefined>(layers[0]?.id)
+  const [open, setOpen] = useState<string | undefined>(defaultOpen ?? layers[0]?.id)
   const label = <div className="sub t-label mb-2 text-accent">Layers</div>
   switch (v) {
     case 1:
@@ -105,7 +106,7 @@ export function LayerPanel({ layers, onToggle }: { layers: Layer[]; onToggle: (i
                 <div className="flex-1"><LayerRow layer={l} onToggle={(on) => onToggle(l.id, on)} /></div>
                 <button type="button" onClick={() => setOpen(open === l.id ? undefined : l.id)} className={`cursor-pointer text-dim transition-transform duration-(--dur) ${open === l.id ? 'rotate-90' : ''}`} aria-label="Expand"><Icon name="play" className="text-[9px]" /></button>
               </div>
-              {open === l.id && <p className="t-caption pb-2 text-dim">{l.desc}</p>}
+              {open === l.id && <div className="pb-2"><p className="t-caption text-dim">{l.desc}</p>{l.extra}</div>}
             </div>
           ))}
         </div>
@@ -121,6 +122,7 @@ export function LayerPanel({ layers, onToggle }: { layers: Layer[]; onToggle: (i
           </div>
           <LayerRow layer={cur} onToggle={(on) => onToggle(cur.id, on)} />
           <p className="t-caption mt-1 text-dim">{cur.desc}</p>
+          {cur.extra}
         </div>
       )
     }
@@ -171,6 +173,7 @@ export function LayerPanel({ layers, onToggle }: { layers: Layer[]; onToggle: (i
             <div key={l.id} className="mb-2 border-b border-line pb-2">
               <LayerRow layer={l} onToggle={(on) => onToggle(l.id, on)} />
               <p className="t-caption text-dim">{l.desc}</p>
+              {l.extra}
               {l.on && <p className="sub t-caption mt-1 text-accent-2">{l.status}</p>}
             </div>
           ))}
@@ -184,7 +187,7 @@ export function LayerPanel({ layers, onToggle }: { layers: Layer[]; onToggle: (i
 export function FeedItem({ entry, selected = false, onClick }: { entry: FeedEntry; selected?: boolean; onClick?: () => void }) {
   const v = useDesign().feed
   const base = `w-full cursor-pointer text-left transition-colors duration-(--dur) ${selected ? 'bg-ink/[0.07]' : 'hover:bg-ink/[0.04]'}`
-  const meta = <span className="sub t-caption truncate text-dim">{entry.viewers} · {entry.time} · {entry.sub}</span>
+  const meta = <span className="sub t-caption block truncate text-dim">{[entry.viewers, entry.time, entry.sub].filter(Boolean).join(' · ')}</span>
   switch (v) {
     case 1:
       return (
@@ -193,7 +196,7 @@ export function FeedItem({ entry, selected = false, onClick }: { entry: FeedEntr
           <span className="min-w-0"><span className="t-body line-clamp-2 leading-snug font-medium">{entry.title}</span><span className="mt-1 flex items-center gap-2"><Badge tone="live">Live</Badge>{meta}</span></span>
         </button>
       )
-    case 2: return <button type="button" onClick={onClick} className={`${base} flex items-center gap-s px-1.5 py-1`}><Marker p={entry.p} size={14} /><span className="t-body flex-1 truncate">{entry.title}</span><span className="t-caption font-mono text-dim">{entry.time}</span></button>
+    case 2: return <button type="button" onClick={onClick} className={`${base} flex items-center gap-s px-1.5 py-1`}><Marker p={entry.p} size={14} color={entry.color} /><span className="t-body flex-1 truncate">{entry.title}</span><span className="t-caption font-mono text-dim">{entry.time}</span></button>
     case 3:
       return (
         <button type="button" onClick={onClick} className={`${base} grid grid-cols-[38px_12px_1fr] gap-x-2 px-1.5 py-1.5`}>
@@ -221,7 +224,7 @@ export function FeedItem({ entry, selected = false, onClick }: { entry: FeedEntr
     default:
       return (
         <button type="button" onClick={onClick} className={`${base} grid grid-cols-[16px_1fr] gap-s px-1.5 py-1.5`}>
-          <span className="pt-0.5"><Marker p={entry.p} size={14} /></span>
+          <span className="pt-0.5"><Marker p={entry.p} size={14} color={entry.color} /></span>
           <span className="min-w-0"><span className="t-body line-clamp-2 leading-snug font-medium">{entry.title}</span>{meta}</span>
         </button>
       )

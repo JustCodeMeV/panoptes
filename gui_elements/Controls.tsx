@@ -31,6 +31,16 @@ export function Search({ placeholder = 'Search places, streams, sources', value,
   }
 }
 
+/** Plain text input in the same style as Search, without the search icon. */
+export function TextField({ placeholder, value, onChange, label }: { placeholder?: string; value: string; onChange: (v: string) => void; label: string }) {
+  const v = useDesign().search
+  return (
+    <label className={`sr sr-${v + 1} ${v === 0 || v === 8 ? 'chamfer' : ''} ${v === 7 ? 'ticks4' : ''}`}>
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={label} />
+    </label>
+  )
+}
+
 /** Dropdown in the input style. */
 export function Select({ label, children, ...props }: SelectHTMLAttributes<HTMLSelectElement> & { label: string }) {
   const v = useDesign().search
@@ -101,7 +111,8 @@ export function Slider({ value, onChange, min = 1, max = 24, label = 'Time windo
 
 /* ---------------- Precision markers ---------------- */
 
-export type Precision = 'exact' | 'approximate' | 'inferred'
+/** Where a feature's position comes from; 'none' = not placed on the map. */
+export type Precision = 'exact' | 'approximate' | 'inferred' | 'none'
 
 const DASH = { strokeDasharray: '2.5 2' }
 const HEX = (r: number) =>
@@ -113,6 +124,7 @@ const CHAMF = (h: number, c: number) =>
   `${12 - h + c},${12 - h} ${12 + h},${12 - h} ${12 + h},${12 + h - c} ${12 + h - c},${12 + h} ${12 - h},${12 + h} ${12 - h},${12 - h + c}`
 
 function markerShape(v: number, p: Precision): ReactNode {
+  if (p === 'none') return <circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" strokeWidth={1.2} opacity={0.5} />
   const ex = p === 'exact'
   const ap = p === 'approximate'
   const S = { stroke: 'currentColor', strokeWidth: 1.4, fill: 'none' }
@@ -163,7 +175,7 @@ export function Marker({ p, size = 22, color }: { p: Precision; size?: number; c
   if (v === 9)
     return (
       <span className={`mk mk-tag ${p}`} title={p} style={color ? { color } : undefined}>
-        {p === 'exact' ? '◆ EX' : p === 'approximate' ? '◈ AP' : '◇ IN'}
+        {p === 'exact' ? '◆ EX' : p === 'approximate' ? '◈ AP' : p === 'inferred' ? '◇ IN' : '○ —'}
       </span>
     )
   return (
@@ -179,7 +191,7 @@ export function MarkerGlyph({ p, x, y, size = 16, color }: { p: Precision; x: nu
   if (v === 9)
     return (
       <text x={x} y={y + 3} textAnchor="middle" fontSize={size * 0.5} fontFamily="var(--font-mono)" fontWeight={600} style={{ fill: color }}>
-        {p === 'exact' ? '◆EX' : p === 'approximate' ? '◈AP' : '◇IN'}
+        {p === 'exact' ? '◆EX' : p === 'approximate' ? '◈AP' : p === 'inferred' ? '◇IN' : '○'}
       </text>
     )
   return (

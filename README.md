@@ -34,15 +34,18 @@ server/
   truth/                     Truth-sensor engine (see below)
 src/
   core/                      LayerDef contract, zustand store, polling hook
-  globe/                     GlobeHost (viewer), LayerRenderer (generic pins/clusters/picking/fly-to)
-  ui/                        LayerPanel (toggles + feed list), DetailDock
+  globe/                     GlobeHost (viewer, wireframe/satellite), LayerRenderer (pins/clusters/picking/fly-to),
+                             GlobeOverlay (position readout + globe controls)
+  ui/                        LayerPanel (search, layers, live feed, case file), DetailDock, shell (minimise state)
   layers/<id>/               CLIENT layer: LayerDef + Detail component
   layers/index.ts            CLIENT registry
+gui_elements/                ATLAS UI kit: design.ts (chosen design), components, tokens (see gui_elements/README.md)
+canvas/                      Design editor: npm run canvas (port 5174), exports to gui_elements/design.ts
 ```
 
 Every `Feature` carries provenance: `source`, `geoPrecision` (`exact` |
 `approximate` | `inferred`) and `geoBasis` (why we put it there). The UI shows
-precision on pins (solid / ringed / dashed) and in the dock. Don't drop these
+precision on pins (solid / framed / dashed squares) and in the dock. Don't drop these
 fields: later modules (cases, correlation, disinformation scoring) rely on them.
 
 ### Add a layer

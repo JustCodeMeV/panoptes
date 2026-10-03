@@ -89,4 +89,4 @@ Parts are ordered so that later parts build on earlier ones (tokens → primitiv
 ## 7. Hand-off
 
 - [x] **`gui_elements/` structure**: `design.ts` (chosen design), `catalog.ts` (all options), components by area
-- [x] **Integration notes for the backend**: in `gui_elements/README.md`
+- [x] **Integration**: wired into the app on the `gui_elements` branch (see `gui_elements/README.md`, "How the app uses it")

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Button } from '../../gui_elements/Button'
 import { useDemo } from '../core/demo'
 import { runDemo, STEPS } from '../demo/script'
 
@@ -21,9 +22,9 @@ export function DemoButton() {
     return () => window.removeEventListener('keydown', esc)
   }, [])
   return (
-    <button className="demo-btn" onClick={() => (running ? ac.current?.abort() : start())}>
+    <Button variant="secondary" onClick={() => (running ? ac.current?.abort() : start())}>
       {running ? '■ Stop demo' : '▶ Run demo'}
-    </button>
+    </Button>
   )
 }
 
@@ -31,10 +32,13 @@ export function DemoBanner() {
   const { running, step, caption, sub } = useDemo()
   if (!running || !caption) return null
   return (
-    <div className="demo-banner">
-      <div className="demo-tag">SCRIPTED DEMO REPLAY · step {step}/{STEPS} · Esc to stop</div>
-      <div className="demo-cap">{caption}</div>
-      {sub && <div className="demo-sub">{sub}</div>}
+    // Chamfered caption box, top centre
+    <div className="chamfer absolute top-4 left-1/2 z-20 w-[min(640px,calc(100vw-48px))] -translate-x-1/2 bg-accent-2/45 p-px [--cut:12px]">
+      <div className="chamfer bg-panel/95 px-5 py-3 text-center backdrop-blur-sm [--cut:12px]" style={{ animation: 'da-fade var(--dur) var(--ease) both' }}>
+        <div className="sub t-label text-accent">Scripted demo replay · step {step}/{STEPS} · Esc to stop</div>
+        <div className="t-h mt-1 font-semibold text-white">{caption}</div>
+        {sub && <div className="t-caption mt-1 text-dim">{sub}</div>}
+      </div>
     </div>
   )
 }

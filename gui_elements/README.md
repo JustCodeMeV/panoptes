@@ -28,46 +28,29 @@ editor (`npm run canvas`, port 5174) and presses **Export to gui_elements**, whi
 The design editor itself lives in `canvas/` (`npm run canvas`), including a browser mock of the globe;
 the kit has no dependency on it.
 
-## Wiring it into the app
+## How the app uses it
 
-1. Install Tailwind v4:
-   ```bash
-   npm i -D tailwindcss @tailwindcss/vite
-   ```
-2. In `vite.config.ts`: `import tailwindcss from '@tailwindcss/vite'`, then `plugins: [react(), tailwindcss(), ...]`.
-3. At the top of `src/index.css`:
-   ```css
-   @import "tailwindcss";
-   @import "../gui_elements/theme.css";
-   ```
-   Tailwind's base reset (preflight) comes with this and restyles some existing elements
-   (headings, lists, buttons); the current `index.css` already resets buttons.
-4. In `src/main.tsx`: `import '../gui_elements/fonts.css'`, and wrap the app:
-   ```tsx
-   import { AtlasTheme } from '../gui_elements/AtlasTheme'
-   <AtlasTheme remember className="h-full"><App /></AtlasTheme>
-   ```
-5. Replace the hand-rolled UI in `src/ui/` with the kit, for example:
+Already wired in on this branch:
 
-| Today | Use |
-|---|---|
-| `.panel` / `.dock` asides | `<Panel>` (placement from `LAYOUTS[design.layout]`) |
-| `<h1>ATLAS</h1>` + tagline | `<Header />` |
-| `.switch` checkbox | `<Toggle checked onChange label />` |
-| `.count` pill, provider status | `<Badge>128</Badge>`, `<Badge tone="ok">OK 12</Badge>`, `<Badge tone="err">✕</Badge>` |
-| layer sections | `<LayerPanel layers onToggle />` |
-| `.list` buttons | `<AnimatedList items render={(e) => <FeedItem entry={e} selected onClick />} />` |
-| `.dot-exact` etc. | `<Marker p="exact" />` |
-| dock close `×` | `<IconButton icon="close" onClick />` |
-| DetailDock | `<DockTransition show><RollUp minimized><Panel><Dock title media={<MediaFrame />} onClose onMinimize minimized>…</Dock></Panel></RollUp></DockTransition>` |
-| panel minimise | Wrap the left panel in `<RollUp minimized>` and mark the header + search wrapper `data-roll-keep`. Minimise leaves ATLAS and search; the position box and globe take the freed space. For the dock: minimise rolls it up, then the globe controls glide to the right edge; restore moves the controls back first, then rolls the dock open (see `canvas/builder/FullMock.tsx` for the exact sequence). Close hides the dock; selecting a feed item or pin reopens it. |
-| player | `<MediaFrame state="live" />` around the embed |
-| API error / loading | `<StateView kind="error" onRetry />`, `<Toast tone="err" title body />` |
-| globe buttons | `<GlobeControls zoom onZoom onRotate onNorth tilt onTilt playing onPlay layersOn onLayers onHome />`, placed bottom-right of the globe area, left of the dock. Map each callback to the Cesium camera. The map button toggles `useAtlasControls().satellite`: switch Cesium between the wireframe style and satellite imagery. The palette button switches the colour scheme (handled inside `AtlasTheme`, nothing to wire). |
-| coords / time readout | `<GlobeHUD />` (Corner box): one block in the bottom-left corner of the globe area |
+- `vite.config.ts` runs the Tailwind plugin; `src/index.css` imports Tailwind and `gui_elements/theme.css`,
+  then styles the layer detail views with the ATLAS tokens.
+- `src/main.tsx` loads `fonts.css` and wraps the app in `<AtlasTheme remember>` (the viewer's colour
+  scheme and satellite choice persist between visits).
+- `src/App.tsx` lays out the screen from `LAYOUTS[design.layout]`: left panel, globe area, dock.
+  The globe area spans the space between the panels and grows as they minimise (`src/ui/shell.ts`).
+- `src/ui/LayerPanel.tsx`: `Panel` + `RollUp` with `Header`, `Search` (filters every layer's list),
+  the layer accordion (`LayerPanel` with `Toggle`, `Badge`, source status, each layer's controls,
+  `FeedItem` rows), `LiveFeed` (`AnimatedList` push-down), the case file and `Legend`.
+- `src/ui/DetailDock.tsx`: `DockTransition` + `RollUp` + `Panel` + `Dock`, wrapping each layer's own
+  `Detail` view. Minimise rolls it up, then the globe controls glide to the edge; restore reverses it.
+- `src/globe/`: Cesium styled to the design (wireframe coastlines/borders/graticule, satellite imagery
+  toggle, square halo pins, LCD clusters, crosshair selection, flash burst, fly-to timing from `flights.ts`),
+  with `GlobeOverlay` placing `GlobeHUD` (live camera position + UTC) and `GlobeControls` on the globe.
 
-`d3-geo`, `topojson-client` and `world-atlas` are dev dependencies used only by `MockGlobe` on the
-canvas; the app keeps Cesium and maps the globe choices onto it.
+The Cesium drawing (`src/globe/pins.ts`, the flash in `LayerRenderer.tsx`, `GlobeHost.tsx`) implements the
+chosen globe options; changing the Pins, Clusters, Selected pin, Event flash or Globe style choices in
+`design.ts` restyles the editor's mock globe but needs a matching change there. Layers keep their own
+colours (13 layers outnumber the 6-colour layer palette).
 
 ## Tokens available as Tailwind classes
 
