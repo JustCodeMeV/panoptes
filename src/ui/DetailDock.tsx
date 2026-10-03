@@ -1,10 +1,13 @@
 import { LAYERS } from '../layers'
+import { useCases } from '../core/cases'
 import { featuresOf, useSelected, useStore } from '../core/store'
 
 export function DetailDock() {
   const feature = useSelected()
   const select = useStore((s) => s.select)
   const stack = useStore((s) => s.stack)
+  const addToCase = useCases((s) => s.add)
+  const toast = useCases((s) => s.toast)
   const layers = useStore((s) => s.layers)
   if (!feature) return null
   const def = LAYERS.find((l) => l.id === feature.layerId)
@@ -28,7 +31,10 @@ export function DetailDock() {
           })}
         </div>
       )}
-      <div className="dock-kind">{def.label}</div>
+      <div className="dock-kind">
+        {def.label}
+        <button className="addcase" onClick={() => void addToCase(feature)}>{toast ?? '＋ Add to case'}</button>
+      </div>
       <Detail feature={feature} select={select} />
     </aside>
   )

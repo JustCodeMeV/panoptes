@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { LAYERS } from '../layers'
 import { featuresOf, useStore } from '../core/store'
+import { CasePanel } from './CasePanel'
 import { ago, useNow } from './useNow'
 
 export function LayerPanel() {
@@ -91,6 +92,7 @@ export function LayerPanel() {
           </section>
         )
       })}
+      <CasePanel />
       <footer>
         <span className="dot dot-exact" /> exact <span className="dot dot-approximate" /> approx{' '}
         <span className="dot dot-inferred" /> inferred <span className="dot dot-none" /> unplaced
