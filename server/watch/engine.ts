@@ -16,7 +16,7 @@ export const LAYER_ID = 'watch'
 const MAX_ALERTS = 300
 const STREAMS = ['news', 'markets']
 /** Layers a watch covers when it names none: churny or static layers (livestreams, frontlines) would only add noise. */
-export const DEFAULT_LAYERS = ['news', 'campaigns', 'markets', 'unrest', 'osint', 'narratives', 'gnss', 'military-air']
+export const DEFAULT_LAYERS = ['news', 'campaigns', 'markets', 'unrest', 'acled', 'osint', 'narratives', 'gnss', 'military-air']
 
 const R = 6371
 export function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }): number {

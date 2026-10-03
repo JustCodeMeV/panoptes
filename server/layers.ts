@@ -15,6 +15,10 @@ import { ooniProvider } from './providers/osint/ooni.ts'
 import { gpsjamProvider } from './providers/gnss/gpsjam.ts'
 import { adsblolProvider } from './providers/military/adsblol.ts'
 import { deepstateProvider } from './providers/frontlines/deepstate.ts'
+import { cablesProvider } from './providers/infrastructure/cables.ts'
+import { acledProvider } from './providers/acled/acled.ts'
+import { firmsProvider } from './providers/osint/firms.ts'
+import { cloudflareProvider } from './providers/osint/cloudflare.ts'
 
 /**
  * SERVER LAYER REGISTRY. A layer = an id + the providers that feed it.
@@ -28,8 +32,10 @@ export const LAYERS: Record<string, Provider[]> = {
   campaigns: [campaignsProvider],
   markets: [marketsProvider],
   unrest: [gdeltEventsProvider],
-  osint: [iodaProvider, ooniProvider, gdacsProvider, usgsProvider, eonetProvider],
+  osint: [iodaProvider, cloudflareProvider, ooniProvider, gdacsProvider, usgsProvider, eonetProvider, firmsProvider],
   gnss: [gpsjamProvider],
   'military-air': [adsblolProvider],
   frontlines: [deepstateProvider],
+  acled: [acledProvider],
+  infrastructure: [cablesProvider],
 }

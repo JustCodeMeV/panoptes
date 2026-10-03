@@ -10,6 +10,8 @@ import { watch } from './watch'
 import { gnss } from './gnss'
 import { militaryAir } from './military'
 import { frontlines } from './frontlines'
+import { acled } from './acled'
+import { infrastructure } from './infrastructure'
 
 /** CLIENT LAYER REGISTRY. One line per layer. */
-export const LAYERS: LayerDef[] = [watch, campaigns, unrest, news, markets, osint, gnss, militaryAir, frontlines, livestreams, narratives]
+export const LAYERS: LayerDef[] = [watch, campaigns, unrest, news, markets, acled, osint, gnss, militaryAir, frontlines, infrastructure, livestreams, narratives]

@@ -32,3 +32,26 @@ test('adsb: positions are exact; stale or positionless aircraft dropped; emergen
   assert.equal(f.props.squawk, '7700')
   assert.match(f.title, /RCH123 · C17/)
 })
+
+test('firms: high-power, non-low-confidence detections only; bad responses throw', async () => {
+  const { parseFirms } = await import('../server/providers/osint/firms.ts')
+  const csv = 'latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight\n' +
+    '48.1,37.8,340,0.4,0.4,2026-10-03,0112,N,VIIRS,n,2.0NRT,290,55.2,N\n' +
+    '48.2,37.9,320,0.4,0.4,2026-10-03,0112,N,VIIRS,l,2.0NRT,290,80,N\n' +
+    '48.3,37.7,310,0.4,0.4,2026-10-03,0112,N,VIIRS,h,2.0NRT,290,4,N\n'
+  const fs = parseFirms(csv, 'Ukraine')
+  assert.equal(fs.length, 1)
+  assert.equal(fs[0].props.severity, 'high')
+  assert.equal(fs[0].observedAt, '2026-10-03T01:12:00Z')
+  assert.throws(() => parseFirms('Invalid MAP_KEY.', 'x'), /FIRMS: Invalid MAP_KEY/)
+})
+
+test('acled: precision 1 is exact, coarser is approximate; fatalities kept', async () => {
+  const { toFeature: acled } = await import('../server/providers/acled/acled.ts')
+  const base = { event_id_cnty: 'UKR1', event_date: '2026-10-01', event_type: 'Battles', sub_event_type: 'Armed clash', actor1: 'A', country: 'Ukraine', location: 'Pokrovsk', latitude: '48.28', longitude: '37.18', fatalities: '3' }
+  assert.equal(acled({ ...base, geo_precision: '1' }).geoPrecision, 'exact')
+  const f = acled({ ...base, geo_precision: '3' })
+  assert.equal(f.geoPrecision, 'approximate')
+  assert.equal(f.props.fatalities, 3)
+  FeatureSchema.parse(f)
+})

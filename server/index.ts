@@ -23,6 +23,8 @@ import { briefFor } from './llm/analysis.ts'
 import { llmEnabled, llmStatus } from './llm/client.ts'
 
 const app = new Hono()
+// Layer snapshots can be large (jamming cells, frontline polygons); SSE streams stay uncompressed.
+app.use('/api/layers/*', compress())
 
 app.get('/api/health', (c) => c.json({ ok: true }))
 
