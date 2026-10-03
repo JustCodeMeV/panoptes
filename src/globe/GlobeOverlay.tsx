@@ -23,6 +23,8 @@ export function GlobeOverlay() {
   const flight = FLIGHTS[useDesign().flyto].dur / 1000
   const pinsHidden = useGlobeUi((s) => s.pinsHidden)
   const togglePins = useGlobeUi((s) => s.togglePins)
+  const sky = useGlobeUi((s) => s.sky)
+  const toggleSky = useGlobeUi((s) => s.toggleSky)
   const [cam, setCam] = useState({ lat: HOME.lat, lon: HOME.lon, height: HOME.height })
   const [spin, setSpin] = useState(false)
   const [tilt, setTilt] = useState(false)
@@ -108,6 +110,8 @@ export function GlobeOverlay() {
           onPlay={() => setSpin(!spin)}
           layersOn={!pinsHidden}
           onLayers={togglePins}
+          sky={sky}
+          onSky={toggleSky}
           onHome={() => {
             setSpin(false)
             setTilt(false)

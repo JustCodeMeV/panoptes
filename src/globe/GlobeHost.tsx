@@ -15,6 +15,8 @@ import type { GeometryCollection, Topology } from 'topojson-specification'
 import countries110 from 'world-atlas/countries-110m.json'
 import { COLOURS } from '../../gui_elements/catalog'
 import { useAtlasControls } from '../../gui_elements/context'
+import { useGlobeUi } from './globeUi'
+import { attachSky } from './sky'
 import { ViewerContext } from './viewerContext'
 
 /** Coastlines + country borders and a 10° graticule, as line strings in degrees. */
@@ -43,16 +45,21 @@ const toPositions = (line: [number, number][]) => Cartesian3.fromDegreesArrayHei
 /**
  * Owns the Cesium Viewer; children (layer renderers, overlays) get it via context.
  * Styled to the ATLAS design: a dark wireframe globe (coastlines, borders, graticule) in the
- * scheme's accent, with satellite imagery switchable from the globe controls.
+ * scheme's accent, with satellite imagery and the night sky switchable from the globe controls.
+ * `satellite` / `sky` force a view (the landing page) instead of following the controls.
  */
-export function GlobeHost({ children }: { children?: ReactNode }) {
+export function GlobeHost({ children, satellite: forceSatellite, sky: forceSky }: { children?: ReactNode; satellite?: boolean; sky?: boolean }) {
   const el = useRef<HTMLDivElement>(null)
   const [viewer, setViewer] = useState<Viewer | null>(null)
   // The same viewer, for imperative styling (Cesium objects are mutated, not React state)
   const viewerRef = useRef<Viewer | null>(null)
   const imagery = useRef<ImageryLayer | null>(null)
   const lines = useRef<{ wire: PolylineCollection; grid: PolylineCollection } | null>(null)
-  const { colour, satellite } = useAtlasControls()
+  const controls = useAtlasControls()
+  const { colour } = controls
+  const satellite = forceSatellite ?? controls.satellite
+  const skyToggle = useGlobeUi((s) => s.sky)
+  const sky = forceSky ?? skyToggle
 
   useEffect(() => {
     if (!el.current) return
@@ -86,7 +93,7 @@ export function GlobeHost({ children }: { children?: ReactNode }) {
     v.scene.primitives.add(wire)
     lines.current = { wire, grid }
 
-    // Clean HUD look: no stars, sun or moon
+    // Clean HUD look: no stars, sun or moon until the sky is switched on
     if (v.scene.skyBox) v.scene.skyBox.show = false
     if (v.scene.sun) v.scene.sun.show = false
     if (v.scene.moon) v.scene.moon.show = false
@@ -116,7 +123,10 @@ export function GlobeHost({ children }: { children?: ReactNode }) {
       setViewer(null)
       lines.current = null
       imagery.current = null
-      v.destroy()
+      // React unmounts parents before children: let the layer renderers and overlays
+      // release their Cesium objects first, then tear the viewer down.
+      v.useDefaultRenderLoop = false
+      setTimeout(() => v.destroy())
     }
   }, [])
 
@@ -140,6 +150,12 @@ export function GlobeHost({ children }: { children?: ReactNode }) {
     paint(lines.current.grid, accent.withAlpha(satellite ? 0.06 : 0.14))
     scene.requestRender()
   }, [viewer, colour, satellite])
+
+  // Night sky: built when switched on, freed when switched off
+  useEffect(() => {
+    if (!viewer || !sky) return
+    return attachSky(viewer)
+  }, [viewer, sky])
 
   return (
     <ViewerContext.Provider value={viewer}>

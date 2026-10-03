@@ -19,6 +19,16 @@ const ICONS: Record<string, ReactNode> = {
   pause: <path d="M9 6V18M15 6V18" {...LINE} />,
   layers: <path d="M12 4L20 8L12 12L4 8ZM4 12L12 16L20 12M4 16L12 20L20 16" {...LINE} />,
   home: <path d="M4.5 11L12 4.5L19.5 11V19.5H14.5V14.5H9.5V19.5H4.5Z" {...LINE} />,
+  saturn: (
+    <>
+      <circle cx="12" cy="12" r="4.6" {...LINE} />
+      <g transform="rotate(-22 12 12)">
+        {/* Back of the ring stops at the planet's edge; the front crosses it */}
+        <path d="M1.8 12A10.2 3.2 0 0 1 7.3 9.2M16.7 9.2A10.2 3.2 0 0 1 22.2 12" {...LINE} />
+        <path d="M1.8 12A10.2 3.2 0 0 0 22.2 12" {...LINE} />
+      </g>
+    </>
+  ),
   palette: <><path d="M12 4A8 8 0 1 0 12 20C13.4 20 13.6 18.9 12.9 18.1C12.2 17.3 12.5 16 13.8 16H16A4 4 0 0 0 20 12C20 7.6 16.4 4 12 4Z" {...LINE} /><circle cx="8" cy="11" r="1.1" fill="currentColor" /><circle cx="11" cy="7.8" r="1.1" fill="currentColor" /><circle cx="15" cy="8.5" r="1.1" fill="currentColor" /></>,
 }
 
@@ -93,10 +103,13 @@ export type GlobeControlsProps = {
   onPlay: () => void
   layersOn: boolean
   onLayers: () => void
+  /** Night sky behind the globe (optional: the cell shows only when wired). */
+  sky?: boolean
+  onSky?: () => void
   onHome: () => void
 }
 
-/** The globe control stack: zoom, rotate, north, 3D tilt, satellite map, auto-rotate, layers, colour scheme, home. */
+/** The globe control stack: zoom, rotate, north, 3D tilt, satellite map, auto-rotate, layers, night sky, colour scheme, home. */
 export function GlobeControls(p: GlobeControlsProps) {
   const { satellite, setSatellite } = useAtlasControls()
   const min = p.minZoom ?? 1
@@ -119,6 +132,7 @@ export function GlobeControls(p: GlobeControlsProps) {
         <Cell icon="map" label={satellite ? 'Wireframe view' : 'Satellite view'} onClick={() => setSatellite(!satellite)} active={satellite} />
         <Cell icon={p.playing ? 'pause' : 'play'} label={p.playing ? 'Stop rotation' : 'Auto-rotate'} onClick={p.onPlay} active={p.playing} />
         <Cell icon="layers" label="Show or hide layers" onClick={p.onLayers} active={p.layersOn} />
+        {p.onSky && <Cell icon="saturn" label={p.sky ? 'Hide the night sky' : 'Show the night sky'} onClick={p.onSky} active={p.sky} />}
         <ColourCell />
         <Cell icon="home" label="Reset view" onClick={p.onHome} />
       </Group>
