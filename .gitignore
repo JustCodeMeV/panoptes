@@ -25,4 +25,4 @@ dist-ssr
 
 # Local secrets / data
 .env
-data/
+/data/

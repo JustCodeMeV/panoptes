@@ -148,6 +148,6 @@ if (existsSync('dist/index.html')) {
 }
 
 const port = Number(process.env.PORT ?? 8787)
-// Loopback by default; set HOST=0.0.0.0 on a host that routes traffic in (Render).
-const hostname = process.env.HOST ?? '127.0.0.1'
+// Loopback locally; all interfaces on Render (which sets RENDER=true) so its router can reach us.
+const hostname = process.env.HOST ?? (process.env.RENDER ? '0.0.0.0' : '127.0.0.1')
 serve({ fetch: app.fetch, port, hostname }, () => console.log(`[panoptes] listening on http://${hostname}:${port}`))

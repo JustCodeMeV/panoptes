@@ -1,0 +1,12 @@
+[
+  { "externalId": "aljazeera-en", "channelId": "UCNye-wNBqNL5ZzHSJj3l8Bg", "title": "Al Jazeera English - Live", "channel": "Al Jazeera English", "location": "Doha", "lat": 25.29, "lon": 51.53, "tags": ["news", "24/7"] },
+  { "externalId": "dw-news", "channelId": "UCknLrEdhRCp1aegoMqRaCZg", "title": "DW News - Live", "channel": "DW News", "location": "Berlin", "lat": 52.52, "lon": 13.4, "tags": ["news", "24/7"] },
+  { "externalId": "france24-en", "channelId": "UCQfwfsi5VrQ8yKZ-UWmAEFg", "title": "FRANCE 24 English - Live", "channel": "FRANCE 24 English", "location": "Paris", "lat": 48.86, "lon": 2.35, "tags": ["news", "24/7"] },
+  { "externalId": "sky-news", "channelId": "UCoMdktPbSTixAyNGwb-UYkQ", "title": "Sky News - Live", "channel": "Sky News", "location": "London", "lat": 51.51, "lon": -0.13, "tags": ["news", "24/7"] },
+  { "externalId": "euronews-en", "channelId": "UCSrZ3UV4jOidv8ppoVuvW9Q", "title": "euronews - Live", "channel": "euronews (in English)", "location": "Lyon", "lat": 45.76, "lon": 4.84, "tags": ["news", "24/7"] },
+  { "externalId": "trt-world", "channelId": "UC7fWeaHhqgM4Ry-RMpM2YYw", "title": "TRT World - Live", "channel": "TRT World", "location": "Istanbul", "lat": 41.01, "lon": 28.98, "tags": ["news", "24/7"] },
+  { "externalId": "ndtv", "channelId": "UCZFMm1mMw0F81Z37aaEzTUA", "title": "NDTV 24x7 - Live", "channel": "NDTV", "location": "New Delhi", "lat": 28.61, "lon": 77.21, "tags": ["news", "24/7"] },
+  { "externalId": "wion", "channelId": "UC_gUM8rL-Lrg6O3adPW9K1g", "title": "WION - Live", "channel": "WION", "location": "New Delhi", "lat": 28.63, "lon": 77.23, "tags": ["news", "24/7"] },
+  { "externalId": "abc-news", "channelId": "UCBi2mrWuNuyYy4gbM6fU18Q", "title": "ABC News - Live", "channel": "ABC News", "location": "New York", "lat": 40.71, "lon": -74.0, "tags": ["news", "24/7"] },
+  { "externalId": "bloomberg", "channelId": "UCIALMKvObZNtJ6AmdCLP7Lg", "title": "Bloomberg - Live", "channel": "Bloomberg Television", "location": "New York", "lat": 40.76, "lon": -73.97, "tags": ["news", "finance", "24/7"] }
+]
