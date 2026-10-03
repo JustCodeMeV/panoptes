@@ -2,6 +2,7 @@ import type { Feature } from '../../../shared/feature'
 import type { ReviewVerdict } from '../../../shared/truth'
 import { CampaignView } from '../campaigns/Timeline'
 import { useState } from 'react'
+import { useDemo } from '../../core/demo'
 import { NetworkView } from '../../ui/NetworkGraph'
 import { BriefBox } from './BriefBox'
 import { VERDICT, assessmentOf } from './verdict'
@@ -17,7 +18,9 @@ const REVIEW_COLOR: Record<ReviewVerdict, string> = {
 const when = (iso?: string) => (iso ? new Date(iso).toLocaleDateString() : '')
 
 export function NarrativeDetail({ feature, select }: { feature: Feature; select?(id: string | null): void }) {
-  const [tab, setTab] = useState<'timeline' | 'network'>('timeline')
+  const [picked, setTab] = useState<'timeline' | 'network'>('timeline')
+  const demoTab = useDemo((s) => s.tab)
+  const tab = demoTab ?? picked
   const a = assessmentOf(feature)
   const v = VERDICT[a.verdict]
   const c = a.coverage

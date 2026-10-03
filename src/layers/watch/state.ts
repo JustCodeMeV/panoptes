@@ -8,7 +8,9 @@ export const useWatches = create<{ list: Watch[]; error?: string; load(): Promis
   async load() {
     try {
       const r = await fetch('/api/watches')
-      set({ list: (await r.json()) as Watch[] })
+      const fetched = (await r.json()) as Watch[]
+      // Negative ids are client-only (demo replay): keep them across reloads.
+      set((s) => ({ list: [...fetched, ...s.list.filter((w) => w.id < 0)] }))
     } catch {
       /* API down: keep the last list */
     }

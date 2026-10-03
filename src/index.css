@@ -204,8 +204,8 @@ dt { color: var(--dim); } dd { margin: 0; } a { color: #8ab4ff; }
 .brief-tag { margin-left: 6px; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: #a78bfa; font-weight: 500; }
 .brief-sub { display: block; margin-top: 6px; font-size: 11px; color: var(--dim); }
 .brief-meta { display: block; margin-top: 6px; font-size: 10px; color: var(--dim); }
-.frames { margin: 4px 0; }
-.frames div { display: grid; grid-template-columns: 110px 1fr; gap: 6px; }
+.brief dl.frames { display: block; margin: 6px 0; }
+.brief dl.frames div { display: grid; grid-template-columns: 130px 1fr; gap: 8px; padding: 1px 0; }
 .frames dt { color: var(--dim); }
 .frames dd { margin: 0; }
 .net svg { width: 100%; height: auto; display: block; background: #0b1220; border-radius: 6px; }

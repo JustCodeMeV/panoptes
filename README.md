@@ -7,6 +7,10 @@ Open-source map of unrest and influence activity on a 3D globe (CesiumJS), built
 - **OSINT signals**: internet blackouts (IODA), UN disaster alerts (GDACS), earthquakes (USGS), NASA natural events.
 - **Live streams**: social-media livestreams, playable in-place from the pin.
 - **Truth sensor**: trending narratives and fresh debunks cross-referenced against fact-check feeds and news coverage, plus an ad-hoc claim checker.
+- **Campaign watch + influence network**: stories whose spread looks coordinated, and a graph of which sources co-amplify them and who usually goes first (recurring pairs highlighted).
+- **AI analyst brief** (optional, Claude): a sourced summary of why a story is flagged, how each bloc frames it and what to check next; also semantic fact-check matching for the claim checker.
+- **Region watch**: draw a circle around a place; anything new from any layer inside it raises an alert in the live wire.
+- **Physical layers**: GPS jamming (GPSJam), military aircraft (adsb.lol), Ukraine frontline (DeepState), web censorship (OONI), submarine cables; ACLED, NASA FIRMS and Cloudflare Radar when keys are set.
 
 ```
 npm install
@@ -14,8 +18,9 @@ cp .env.example .env     # optional
 npm run dev              # web :5173 + api :8787
 ```
 
-No keys required. Without `YOUTUBE_API_KEY` the layer uses a key-less YouTube
-scrape plus a curated seed list.
+No keys required. Keyed sources (Claude, ACLED, FIRMS, Cloudflare Radar, YouTube API,
+Google Fact Check) are listed in `.env.example`; until set they show as *off* in the
+health chip and everything else works.
 
 ## Architecture
 
@@ -161,6 +166,49 @@ verdict   debunked | disputed | unverified | corroborated | insufficient
   coverage counts are a proxy for corroboration, not proof. Always follow the evidence
   links. `GET /api/truth/status` shows per-source health.
 
+## Influence network
+
+`GET /api/network` builds a co-amplification graph from live stories (`shared/network.ts`):
+two sources are linked when both carried a story within 6 h; the arrow points from the
+one that was usually first, with the median lead in minutes. A pair that recurs on 3+
+flagged stories is drawn red. `?story=<id>` restricts it to one story's sources while
+keeping each pair's history across all stories. Open it from **⌘ Network** in the panel or
+the **Network** tab next to a story's timeline. Leads for an analyst, not attribution.
+
+## AI analyst brief (optional)
+
+With `ANTHROPIC_API_KEY` set (default model `claude-haiku-4-5`, override with
+`PANOPTES_LLM_MODEL`), the **✦ Analyst brief** button on any story asks Claude for a
+summary, why it is flagged, how each outlet group frames it, next checks and English
+glosses of foreign headlines, using only the evidence the engine already gathered. The
+claim checker also has Claude judge lexical fact-check candidates as same claim / related /
+unrelated. Calls are cached per story state and capped per hour
+(`PANOPTES_LLM_MAX_PER_HOUR`, default 60). Without a key both fall back to keyword matching.
+
+## Region watch (`watch` layer, real-time)
+
+Add a watch by place name (gazetteer) or `lat, lon` plus a radius. Watches are stored in
+SQLite and audit-logged. `server/watch/engine.ts` checks every streamed upsert (news,
+markets) and sweeps polled layers every minute; anything inside a watch is pushed on
+`/api/stream/watch` as an alert, so the live wire, panel, globe and case file treat it like
+any other layer. What is already inside when a watch is created is a silent baseline.
+Livestreams and frontline polygons are excluded by default.
+
+## Physical layers
+
+| Layer | Source | Key | Notes |
+|---|---|---|---|
+| `gnss` | GPSJam daily H3 cells | none | aircraft reporting degraded GPS; cells with >10% affected, yesterday |
+| `military-air` | adsb.lol `/v2/mil` | none | only aircraft broadcasting ADS-B; many fly dark |
+| `frontlines` | DeepState | none | occupied + contested polygons; editorial claims skipped |
+| `infrastructure` | TeleGeography | none | submarine cable routes (schematic) |
+| `osint` + | OONI | none | per-country confirmed blocks / anomalies (24 h) |
+| `osint` + | NASA FIRMS | `FIRMS_MAP_KEY` | high-power thermal anomalies in conflict areas only |
+| `osint` + | Cloudflare Radar | `CLOUDFLARE_RADAR_TOKEN` | curated outages with cause |
+| `acled` | ACLED | `ACLED_EMAIL`/`ACLED_PASSWORD` | human-coded events, actors, fatalities, 14 days |
+
+Features may carry a GeoJSON `geometry` (polygon/line); the globe draws it instead of a pin.
+
 ## Deploy (Render)
 
 The app needs its Node server (polling engines, SSE, SQLite), so a static host
@@ -184,24 +232,26 @@ A scripted, offline replay of one rumour from first post to debunk, played throu
 the real UI and data shapes. Every item is tagged `demo` and titled `DEMO:` so it can't
 be mistaken for a live event. Start it with **▶ Run demo** in the layer panel, or open
 `http://localhost:5173/?demo` to start it automatically after 6 s. Press Esc or
-**■ Stop demo** to stop. About 75 s end to end.
+**■ Stop demo** to stop. About 100 s end to end.
 
 | Step | On screen | Say |
 |---|---|---|
-| 1 | A Telegram post appears near the Strait of Hormuz, flagged *Social-first* | "It starts on one channel. No outlet has it." |
+| 1 | A 300 km watch on the Strait of Hormuz fires: a Telegram post, *Social-first* | "An analyst is watching this strait. It starts on one channel. No outlet has it." |
 | 2 | Three more accounts on Telegram and Bluesky, *Social surge* | "Amplification across platforms, still no confirmation." |
 | 3 | Polymarket "US–Iran Hormuz agreement" drops 18 pts, *Market reacting* | "People are putting money on it. That's a signal, not proof." |
 | 4 | TASS and Press TV pick it up, *Aligned state outlets* (RU + IR) | "State media from two blocs frame it before any established outlet." |
-| 5 | A Lead Stories fact-check lands, verdict flips to **debunked**, *Contradicted* | "The footage is from 2023. The campaign pattern was visible before the debunk." |
-| 6 | The market drifts lower again; nothing in the OSINT layer | "Nothing physical backs it up, yet the fear premium stays." |
-| 7 | Al Jazeera English plays live in the dock, pinned at Doha | "Analysts can watch live regional coverage without leaving the map." |
-| 8 | The story is saved to the `DEMO: Hormuz tanker rumour` case | "A frozen snapshot with the timeline and every source, ready for handoff." |
-| 9 | Replay complete; demo pins are cleared | "Claim → money → media → campaign → verdict → evidence." |
+| 5 | The **Network** tab: TASS → Press TV in red, a recurring pair | "This isn't the first time: same order on five flagged stories, Press TV four minutes behind." |
+| 6 | Lead Stories fact-check, verdict **debunked**, and the analyst brief appears | "The footage is from 2023. The brief explains why it was flagged and what to check next." |
+| 7 | GPS jamming and military aircraft layers switch on; the market drifts lower | "Nothing physical backs it up, yet the fear premium stays." |
+| 8 | Al Jazeera English plays live in the dock, pinned at Doha | "Analysts can watch live regional coverage without leaving the map." |
+| 9 | The story is saved to the `DEMO: Hormuz tanker rumour` case | "A frozen snapshot with timeline, network, brief and every source, ready for handoff." |
+| 10 | Replay complete; demo pins are cleared | "Watch → claim → money → media → network → verdict → evidence." |
 
 Notes for presenting:
-- Run `npm run dev` first. The replay itself needs no live data, but saving to the case needs the API. If the API is down, step 8 says so and moves on.
+- Run `npm run dev` first. The replay itself needs no live data, but saving to the case needs the API. If the API is down, step 9 says so and moves on.
 - Replays reuse one demo case and refresh its snapshot, so running the demo several times doesn't pile up duplicates. Your previously active case is restored afterwards.
-- Step 7 embeds Al Jazeera's real 24/7 channel. It shows whatever they are broadcasting at the time, not footage of the scripted event.
+- The network numbers and the brief in steps 5-6 are pre-written for the replay (live ones come from `/api/network` and Claude). Step 7's jamming and aircraft are live data.
+- Step 8 embeds Al Jazeera's real 24/7 channel. It shows whatever they are broadcasting at the time, not footage of the scripted event.
 
 ## Notes
 

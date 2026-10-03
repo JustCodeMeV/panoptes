@@ -1,10 +1,12 @@
 import type { Feature } from '../../shared/feature'
 import type { LiveEvent } from '../../shared/live'
 import type { MarketProps } from '../../shared/markets'
-import type { Assessment, Campaign, CampaignFlag, FactCheckMatch } from '../../shared/truth'
+import type { NetGraph } from '../../shared/network'
+import type { Assessment, Brief, Campaign, CampaignFlag, FactCheckMatch } from '../../shared/truth'
 import { useCases } from '../core/cases'
 import { useDemo } from '../core/demo'
 import { useStore } from '../core/store'
+import { useWatches, type Watch } from '../layers/watch/state'
 
 /**
  * SCRIPTED REPLAY, NOT LIVE DATA. One rumour followed from first post to debunk,
@@ -17,8 +19,10 @@ const STORY = 'news:demo-hormuz'
 const MARKET = 'markets:demo-hormuz'
 const STREAM = 'livestreams:youtube:demo-aljazeera'
 const CASE_TITLE = 'DEMO: Hormuz tanker rumour'
+const ALERT = `watch:demo:${STORY}`
+const WATCH: Watch = { id: -1, name: 'DEMO: Strait of Hormuz', lat: HORMUZ.lat, lon: HORMUZ.lon, radiusKm: 300, layers: [], created: new Date().toISOString() }
 /** Number of narrated steps; the banner shows "step n/STEPS". */
-export const STEPS = 9
+export const STEPS = 10
 
 const sleep = (ms: number, s: AbortSignal) =>
   new Promise<void>((res, rej) => {
@@ -46,7 +50,7 @@ const marketRef = (p: number, d: number) => ({
   p, change24h: d, volume: 420_000, unit: 'usd' as const, playMoney: false, trust: 78,
 })
 
-function story(opts: { items: Src[]; verdict: Assessment['verdict']; risk: number; reasons: string[]; flags: CampaignFlag[]; score: number; blocs?: string[]; fc?: FactCheckMatch[]; market?: boolean; est?: number }): Feature {
+function story(opts: { items: Src[]; verdict: Assessment['verdict']; risk: number; reasons: string[]; flags: CampaignFlag[]; score: number; blocs?: string[]; fc?: FactCheckMatch[]; market?: boolean; est?: number; network?: NetGraph; brief?: Brief }): Feature {
   const t0 = T0()
   const sorted = opts.items
   const campaign: Campaign = {
@@ -89,6 +93,8 @@ function story(opts: { items: Src[]; verdict: Assessment['verdict']; risk: numbe
       outlets: new Set(sorted.filter((i) => i.cls !== 'social').map((i) => i.source)).size,
       social: sorted.filter((i) => i.cls === 'social').length,
       campaign: opts.score, items: sorted.length, updatedAt: Date.now(),
+      ...(opts.network ? { network: opts.network } : {}),
+      ...(opts.brief ? { brief: opts.brief } : {}),
     },
   }
 }
@@ -133,13 +139,64 @@ const upsert = (feature: Feature, kind: 'new' | 'update', change: string | undef
   type: 'upsert', kind, feature, change, item: { title: feature.title, source, at: Date.now() },
 })
 
+/** Pre-baked co-amplification history for the replay: the pair TASS -> Press TV recurs across flagged stories. */
+const NETWORK: NetGraph = {
+  generatedAt: new Date().toISOString(),
+  nodes: [
+    { id: 't.me/intelslava', cls: 'social', stories: 9, flagged: 6 },
+    { id: 't.me/disclosetv', cls: 'social', stories: 5, flagged: 3 },
+    { id: 'bsky:osintwatcher.bsky.social', cls: 'social', stories: 2, flagged: 1 },
+    { id: 't.me/clashreport', cls: 'social', stories: 7, flagged: 3 },
+    { id: 'tass.com', cls: 'state', bloc: 'RU', stories: 14, flagged: 7 },
+    { id: 'presstv.co.uk', cls: 'state', bloc: 'IR', stories: 8, flagged: 5 },
+  ],
+  edges: [
+    { from: 'tass.com', to: 'presstv.co.uk', weight: 5, led: 5, medianLeadMin: 4, recurring: true, stories: [STORY] },
+    { from: 't.me/intelslava', to: 'tass.com', weight: 4, led: 4, medianLeadMin: 29, recurring: true, stories: [STORY] },
+    { from: 't.me/intelslava', to: 't.me/disclosetv', weight: 3, led: 3, medianLeadMin: 9, recurring: true, stories: [STORY] },
+    { from: 't.me/intelslava', to: 't.me/clashreport', weight: 2, led: 2, medianLeadMin: 18, recurring: false, stories: [STORY] },
+    { from: 't.me/disclosetv', to: 'bsky:osintwatcher.bsky.social', weight: 1, led: 1, medianLeadMin: 3, recurring: false, stories: [STORY] },
+    { from: 't.me/clashreport', to: 'presstv.co.uk', weight: 2, led: 2, medianLeadMin: 16, recurring: false, stories: [STORY] },
+  ],
+  stories: [{ id: STORY, title: 'DEMO: Explosion reported near Strait of Hormuz', flagged: true }],
+}
+
+const BRIEF: Brief = {
+  summary: 'Social accounts claimed a tanker was hit near the Strait of Hormuz; Russian and Iranian state media repeated it within minutes. Lead Stories has since shown the footage is from a 2023 port fire.',
+  whyFlagged: [
+    'Started on one Telegram channel and spread to three more accounts before any newsroom reported it.',
+    'TASS and Press TV ran it before any established outlet: consistent with aligned amplification, not proof of it.',
+    'A matching fact-check rates the footage false while the story is still circulating.',
+  ],
+  frames: [
+    { actor: 'RU state (TASS)', frame: 'A US-blamed attack on shipping.' },
+    { actor: 'IR state (Press TV)', frame: 'A "US-backed" attack on a tanker.' },
+    { actor: 'Telegram accounts', frame: 'Breaking, unconfirmed blast with video.' },
+  ],
+  checkNext: [
+    'Check AIS for the named tanker and for vessels loitering near Bandar Abbas.',
+    'Watch whether established outlets correct or drop the story within 6 h.',
+    'Track the Polymarket move for reversal once the debunk spreads.',
+  ],
+  glosses: [],
+  model: 'pre-written for the replay (live briefs use Claude)',
+  at: new Date().toISOString(),
+}
+
+const alertOf = (f: Feature): Feature => ({
+  ...f, id: ALERT, layerId: 'watch', tags: [...f.tags, 'watch'],
+  props: { ...f.props, originLayer: 'news', originId: STORY, watchId: WATCH.id, watchName: WATCH.name, km: 0, change: 'new story in region', alertedAt: Date.now() },
+})
+
 const FC: FactCheckMatch = { publisher: 'Lead Stories', title: 'Video Does NOT Show Explosion At Strait Of Hormuz -- Footage Is From 2023 Port Fire', url: 'https://leadstories.com', date: new Date().toISOString(), verdict: 'false', score: 0.82 }
 
 export async function runDemo(signal: AbortSignal) {
   const d = useDemo.getState()
   const st = useStore.getState
   const say = (step: number, caption: string, sub?: string) => d.set({ step, caption, sub })
-  for (const id of ['news', 'markets', 'campaigns', 'osint', 'livestreams']) if (!st().layers[id]?.enabled) st().toggle(id)
+  for (const id of ['watch', 'news', 'markets', 'campaigns', 'osint', 'livestreams']) if (!st().layers[id]?.enabled) st().toggle(id)
+  const physical = ['gnss', 'military-air'].filter((id) => st().layers[id] && !st().layers[id].enabled)
+  useWatches.setState((w) => ({ list: [...w.list.filter((x) => x.id !== WATCH.id), WATCH] }))
   const prevCase = useCases.getState().activeId
   d.set({ running: true })
   const t0 = T0()
@@ -154,8 +211,10 @@ export async function runDemo(signal: AbortSignal) {
   const g = S(34, 'presstv.co.uk', 'state', 'US-backed attack on tanker in Hormuz strait', 'IR')
 
   try {
-    say(1, 'A rumour starts on Telegram', 'Social-first: no news outlet has it yet')
-    st().applyLive('news', upsert(story({ items: [a], verdict: 'insufficient', risk: 22, score: 5, flags: [FLAG.socialFirst], reasons: ['only social accounts report it so far; no news outlet has covered it yet'] }), 'new', undefined, a.source))
+    say(1, 'A region watch fires: a rumour starts on Telegram', 'An analyst watches 300 km around the Strait of Hormuz. The first post raises an alert; no news outlet has it yet')
+    const first = story({ items: [a], verdict: 'insufficient', risk: 22, score: 5, flags: [FLAG.socialFirst], reasons: ['only social accounts report it so far; no news outlet has covered it yet'] })
+    st().applyLive('news', upsert(first, 'new', undefined, a.source))
+    st().applyLive('watch', upsert(alertOf(first), 'new', `${WATCH.name} · 0 km · new story in region`, a.source))
     st().select(STORY)
     await sleep(8000, signal)
 
@@ -168,32 +227,39 @@ export async function runDemo(signal: AbortSignal) {
     st().applyLive('news', upsert(story({ items: [a, b, c, e], verdict: 'unverified', risk: 58, score: 35, flags: [FLAG.surge, FLAG.market], market: true, reasons: ['only social accounts report it so far; no news outlet has covered it yet', 'polymarket prices "US–Iran Hormuz agreement" at 31% (-18 pts/24h) with 78/100 market depth'] }), 'update', '⚑ Market reacting', 'polymarket'))
     await sleep(8000, signal)
 
+    const stateItems = { items: [a, b, c, e, f, g], blocs: ['RU', 'IR'], market: true, network: NETWORK }
     say(4, 'State media pick it up: Russia and Iran align', 'TASS and Press TV frame it within minutes, before any established outlet')
-    st().applyLive('news', upsert(story({ items: [a, b, c, e, f, g], verdict: 'unverified', risk: 81, score: 75, blocs: ['RU', 'IR'], flags: [FLAG.stateFirst, FLAG.bloc, FLAG.surge, FLAG.market], market: true, reasons: ['reported only by state-affiliated outlets so far (2 domains)', 'coverage comes only from state-affiliated outlets: tass.com, presstv.co.uk', 'markets treat this as likely while confirmation is still thin: worth a closer look'] }), 'update', '+tass.com · +presstv.co.uk · ⚑ Aligned state outlets', 'tass.com'))
+    st().applyLive('news', upsert(story({ ...stateItems, verdict: 'unverified', risk: 81, score: 75, flags: [FLAG.stateFirst, FLAG.bloc, FLAG.surge, FLAG.market], reasons: ['reported only by state-affiliated outlets so far (2 domains)', 'coverage comes only from state-affiliated outlets: tass.com, presstv.co.uk', 'markets treat this as likely while confirmation is still thin: worth a closer look'] }), 'update', '+tass.com · +presstv.co.uk · ⚑ Aligned state outlets', 'tass.com'))
+    await sleep(8000, signal)
+
+    say(5, 'Who amplifies whom: the influence network', 'TASS → Press TV is a recurring pair: same order on 5 flagged stories, Press TV ~4 min behind. The Telegram channel that started it feeds TASS too')
+    d.set({ tab: 'network' })
+    await sleep(10000, signal)
+
+    say(6, 'The fact-check lands, and the analyst brief writes itself', 'Lead Stories: the footage is from a 2023 port fire. The verdict flips to debunked; the AI brief summarises why and what to check next')
+    d.set({ tab: 'timeline' })
+    st().applyLive('news', upsert(story({ ...stateItems, verdict: 'debunked', risk: 96, score: 95, fc: [FC], brief: BRIEF, flags: [FLAG.stateFirst, FLAG.bloc, FLAG.surge, FLAG.contradicted, FLAG.market], reasons: ['Lead Stories fact-check rates a matching claim false (82% term match)', 'coverage comes only from state-affiliated outlets: tass.com, presstv.co.uk'] }), 'update', 'unverified → debunked · ⚑ Contradicted', 'leadstories.com'))
+    await sleep(10000, signal)
+
+    say(7, 'Physical signals: does anything on the ground back it up?', 'Live layers: GPS jamming from yesterday, military aircraft broadcasting now, outages and censorship. Nothing physical confirms a strike; the market keeps its fear premium')
+    for (const id of physical) st().toggle(id)
+    st().applyLive('markets', upsert(market(0.27, -0.04), 'update', 'Yes: 31% → 27% (−4.0 pts)', 'polymarket'))
     await sleep(9000, signal)
 
-    say(5, 'The fact-check lands', 'Lead Stories: the footage is from a 2023 port fire. The system flags the campaign as contradicted')
-    st().applyLive('news', upsert(story({ items: [a, b, c, e, f, g], verdict: 'debunked', risk: 96, score: 95, blocs: ['RU', 'IR'], fc: [FC], flags: [FLAG.stateFirst, FLAG.bloc, FLAG.surge, FLAG.contradicted, FLAG.market], market: true, reasons: ['Lead Stories fact-check rates a matching claim false (82% term match)', 'coverage comes only from state-affiliated outlets: tass.com, presstv.co.uk'] }), 'update', 'unverified → debunked · ⚑ Contradicted', 'leadstories.com'))
-    await sleep(8000, signal)
-
-    say(6, 'Physical signals: does anything on the ground back it up?', 'No outage, no disaster alert, no ship-tracking anomaly in the OSINT layer. The market, meanwhile, keeps its fear premium')
-    st().applyLive('markets', upsert(market(0.27, -0.04), 'update', 'Yes: 31% → 27% (−4.0 pts)', 'polymarket'))
-    await sleep(8000, signal)
-
-    say(7, 'Eyes on the region', 'The nearest 24/7 broadcaster plays inside the dashboard. Analysts can watch live coverage without leaving the map')
+    say(8, 'Eyes on the region', 'The nearest 24/7 broadcaster plays inside the dashboard. Analysts can watch live coverage without leaving the map')
     st().pin(stream())
     await sleep(9000, signal)
     st().select(STORY)
 
-    say(8, 'Save the evidence', 'A frozen snapshot with the timeline and every source goes into the case file')
+    say(9, 'Save the evidence', 'A frozen snapshot with the timeline, network, brief and every source goes into the case file')
     const saved = st().layers.news.data?.features.find((x) => x.id === STORY)
     try {
       if (saved) await saveEvidence(saved)
     } catch {
-      say(8, 'Save the evidence', 'Case file unavailable: the API server is not running, so this step is skipped')
+      say(9, 'Save the evidence', 'Case file unavailable: the API server is not running, so this step is skipped')
     }
     await sleep(6000, signal)
-    say(9, 'Replay complete', 'Claim → money → media → campaign pattern → verdict → evidence. Demo pins are cleared; the saved case stays in the case file')
+    say(10, 'Replay complete', 'Watch → claim → money → media → network → verdict → evidence. Demo pins are cleared; the saved case stays in the case file')
     await sleep(6000, signal)
   } catch {
     /* stopped by the user */
@@ -201,7 +267,10 @@ export async function runDemo(signal: AbortSignal) {
     st().removeFeatures('news', [STORY])
     st().removeFeatures('markets', [MARKET])
     st().removeFeatures('livestreams', [STREAM])
+    st().removeFeatures('watch', [ALERT])
+    useWatches.setState((w) => ({ list: w.list.filter((x) => x.id !== WATCH.id) }))
+    for (const id of physical) if (st().layers[id]?.enabled) st().toggle(id)
     if (prevCase && prevCase !== useCases.getState().activeId) void useCases.getState().setActive(prevCase).catch(() => {})
-    d.set({ running: false, step: 0, caption: undefined, sub: undefined })
+    d.set({ running: false, step: 0, caption: undefined, sub: undefined, tab: undefined })
   }
 }
