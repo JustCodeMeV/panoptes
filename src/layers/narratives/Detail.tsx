@@ -1,6 +1,8 @@
 import type { Feature } from '../../../shared/feature'
 import type { ReviewVerdict } from '../../../shared/truth'
 import { CampaignView } from '../campaigns/Timeline'
+import { useState } from 'react'
+import { NetworkView } from '../../ui/NetworkGraph'
 import { BriefBox } from './BriefBox'
 import { VERDICT, assessmentOf } from './verdict'
 
@@ -14,7 +16,8 @@ const REVIEW_COLOR: Record<ReviewVerdict, string> = {
 
 const when = (iso?: string) => (iso ? new Date(iso).toLocaleDateString() : '')
 
-export function NarrativeDetail({ feature }: { feature: Feature }) {
+export function NarrativeDetail({ feature, select }: { feature: Feature; select?(id: string | null): void }) {
+  const [tab, setTab] = useState<'timeline' | 'network'>('timeline')
   const a = assessmentOf(feature)
   const v = VERDICT[a.verdict]
   const c = a.coverage
@@ -35,8 +38,14 @@ export function NarrativeDetail({ feature }: { feature: Feature }) {
 
       {a.campaign && (
         <>
-          <h3>Spread pattern{a.campaign.score ? ` · ${a.campaign.score}/100` : ''}</h3>
-          <CampaignView c={a.campaign} />
+          <h3 className="tabs">
+            Spread pattern{a.campaign.score ? ` · ${a.campaign.score}/100` : ''}
+            <span>
+              <button className={tab === 'timeline' ? 'on' : ''} onClick={() => setTab('timeline')}>Timeline</button>
+              <button className={tab === 'network' ? 'on' : ''} onClick={() => setTab('network')}>Network</button>
+            </span>
+          </h3>
+          {tab === 'timeline' ? <CampaignView c={a.campaign} /> : <NetworkView feature={feature} height={260} onStory={(id) => select?.(id)} />}
         </>
       )}
 

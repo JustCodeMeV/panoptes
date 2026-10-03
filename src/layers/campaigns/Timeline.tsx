@@ -1,11 +1,6 @@
 import type { Campaign, SourceClass } from '../../../shared/truth'
+import { CLS } from './classes'
 
-const CLS: Record<SourceClass, { color: string; label: string }> = {
-  established: { color: '#22c55e', label: 'established' },
-  state: { color: '#f97316', label: 'state' },
-  social: { color: '#38bdf8', label: 'social' },
-  other: { color: '#64748b', label: 'other' },
-}
 const SEV = { info: '#38bdf8', warn: '#f97316', alert: '#ef4444' } as const
 
 /** Who joined the story, when: a dot per source on a time axis, coloured by class. */

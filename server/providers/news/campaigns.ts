@@ -1,5 +1,6 @@
 import type { Provider } from '../../core/provider.ts'
 import type { Assessment } from '../../../shared/truth.ts'
+import { isFlagged } from '../../../shared/network.ts'
 import { snapshot } from '../../news/engine.ts'
 
 /**
@@ -12,10 +13,7 @@ export const campaignsProvider: Provider = {
   layerId: 'campaigns',
   async fetch() {
     return snapshot()
-      .features.filter((f) => {
-        const c = (f.props.assessment as Assessment).campaign
-        return !!c && c.score >= 25 && c.flags.some((x) => x.severity !== 'info')
-      })
+      .features.filter((f) => isFlagged(f.props.assessment as Assessment))
       .map((f) => ({ ...f, id: f.id.replace(/^news:/, 'campaigns:'), layerId: 'campaigns', tags: [...f.tags, 'campaign'] }))
   },
 }

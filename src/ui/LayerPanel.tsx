@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { LAYERS } from '../layers'
 import { featuresOf, useStore } from '../core/store'
 import { CasePanel } from './CasePanel'
 import { DemoButton } from './DemoBanner'
 import { Health } from './Health'
+import { NetworkView } from './NetworkGraph'
 import { ago, useNow } from './useNow'
 
 export function LayerPanel() {
@@ -15,13 +17,31 @@ export function LayerPanel() {
   const live = useStore((s) => s.live)
   const now = useNow(1000)
   const [open, setOpen] = useState<Record<string, boolean>>({ campaigns: true })
+  const [net, setNet] = useState<false | 'flagged' | 'all'>(false)
 
   return (
     <aside className="panel">
       <header>
         <h1>PANOPTES</h1>
-        <span>open-source unrest &amp; influence mapping</span> <Health /> <DemoButton />
+        <span>open-source unrest &amp; influence mapping</span> <Health /> <DemoButton />{' '}
+        <button className="demo-btn" onClick={() => setNet(net ? false : 'flagged')} title="Who amplifies the same stories, and who goes first">
+          ⌘ Network
+        </button>
       </header>
+      {net && createPortal(
+        <div className="net-overlay">
+          <div className="net-head">
+            <b>Influence network</b>
+            <label>
+              <input type="checkbox" checked={net === 'all'} onChange={() => setNet(net === 'all' ? 'flagged' : 'all')} /> all stories (not just flagged)
+            </label>
+            <button className="close" onClick={() => setNet(false)} aria-label="Close">×</button>
+          </div>
+          <NetworkView key={net} all={net === 'all'} height={420} onStory={(id) => select(id)} />
+          <p className="note">Sources linked when both carried a story within 6 h; arrows point from the source that was usually first. Red = same pair on 3+ flagged stories. Leads, not attribution.</p>
+        </div>,
+        document.body,
+      )}
       {LAYERS.map((def) => {
         const st = layers[def.id]
         const features = featuresOf(st)

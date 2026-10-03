@@ -13,7 +13,8 @@ import * as cases from './cases/db.ts'
 import { LAYERS } from './layers.ts'
 import { streamSource, subscribe } from './core/hub.ts'
 import { marketHistory, startMarketsEngine } from './markets/engine.ts'
-import { startNewsEngine } from './news/engine.ts'
+import { snapshot as newsSnapshot, startNewsEngine } from './news/engine.ts'
+import { buildNetwork, storySubgraph } from '../shared/network.ts'
 import { startUnrestEngine } from './unrest/engine.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
 import { briefFor } from './llm/analysis.ts'
@@ -61,6 +62,17 @@ app.post('/api/llm/brief', async (c) => {
   if (!llmEnabled()) return c.json({ error: llmStatus().error }, 503)
   const brief = await briefFor(f.data)
   return brief ? c.json(brief) : c.json({ error: llmStatus().error ?? 'brief unavailable' }, 503)
+})
+
+// Co-amplification network over live stories (?story=<feature id> for one story's subgraph).
+app.get('/api/network', (c) => {
+  const story = c.req.query('story')?.replace(/^campaigns:/, 'news:')
+  const all = newsSnapshot().features
+  if (!story) return c.json(buildNetwork(all, c.req.query('all') === '1' ? { maxNodes: 60 } : { onlyFlagged: true }))
+  // One story's sources, with pair history across ALL live stories (that is where recurrence shows).
+  const f = all.find((x) => x.id === story)
+  if (!f) return c.json({ error: 'unknown story' }, 404)
+  return c.json(storySubgraph(buildNetwork(all, { maxNodes: Infinity, maxEdges: Infinity }), f))
 })
 
 // ---- cases (local SQLite) ----
