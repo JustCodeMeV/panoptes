@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react'
 import {
   BoundingSphere,
+  CallbackProperty,
+  Color,
   Cartesian2,
   Cartesian3,
+  ColorMaterialProperty,
   CustomDataSource,
   Entity,
   HeadingPitchRange,
@@ -111,6 +114,67 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
       }
     })
   }, [layers, viewer])
+
+  // Sonar ripples where a story just arrived/changed, so live events are impossible to miss.
+  useEffect(() => {
+    const ds = new CustomDataSource('ripples')
+    void viewer.dataSources.add(ds)
+    const done = new Set<string>()
+    const LIFE = 5000
+    let raf = 0
+    const pump = () => {
+      viewer.scene.requestRender()
+      raf = ds.entities.values.length ? requestAnimationFrame(pump) : 0
+    }
+    const ripple = (id: string, lon: number, lat: number, color: string, delay: number) => {
+      const t0 = performance.now() + delay
+      const base = Color.fromCssColorString(color)
+      // Evaluated once per frame and shared: Cesium reads major/minor axes separately and
+      // requires major >= minor, so two live evaluations would race.
+      let p = 0
+      let r = 30_000
+      const tick = () => {
+        p = Math.min(1, Math.max(0, (performance.now() - t0) / LIFE))
+        r = 30_000 + viewer.camera.positionCartographic.height * 0.06 * p
+      }
+      tick()
+      viewer.scene.preRender.addEventListener(tick)
+      const progress = () => p
+      const radius = new CallbackProperty(() => r, false)
+      const e = ds.entities.add({
+        position: Cartesian3.fromDegrees(lon, lat),
+        ellipse: {
+          semiMajorAxis: radius,
+          semiMinorAxis: radius,
+          height: 0,
+          material: new ColorMaterialProperty(new CallbackProperty(() => base.withAlpha(progress() === 0 ? 0 : 0.5 * (1 - progress()) ** 1.5), false)),
+        },
+      })
+      setTimeout(() => {
+        viewer.scene.preRender.removeEventListener(tick)
+        ds.entities.remove(e)
+      }, LIFE + delay + 100)
+      void id
+    }
+    const unsub = useStore.subscribe((s) => {
+      for (const [id, at] of Object.entries(s.fresh)) {
+        if (done.has(`${id}:${at}`)) continue
+        done.add(`${id}:${at}`)
+        const hit = featureById.current.get(id)
+        if (!hit?.feature.position || !s.layers[hit.def.id].enabled) continue
+        const color = hit.def.pin(hit.feature).color ?? hit.def.color
+        const { lon, lat } = hit.feature.position
+        ripple(id, lon, lat, color, 0)
+        ripple(id, lon, lat, color, 700)
+      }
+      if (!raf && ds.entities.values.length) raf = requestAnimationFrame(pump)
+    })
+    return () => {
+      unsub()
+      cancelAnimationFrame(raf)
+      viewer.dataSources.remove(ds, true)
+    }
+  }, [viewer])
 
   // Fly to whatever becomes selected (from globe click OR the list panel).
   useEffect(() => {

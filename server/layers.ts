@@ -1,6 +1,12 @@
 import type { Provider } from './core/provider.ts'
 import { seedProvider } from './providers/livestreams/seed.ts'
 import { youtubeApiProvider } from './providers/livestreams/youtube-api.ts'
+import { eonetProvider } from './providers/osint/eonet.ts'
+import { gdacsProvider } from './providers/osint/gdacs.ts'
+import { iodaProvider } from './providers/osint/ioda.ts'
+import { usgsProvider } from './providers/osint/usgs.ts'
+import { marketsProvider } from './providers/markets/engine.ts'
+import { newsProvider } from './providers/news/wire.ts'
 import { truthProvider } from './providers/narratives/truth.ts'
 import { youtubeScrapeProvider } from './providers/livestreams/youtube-scrape.ts'
 
@@ -12,4 +18,7 @@ import { youtubeScrapeProvider } from './providers/livestreams/youtube-scrape.ts
 export const LAYERS: Record<string, Provider[]> = {
   livestreams: [youtubeApiProvider, youtubeScrapeProvider, seedProvider],
   narratives: [truthProvider],
+  news: [newsProvider],
+  markets: [marketsProvider],
+  osint: [iodaProvider, gdacsProvider, usgsProvider, eonetProvider],
 }

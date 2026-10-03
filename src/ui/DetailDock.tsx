@@ -29,7 +29,7 @@ export function DetailDock() {
         </div>
       )}
       <div className="dock-kind">{def.label}</div>
-      <Detail feature={feature} />
+      <Detail feature={feature} select={select} />
     </aside>
   )
 }

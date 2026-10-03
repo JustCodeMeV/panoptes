@@ -3,7 +3,7 @@ const STOP = new Set(
 those he she they we you i his her their our your not no do does did has have had will would can could should may
 might about after before over under into out up down than then so such also just more most new says say said report
 reports reported live latest news video watch update updates breaking today why what who how when where which while
-amid against between during via vs fact check claim claims viral post posts people year years day days week first
+amid against between during via vs fact check claim claims viral post posts people year years day days week first yes
 make makes made get gets got one two three here there still now only even very much many some any all`.split(/\s+/),
 )
 

@@ -1,3 +1,5 @@
+import type { MarketRef } from './markets.ts'
+
 /**
  * Truth-sensor types, shared by server (engine) and client (detail view).
  * An Assessment is an EVIDENCE SUMMARY, not a machine ruling on truth: every
@@ -63,4 +65,6 @@ export type Assessment = {
   signals: Signal[]
   /** Distinct platform+region pairs the narrative appears on. */
   spread: number
+  /** Prediction markets that look related: what money says about it. */
+  markets?: MarketRef[]
 }

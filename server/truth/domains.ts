@@ -8,11 +8,11 @@ const ESTABLISHED = [
   'cnn.com', 'npr.org', 'pbs.org', 'cbsnews.com', 'nbcnews.com', 'abcnews.go.com', 'aljazeera.com', 'politico.com',
   'politico.eu', 'euronews.com', 'spiegel.de', 'zeit.de', 'elpais.com', 'corriere.it', 'kyivindependent.com',
   'timesofisrael.com', 'haaretz.com', 'thehindu.com', 'straitstimes.com', 'abc.net.au', 'cbc.ca', 'japantimes.co.jp',
-  'scmp.com', 'ukrinform.net', 'pravda.com.ua', 'meduza.io',
+  'scmp.com', 'ukrinform.net', 'pravda.com.ua', 'meduza.io', 'sky.com', 'bellingcat.com', 'defensenews.com', 'twz.com',
 ]
 const STATE = [
   'rt.com', 'sputniknews.com', 'sputnikglobe.com', 'tass.com', 'tass.ru', 'ria.ru', 'xinhuanet.com', 'news.cn',
-  'cgtn.com', 'globaltimes.cn', 'chinadaily.com.cn', 'presstv.ir', 'presstv.com', 'irna.ir', 'kcna.kp', 'kcnawatch.org',
+  'cgtn.com', 'globaltimes.cn', 'chinadaily.com.cn', 'presstv.ir', 'presstv.com', 'presstv.co.uk', 'irna.ir', 'kcna.kp', 'kcnawatch.org',
   'telesurtv.net', 'almanar.com.lb', 'sana.sy', 'belta.by',
 ]
 

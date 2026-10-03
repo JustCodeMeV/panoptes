@@ -8,7 +8,7 @@ export function pinImage(
   size: number,
   precision: GeoPrecision,
   selected: boolean,
-  glyph: 'play' | 'alert' = 'play',
+  glyph: 'play' | 'alert' | 'news' | 'chart' | 'pulse' = 'play',
 ): string {
   const key = `${color}|${size}|${precision}|${selected}|${glyph}`
   const hit = cache.get(key)
@@ -50,6 +50,27 @@ export function pinImage(
     g.textAlign = 'center'
     g.textBaseline = 'middle'
     g.fillText('!', mid, mid + 1)
+  } else if (glyph === 'chart') {
+    const bw = r * 0.28
+    const base = mid + r * 0.42
+    ;[0.4, 0.75, 1.1].forEach((h, i) => g.fillRect(mid - r * 0.55 + i * (bw + r * 0.1), base - r * h * 0.8, bw, r * h * 0.8))
+  } else if (glyph === 'pulse') {
+    g.beginPath()
+    g.moveTo(mid - r * 0.7, mid)
+    g.lineTo(mid - r * 0.25, mid)
+    g.lineTo(mid - r * 0.05, mid - r * 0.6)
+    g.lineTo(mid + r * 0.2, mid + r * 0.55)
+    g.lineTo(mid + r * 0.4, mid)
+    g.lineTo(mid + r * 0.7, mid)
+    g.lineWidth = Math.max(1.5, r * 0.16)
+    g.strokeStyle = '#fff'
+    g.setLineDash([])
+    g.stroke()
+  } else if (glyph === 'news') {
+    const w = r * 1.0
+    g.fillRect(mid - w / 2, mid - r * 0.38, w, r * 0.16)
+    g.fillRect(mid - w / 2, mid - r * 0.08, w, r * 0.16)
+    g.fillRect(mid - w / 2, mid + r * 0.22, w * 0.62, r * 0.16)
   } else {
     g.beginPath()
     const t = r * 0.45

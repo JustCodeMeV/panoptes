@@ -1,9 +1,14 @@
 import { useEffect } from 'react'
 import { LAYERS } from '../layers'
 import { useStore } from './store'
+import { LIVE_EVENT_TYPES, type LiveEvent } from '../../shared/live'
 import type { LayerResponse } from '../../shared/feature'
 
-/** Polls the API for every enabled layer. Mount once at the app root. */
+/**
+ * Keeps every enabled layer fresh. Polled layers refetch on an interval;
+ * `stream` layers hold an EventSource (auto-reconnecting) and get pushed updates.
+ * Mount once at the app root.
+ */
 export function useLayerData() {
   const enabledKey = useStore((s) =>
     LAYERS.filter((l) => s.layers[l.id].enabled)
@@ -13,16 +18,35 @@ export function useLayerData() {
 
   useEffect(() => {
     const ids = enabledKey ? enabledKey.split(',') : []
-    const controllers: AbortController[] = []
-    const timers: number[] = []
+    const cleanups: (() => void)[] = []
 
     for (const id of ids) {
       const def = LAYERS.find((l) => l.id === id)!
-      const ac = new AbortController()
-      controllers.push(ac)
+      const { setLoading, setData, setError, setLive, applyLive } = useStore.getState()
 
+      if (def.stream) {
+        setLoading(id, true)
+        const es = new EventSource(def.stream)
+        es.onopen = () => setLive(id, { connected: true })
+        es.onerror = () => setLive(id, { connected: false })
+        es.addEventListener('snapshot', (m) => {
+          const snap = JSON.parse((m as MessageEvent).data) as LayerResponse
+          setData(id, snap)
+          useStore.getState().seedTicker(id, snap.features)
+          setLive(id, { connected: true, lastEventAt: Date.now() })
+        })
+        for (const type of LIVE_EVENT_TYPES) {
+          es.addEventListener(type, (m) => applyLive(id, JSON.parse((m as MessageEvent).data) as LiveEvent))
+        }
+        cleanups.push(() => {
+          es.close()
+          setLive(id, { connected: false })
+        })
+        continue
+      }
+
+      const ac = new AbortController()
       const load = async () => {
-        const { setLoading, setData, setError } = useStore.getState()
         setLoading(id, true)
         try {
           const res = await fetch(`/api/layers/${id}`, { signal: ac.signal })
@@ -33,12 +57,12 @@ export function useLayerData() {
         }
       }
       void load()
-      timers.push(window.setInterval(load, def.refreshMs))
+      const timer = window.setInterval(load, def.refreshMs)
+      cleanups.push(() => {
+        ac.abort()
+        clearInterval(timer)
+      })
     }
-
-    return () => {
-      controllers.forEach((c) => c.abort())
-      timers.forEach((t) => clearInterval(t))
-    }
+    return () => cleanups.forEach((c) => c())
   }, [enabledKey])
 }

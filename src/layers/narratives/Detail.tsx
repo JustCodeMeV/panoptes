@@ -63,7 +63,8 @@ export function NarrativeDetail({ feature }: { feature: Feature }) {
       ) : (
         <>
           <p className="stats">
-            {c.total} articles · {c.domains} domains · {c.countries.length} countries
+            {c.total} article{c.total === 1 ? '' : 's'} · {c.domains} domain{c.domains === 1 ? '' : 's'}
+            {c.countries.length ? ` · ${c.countries.length} countries` : ''}
           </p>
           <div className="tags">
             {c.establishedOutlets.map((d) => (

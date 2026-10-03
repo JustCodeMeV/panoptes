@@ -11,7 +11,7 @@ html, body, #root { margin: 0; width: 100%; height: 100%; overflow: hidden; back
 * { box-sizing: border-box; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
 .globe { position: absolute; inset: 0; }
-.globe .cesium-viewer-bottom, .globe .cesium-widget-credits { left: 340px !important; }
+.globe .cesium-viewer-bottom, .globe .cesium-widget-credits { left: 340px !important; bottom: 188px !important; }
 
 .panel, .dock {
   position: absolute; top: 12px; bottom: 12px; z-index: 5;
@@ -105,3 +105,51 @@ dt { color: var(--dim); } dd { margin: 0; } a { color: #8ab4ff; }
 .stack button { font-size: 12px; padding: 4px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stack button:hover { background: rgba(255,255,255,0.06); }
 .stack button.on { background: color-mix(in srgb, var(--c) 25%, transparent); }
+
+/* ---- live wire ---- */
+.wire { position: absolute; left: 340px; right: 12px; bottom: 12px; z-index: 4; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; pointer-events: auto; transition: right 0.2s; }
+.wire-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.live { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; color: var(--dim); display: inline-flex; align-items: center; gap: 6px; }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: #64748b; }
+.live.on { color: #ff4d5a; }
+.live.on i { background: #ff4d5a; animation: blink 1.2s ease-in-out infinite; }
+.wire-meta { font-size: 11px; color: var(--dim); }
+.wire ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.wire li { overflow: hidden; animation: slidein 0.45s ease-out; }
+.wire li.fresh-y { background: linear-gradient(90deg, rgba(56,189,248,0.22), transparent 70%); }
+.wire li button { display: grid; grid-template-columns: 62px 66px 104px 1fr auto; gap: 8px; align-items: baseline; width: 100%; padding: 3px 4px; border-radius: 4px; font-size: 12px; }
+.wire li button:hover { background: rgba(255,255,255,0.07); }
+.wire .when { color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+.wire .lyr { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; }
+.wire .vt { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; }
+.wire .tt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wire .ch { color: var(--dim); font-size: 11px; white-space: nowrap; max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+.wire .empty { font-size: 12px; color: var(--dim); padding: 4px; }
+@keyframes blink { 50% { opacity: 0.25; } }
+@keyframes slidein { from { max-height: 0; opacity: 0; transform: translateY(-6px); } to { max-height: 28px; opacity: 1; transform: none; } }
+.dock { bottom: 196px; }
+@media (max-width: 1100px) { .wire .ch { display: none; } }
+
+/* ---- markets ---- */
+.market .mhead { display: flex; align-items: center; gap: 14px; }
+.market .big { font-size: 38px; font-weight: 700; line-height: 1; color: var(--c); font-variant-numeric: tabular-nums; }
+.market .mlabel { font-size: 13px; font-weight: 600; }
+.market .mmeta { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.1em; }
+.market .bar, .market .trust { position: relative; height: 8px; margin: 10px 0 2px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
+.market .bar i, .market .trust i { position: absolute; inset: 0 auto 0 0; background: var(--c); border-radius: 99px; }
+.market .trust { height: 16px; margin: 4px 0 8px; }
+.market .trust i { opacity: 0.45; }
+.market .trust span { position: absolute; inset: 0; font-size: 10px; line-height: 16px; text-align: center; letter-spacing: 0.08em; }
+.market .moves { display: flex; gap: 14px; font-size: 12px; font-weight: 600; margin: 8px 0 0; font-variant-numeric: tabular-nums; }
+.market h3 { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); margin: 16px 0 6px; }
+.spark { width: 100%; height: 90px; background: rgba(255,255,255,0.04); border-radius: 8px; }
+.spark text { fill: var(--dim); font-size: 10px; }
+.src { color: var(--dim); font-size: 10px; }
+.outcomes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
+.outcomes li { display: grid; grid-template-columns: 1fr 90px 40px; gap: 8px; align-items: center; }
+.outcomes li span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.outcomes i { height: 6px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; display: block; }
+.outcomes b { display: block; height: 100%; background: var(--c); }
+.outcomes em { font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.market .empty, .osum { font-size: 12px; color: var(--dim); margin: 0 0 6px; line-height: 1.45; }
+.market .evidence li { grid-template-columns: 1fr; }

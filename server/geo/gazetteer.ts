@@ -299,13 +299,26 @@ const entries = ROWS.flatMap(([name, lat, lon, kind, ...aliases]) =>
 
 /** First pass: best (most specific) place mentioned in free text, or null. */
 export function geolocate(...texts: (string | undefined)[]): GeoHit | null {
+  return geolocateAvoiding([], ...texts)
+}
+
+/**
+ * Like `geolocate`, but skips the named countries when something else matches.
+ * "Will the U.S. invade Iran?" is about Iran, not the United States.
+ */
+export function geolocateAvoiding(avoid: string[], ...texts: (string | undefined)[]): GeoHit | null {
   const text = texts.filter(Boolean).join(' \n ')
   if (!text) return null
   let bestCountry: GeoHit | null = null
+  let fallback: GeoHit | null = null
   for (const e of entries) {
     if (!e.re.test(text)) continue
+    if (avoid.includes(e.hit.name)) {
+      fallback ??= e.hit
+      continue
+    }
     if (e.hit.kind === 'place') return e.hit
     bestCountry ??= e.hit
   }
-  return bestCountry
+  return bestCountry ?? fallback
 }

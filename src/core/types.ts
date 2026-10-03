@@ -7,12 +7,18 @@ export type ControlsProps = {
   pin(feature: Feature): void
 }
 
+/** Layer-specific text/colour for a live-wire row. */
+export type TickerView = { badge: string; color: string; detail?: string }
+
+/** Props every layer's detail view receives (no store imports in layer code). */
+export type DetailProps = { feature: Feature; select(id: string | null): void }
+
 export type PinStyle = {
   /** px, before clustering */
   size: number
   /** Overrides the layer colour for this pin (e.g. verdict colour). */
   color?: string
-  glyph?: 'play' | 'alert'
+  glyph?: 'play' | 'alert' | 'news' | 'chart' | 'pulse'
 }
 
 /**
@@ -28,8 +34,14 @@ export interface LayerDef {
   /** CSS colour; used for pins, clusters, panel accents. */
   color: string
   refreshMs: number
+  /** SSE endpoint: the layer is pushed live instead of polled. */
+  stream?: string
   defaultEnabled?: boolean
   pin(feature: Feature): PinStyle
+  /** How a live event for this layer reads in the wire. Default: neutral. */
+  ticker?(feature: Feature, e: { kind: 'new' | 'update'; change?: string; source?: string }): TickerView
+  /** Which features pre-fill the live wire on load (default: 8 newest). */
+  seed?(features: Feature[]): Feature[]
   /** Higher = listed first in the panel. */
   rank?(feature: Feature): number
   /** Extra controls rendered inside the layer's panel section. */
@@ -37,5 +49,5 @@ export interface LayerDef {
   /** One-line secondary text for list rows. */
   subtitle(feature: Feature): string
   /** Rendered in the detail dock when a feature of this layer is selected. */
-  Detail: ComponentType<{ feature: Feature }>
+  Detail: ComponentType<DetailProps>
 }

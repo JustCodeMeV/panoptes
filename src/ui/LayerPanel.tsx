@@ -1,12 +1,7 @@
 import { useState } from 'react'
 import { LAYERS } from '../layers'
 import { featuresOf, useStore } from '../core/store'
-
-function ago(iso?: string) {
-  if (!iso) return ''
-  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000))
-  return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`
-}
+import { ago, useNow } from './useNow'
 
 export function LayerPanel() {
   const layers = useStore((s) => s.layers)
@@ -14,7 +9,9 @@ export function LayerPanel() {
   const selectedId = useStore((s) => s.selectedId)
   const select = useStore((s) => s.select)
   const pin = useStore((s) => s.pin)
-  const [open, setOpen] = useState<Record<string, boolean>>({ livestreams: true, narratives: true })
+  const live = useStore((s) => s.live)
+  const now = useNow(1000)
+  const [open, setOpen] = useState<Record<string, boolean>>({ markets: true })
 
   return (
     <aside className="panel">
@@ -45,19 +42,36 @@ export function LayerPanel() {
                 {st.error ? (
                   <span className="err">API error: {st.error}</span>
                 ) : (
-                  <span>updated {ago(st.data?.generatedAt)}</span>
-                )}
-                {st.data?.providers.map((p) => (
-                  <span key={p.id} className={p.ok ? 'ok' : 'err'} title={p.error ?? `${p.ms} ms`}>
-                    {p.id} {p.ok ? p.count : '✕'}
+                  <span>
+                    {def.stream ? (live[def.id]?.connected ? '● live' : '○ reconnecting') : `updated ${ago(st.data?.generatedAt, now)}`}
                   </span>
-                ))}
+                )}
+                {(st.data?.providers.length ?? 0) > 6 ? (
+                  <>
+                    <span className="ok" title={st.data?.providers.map((p) => `${p.id} ${p.ok ? p.count : 'down'}`).join('\n')}>
+                      {st.data?.providers.filter((p) => p.ok).length}/{st.data?.providers.length} sources ok
+                    </span>
+                    {st.data?.providers
+                      .filter((p) => !p.ok)
+                      .map((p) => (
+                        <span key={p.id} className="err" title={p.error}>
+                          {p.id} ✕
+                        </span>
+                      ))}
+                  </>
+                ) : (
+                  st.data?.providers.map((p) => (
+                    <span key={p.id} className={p.ok ? 'ok' : 'err'} title={p.error ?? `${p.ms} ms`}>
+                      {p.id} {p.ok ? p.count : '✕'}
+                    </span>
+                  ))
+                )}
               </div>
             )}
             {st.enabled && def.Controls && <def.Controls pin={pin} />}
             {st.enabled && open[def.id] && (
               <ul className="list">
-                {sorted.map((f) => (
+                {sorted.slice(0, 40).map((f) => (
                   <li key={f.id}>
                     <button
                       className={f.id === selectedId ? 'on' : ''}

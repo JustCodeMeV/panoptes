@@ -2,6 +2,9 @@
 
 Open-source map of unrest and influence activity on a 3D globe (CesiumJS), built for defense analysts.
 
+- **Live wire**: 22 news feeds polled every 30-40 s, grouped into stories and re-analyzed as more outlets pick them up, pushed to the browser over SSE.
+- **Markets**: Polymarket, Kalshi and Manifold odds on conflict and security, with live probability moves, price history, and links to the news stories they relate to.
+- **OSINT signals**: internet blackouts (IODA), UN disaster alerts (GDACS), earthquakes (USGS), NASA natural events.
 - **Live streams**: social-media livestreams, playable in-place from the pin.
 - **Truth sensor**: trending narratives and fresh debunks cross-referenced against fact-check feeds and news coverage, plus an ad-hoc claim checker.
 
@@ -65,6 +68,69 @@ entry (a named site if the text names one, else city, else country centroid), la
 `inferred`, so overlapping pins stack at one point; clicking a stack opens a chooser.
 Scraping is best-effort and may break when YouTube changes; a failing provider never
 takes the layer down (see provider chips in the panel).
+
+## Live wire (`news` layer, real-time)
+
+```
+server/news/sources.ts   feeds (BBC, Al Jazeera, DW, France 24, Guardian, Euronews, Sky, NPR, SCMP,
+                         Ukrinform, Defense News, TWZ; state media TASS, RT, Press TV, Al-Manar, CGTN;
+                         6 keyword-filtered Google News queries). Add a row to add a feed.
+server/news/ingest.ts    conditional-GET polling (ETag), RSS/Atom/RDF parsing
+server/news/engine.ts    topic gate -> story clustering -> analysis -> pub/sub
+GET /api/stream/news     SSE: `snapshot` on connect, then `news` (new|update), `remove`, `status`
+```
+
+- **Analysis on arrival**: each story is geolocated (gazetteer), matched against the fact-check
+  corpus, and scored from its own outlet mix: established vs state-affiliated outlets, number of
+  distinct outlets. No GDELT round-trip, so verdicts are instant.
+- **Stories evolve**: when another outlet picks a story up, it is re-analyzed and pushed as an
+  `update` (e.g. `unverified -> corroborated`, or "reported only by state media so far").
+- **First poll of every feed is silent** (it is backlog, not breaking news); only genuinely new
+  items fire events, ripples and wire entries.
+- **Client**: `LayerDef.stream` makes a layer push-driven. New/changed stories ripple on the globe
+  and slide into the bottom wire; relative times tick every second.
+
+## Markets (`markets` layer, real-time)
+
+Prediction-market prices are probabilities backed by money, so they are an independent signal
+about what people with something to lose expect. They are also thin, manipulable and sometimes
+wrong, so every number is shown with a **depth score** (0-100 from traded volume) and play-money
+platforms are flagged and given almost no weight.
+
+```
+server/markets/sources/   polymarket (gamma API, 9 security tags), kalshi (events + nested markets),
+                          manifold (play money, 13 search terms). Each adapter -> RawMarket.
+server/markets/gate.ts    topic gate: security/conflict terms; elections only for non-US countries;
+                          sport/celebrity/crypto/fiction noise removed. Editable.
+server/markets/engine.ts  polls (polymarket 60 s, kalshi 3 min, manifold 4 min), per-platform caps,
+                          emits `upsert` on a >=2-point move between polls or a newly linked story.
+GET /api/markets/history  7-day price series (Polymarket CLOB / Kalshi candlesticks / recorded)
+```
+
+- **Headline outcome**: winner-take-all events show the current favourite; date ladders ("by
+  October 31?") show the busiest market, with all outcomes listed in the detail view.
+- **Placement**: pinned at the place the question is about ("Will the U.S. invade Iran" -> Iran).
+- **Cross-reference** (`server/core/xref.ts`): news stories and markets are linked both ways by
+  distinctive-term overlap. A story's assessment then includes "what the market says", and an
+  `unverified` story that a deep market prices above 50% is flagged and gets a higher attention
+  score ("markets treat this as likely while confirmation is still thin").
+- **Generic live plumbing**: `server/core/hub.ts` + `shared/live.ts`. Any engine registers a stream
+  and publishes `upsert/remove/status`; the client hook and live wire pick it up via `LayerDef.stream`
+  and `LayerDef.ticker`.
+
+## OSINT signals (`osint` layer)
+
+| Provider | Source | Notes |
+|---|---|---|
+| `ioda` | Georgia Tech IODA | country-level internet outages (BGP / active probing); critical alert or 2 sources; placed at country centroid (inferred) |
+| `gdacs` | UN/EC GDACS RSS | Orange/Red disaster alerts only, exact event centre |
+| `usgs` | USGS | M4.5+ last 24 h, exact epicentre |
+| `eonet` | NASA EONET | volcanoes, storms, floods with a position <3 days old (wildfires omitted as noise) |
+
+Also added: Bellingcat to the live wire. `osint.places` was unreachable (no DNS record) when this
+was built, so feeds were chosen from well-known public sources and verified individually. Metaculus
+needs an API login and is not included; PolitiFact, AFP, Reuters, AP, Liveuamap and the State
+Department block anonymous requests.
 
 ## Truth sensor (`narratives` layer)
 
