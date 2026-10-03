@@ -29,3 +29,5 @@ services:
         sync: false
       - key: GOOGLE_FACTCHECK_API_KEY
         sync: false
+      - key: AISSTREAM_API_KEY
+        sync: false

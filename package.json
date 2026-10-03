@@ -27,6 +27,7 @@
     "hono": "^4.13.12",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "satellite.js": "^6.0.2",
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2",
     "youtubei.js": "^18.1.0",

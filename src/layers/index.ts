@@ -15,6 +15,8 @@ import { infrastructure } from './infrastructure'
 import { telegram } from './telegram'
 import { cii } from './cii'
 import { trends } from './trends'
+import { satellites } from './satellites'
+import { ships } from './ships'
 
 /** CLIENT LAYER REGISTRY. One line per layer. */
-export const LAYERS: LayerDef[] = [watch, cii, campaigns, unrest, news, telegram, markets, trends, acled, osint, gnss, militaryAir, frontlines, infrastructure, livestreams, narratives]
+export const LAYERS: LayerDef[] = [watch, cii, campaigns, unrest, news, telegram, markets, trends, acled, osint, gnss, militaryAir, satellites, ships, frontlines, infrastructure, livestreams, narratives]

@@ -13,6 +13,7 @@ export const SECRET_ENV = [
   'CLOUDFLARE_RADAR_TOKEN',
   'YOUTUBE_API_KEY',
   'GOOGLE_FACTCHECK_API_KEY',
+  'AISSTREAM_API_KEY',
 ] as const
 
 const PATTERNS: [RegExp, string][] = [
