@@ -25,6 +25,7 @@ import { googleTrendsProvider } from './providers/trends/google.ts'
 import { wikiCurrentProvider } from './providers/conflict/wikicurrent.ts'
 import { celestrakProvider } from './providers/space/celestrak.ts'
 import { aisstreamProvider } from './providers/maritime/aisstream.ts'
+import { eventsProvider } from './providers/events/entities.ts'
 
 /**
  * SERVER LAYER REGISTRY. A layer = an id + the providers that feed it.
@@ -34,6 +35,7 @@ import { aisstreamProvider } from './providers/maritime/aisstream.ts'
 export const LAYERS: Record<string, Provider[]> = {
   livestreams: [youtubeApiProvider, youtubeScrapeProvider, seedProvider],
   narratives: [truthProvider],
+  events: [eventsProvider],
   news: [newsProvider],
   telegram: [telegramProvider],
   campaigns: [campaignsProvider],

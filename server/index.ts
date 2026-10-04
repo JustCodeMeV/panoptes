@@ -24,6 +24,9 @@ import { startUnrestEngine } from './unrest/engine.ts'
 import { networkStories, startTelegramScouts, swarmStats } from './telegram/engine.ts'
 import { translatePost } from './telegram/translate.ts'
 import { snapshotScores, startCii } from './cii/engine.ts'
+import { engineStats, entityWithTransforms, seedFor, startEntityEngine } from './entities/engine.ts'
+import { search as searchEntities } from './entities/graph.ts'
+import { runTransform } from './entities/transforms.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
 import { reloadWatches, startWatchEngine } from './watch/engine.ts'
 import { geolocate } from './geo/gazetteer.ts'
@@ -97,6 +100,24 @@ app.post('/api/llm/brief', async (c) => {
 
 app.get('/api/telegram/swarm', (c) => c.json(swarmStats()))
 app.get('/api/cii', (c) => c.json(snapshotScores()))
+
+// ---- entity graph (Maltego-style investigation) ----
+app.get('/api/entities/stats', (c) => c.json(engineStats()))
+app.get('/api/entities/search', (c) => c.json(searchEntities(c.req.query('q') ?? '')))
+app.get('/api/entities/seed/:featureId', (c) => {
+  const g = seedFor(c.req.param('featureId'))
+  return g ? c.json(g) : c.json({ error: 'no entities for this item yet (extraction runs every 2 min)' }, 404)
+})
+app.get('/api/entities/:id', (c) => {
+  const e = entityWithTransforms(c.req.param('id'))
+  return e ? c.json(e) : c.json({ error: 'unknown entity' }, 404)
+})
+app.post('/api/entities/:id/transform', async (c) => {
+  const b = (await c.req.json().catch(() => ({}))) as { name?: unknown }
+  if (typeof b.name !== 'string') return c.json({ error: 'name required' }, 400)
+  const g = await runTransform(c.req.param('id'), b.name)
+  return g ? c.json(g) : c.json({ error: 'unknown entity or transform' }, 404)
+})
 app.post('/api/llm/translate', async (c) => {
   const b = (await c.req.json().catch(() => ({}))) as { text?: unknown }
   if (typeof b.text !== 'string' || !b.text.trim()) return c.json({ error: 'text required' }, 400)
@@ -238,6 +259,7 @@ startUnrestEngine()
 startTelegramScouts()
 startWatchEngine(LAYERS)
 startCii(LAYERS)
+startEntityEngine(LAYERS)
 
 // Production (e.g. Render): one service serves the API and the built frontend.
 // Skipped in dev, where Vite serves the frontend and proxies /api here.

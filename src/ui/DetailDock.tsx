@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
+import { useInvestigation } from '../core/investigation'
 import { Button } from '../../gui_elements/Button'
 import { durationMs } from '../../gui_elements/catalog'
 import { Dock } from '../../gui_elements/Composites'
@@ -90,9 +91,14 @@ export function DetailDock({ box }: { box: PanelBox }) {
                         })}
                       </div>
                     )}
-                    <Button variant="secondary" onClick={() => void addToCase(feature)}>
-                      {toast ?? '＋ Add to case'}
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="secondary" onClick={() => void addToCase(feature)}>
+                        {toast ?? '＋ Add to case'}
+                      </Button>
+                      <Button variant="secondary" onClick={() => void useInvestigation.getState().seed(feature.id)} title="Open this item as entities (events, places, actors, sources, claims) and expand them">
+                        ◆ Investigate
+                      </Button>
+                    </div>
                     <div className="mt-3">
                       <Detail feature={feature} select={select} />
                     </div>

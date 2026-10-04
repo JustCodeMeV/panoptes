@@ -50,6 +50,16 @@ export function GlobeOverlay() {
     }
   }, [viewer])
 
+  // Fly requests from outside the globe (investigation canvas)
+  useEffect(() => {
+    const on = (e: Event) => {
+      const { lat, lon } = (e as CustomEvent<{ lat: number; lon: number }>).detail
+      viewer.camera.flyTo({ destination: Cartesian3.fromDegrees(lon, lat, 600_000), duration: flight })
+    }
+    window.addEventListener('panoptes:flyto', on)
+    return () => window.removeEventListener('panoptes:flyto', on)
+  }, [viewer, flight])
+
   // Auto-rotate
   useEffect(() => {
     if (!spin) return

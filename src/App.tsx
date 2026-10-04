@@ -4,6 +4,7 @@ import { useDesign } from '../gui_elements/context'
 import { useLayerData } from './core/useLayerData'
 import { DemoBanner } from './ui/DemoBanner'
 import { DetailDock } from './ui/DetailDock'
+import { Investigation } from './ui/Investigation'
 import { LayerPanel } from './ui/LayerPanel'
 import { shellGeometry, useShell } from './ui/shell'
 
@@ -29,6 +30,7 @@ export default function App() {
       </div>
       <LayerPanel box={geo.left} />
       <DetailDock box={geo.right} />
+      <Investigation />
       <DemoBanner />
     </div>
   )
