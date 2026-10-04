@@ -4,6 +4,7 @@ import { GlobeHUD } from '../../gui_elements/Composites'
 import { useDesign } from '../../gui_elements/context'
 import { FLIGHTS } from '../../gui_elements/flights'
 import { GlobeControls } from '../../gui_elements/GlobeControls'
+import { TimeBar } from '../ui/TimeBar'
 import { useNow } from '../ui/useNow'
 import { HOME, useGlobeUi } from './globeUi'
 import { useViewer } from './viewerContext'
@@ -222,6 +223,7 @@ export function GlobeOverlay() {
           }}
         />
       </div>
+      <TimeBar />
     </>
   )
 }

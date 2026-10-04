@@ -43,6 +43,9 @@ type State = {
   ticker: TickerEntry[]
   /** featureId -> arrival time; drives pulse animation on the globe. */
   fresh: Record<string, number>
+  /** Timeline: show the map as it was at this moment (null = live). */
+  timeCursor: number | null
+  setTimeCursor(t: number | null): void
   setLive(id: string, patch: Partial<LiveInfo>): void
   applyLive(layerId: string, e: LiveEvent): void
   /** Pre-fill the wire with the newest backlog stories so it is never empty on load. */
@@ -69,6 +72,8 @@ export const useStore = create<State>((set) => ({
   live: {},
   ticker: [],
   fresh: {},
+  timeCursor: null,
+  setTimeCursor: (t) => set({ timeCursor: t }),
   setLive: (id, patch) =>
     set((s) => ({ live: { ...s.live, [id]: { ...LIVE0, ...s.live[id], ...patch } } })),
   seedTicker: (layerId, features) =>

@@ -5,6 +5,7 @@ import { featuresOf, useStore } from '../core/store'
 import { flyTo, useInvestigation } from '../core/investigation'
 import { LAYERS } from '../layers'
 import { matchesQuery } from '../core/search'
+import { atTime } from '../core/time'
 
 type Place = { name: string; lat: number; lon: number; kind: string; country?: string }
 type Ent = { id: string; type: string; subtype?: string; label: string }
@@ -18,6 +19,7 @@ type Row = { key: string; group: string; label: string; sub: string; color?: str
  */
 export function Omnibox({ query, setQuery }: { query: string; setQuery: (q: string) => void }) {
   const layers = useStore((s) => s.layers)
+  const cursor = useStore((s) => s.timeCursor)
   const select = useStore((s) => s.select)
   const seedEntity = useInvestigation((s) => s.seedEntity)
   const [remote, setRemote] = useState<{ q: string; places: Place[]; entities: Ent[] }>({ q: '', places: [], entities: [] })
@@ -68,7 +70,7 @@ export function Omnibox({ query, setQuery }: { query: string; setQuery: (q: stri
     for (const def of LAYERS) {
       const st = layers[def.id]
       if (!st?.enabled || def.hidden) continue
-      for (const f of featuresOf(st)) {
+      for (const f of atTime(def.id, featuresOf(st), cursor)) {
         if (!matchesQuery(f, q)) continue
         const t = f.title.toLowerCase()
         items.push({ f, color: def.pin(f).color ?? def.color, label: def.label, score: (t.startsWith(q) ? 3 : t.includes(q) ? 2 : 1) + (Date.parse(f.observedAt) || 0) / 1e14 })
@@ -81,7 +83,7 @@ export function Omnibox({ query, setQuery }: { query: string; setQuery: (q: stri
       for (const e of remote.entities)
         out.push({ key: `e:${e.id}`, group: 'Investigation', label: e.label, sub: [e.type, e.subtype].filter(Boolean).join(' · '), go: () => (void seedEntity(e.id), done()) })
     return out
-  }, [q, remote, layers, select, seedEntity, setQuery])
+  }, [q, remote, layers, cursor, select, seedEntity, setQuery])
 
   // ⌘K / Ctrl+K focuses the search from anywhere
   useEffect(() => {
