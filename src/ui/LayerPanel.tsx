@@ -11,7 +11,7 @@ import type { Feature } from '../../shared/feature'
 import { srcTag } from '../../shared/lang'
 import { featuresOf, useStore, type LayerState } from '../core/store'
 import { LAYER_GROUPS, type LayerDef } from '../core/types'
-import logo from '../assets/ARGUS_LOGO.png'
+import logo from '../assets/ARGUS_LOGO.webp'
 import { LAYERS } from '../layers'
 import { LANDING_HASH } from '../route'
 import { useGlobeUi } from '../globe/globeUi'
@@ -75,7 +75,7 @@ function LogoLink() {
       onPointerLeave={() => setGlow(null)}
       onClick={() => setGlow(null)}
     >
-      <img src={logo} alt="ARGUS home" className="block size-[calc(var(--fs-title)*1.3)]" />
+      <img src={logo} alt="ARGUS home" width={64} height={64} className="block size-[calc(var(--fs-title)*1.3)]" />
       {glow &&
         createPortal(
           <img
@@ -128,7 +128,8 @@ export function LayerPanel({ box }: { box: PanelBox }) {
       status: '',
       color: def.color,
       extra: st.enabled && (
-        <div className="mt-1.5 flex flex-col gap-2">
+        // While the first data loads, hold the list's space so the panel does not jump when it arrives
+        <div className={`mt-1.5 flex flex-col gap-2 ${st.loading && !st.data ? 'min-h-[28vh]' : ''}`}>
           <SourceStatus def={def} st={st} live={live[def.id]} now={now} />
           {def.Controls && <def.Controls pin={pin} features={features} select={select} />}
           {features.length > 0 && (

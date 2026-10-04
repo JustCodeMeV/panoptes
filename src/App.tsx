@@ -5,7 +5,6 @@ import { useLayerData } from './core/useLayerData'
 import { DemoBanner } from './ui/DemoBanner'
 import { AnalysisPanel } from './ui/AnalysisPanel'
 import { Investigation } from './ui/Investigation'
-import { Workbench } from './ui/Workbench'
 import { LinkViewer } from './ui/LinkViewer'
 import { useLinkCapture } from './core/linkViewer'
 import { LayerPanel } from './ui/LayerPanel'
@@ -14,6 +13,8 @@ import { useGlobeUi } from './globe/globeUi'
 
 // Cesium is ~4 MB: load it after the shell so the panels appear immediately.
 const GlobeView = lazy(() => import('./globe/GlobeView'))
+// Case mode is opened on demand: keep its code out of the first load
+const Workbench = lazy(() => import('./ui/Workbench').then((m) => ({ default: m.Workbench })))
 
 function useWindowWidth() {
   const [w, setW] = useState(window.innerWidth)
@@ -76,7 +77,13 @@ export default function App() {
       )}
       <LayerPanel box={geo.left} />
       <AnalysisPanel box={geo.right} />
-      {caseMode ? <Workbench /> : <Investigation />}
+      {caseMode ? (
+        <Suspense fallback={null}>
+          <Workbench />
+        </Suspense>
+      ) : (
+        <Investigation />
+      )}
       <LinkViewer />
       <DemoBanner />
     </div>

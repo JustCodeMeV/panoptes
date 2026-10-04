@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '../../gui_elements/Button'
 import { Marker } from '../../gui_elements/Controls'
-import logo from '../assets/ARGUS_LOGO.png'
+import logo from '../assets/ARGUS_LOGO.webp'
 import { featuresOf, useStore } from '../core/store'
 import { useLayerData } from '../core/useLayerData'
 import { LAYERS } from '../layers'
@@ -118,7 +118,7 @@ export default function Landing() {
       <header className={`fixed inset-x-0 top-0 z-20 transition-colors duration-300 ${scrolled ? 'border-b border-line bg-bg/80 backdrop-blur-md' : 'bg-transparent'}`}>
         <nav className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-8">
           <button type="button" onClick={() => go('home')} className="flex cursor-pointer items-center gap-2.5">
-            <img src={logo} alt="" className="size-8" />
+            <img src={logo} alt="" width={32} height={32} className="size-8" />
             <span className="title-weight font-title text-lg tracking-(--tracking-title) text-white">ARGUS</span>
           </button>
           <ul className="ml-auto hidden items-center gap-6 md:flex">
@@ -273,7 +273,7 @@ export default function Landing() {
       {/* Closing call to action */}
       <section className="border-t border-line">
         <Reveal className="mx-auto flex max-w-6xl flex-col items-center px-4 py-24 text-center sm:px-8">
-          <img src={logo} alt="" className="size-16" />
+          <img src={logo} alt="" width={64} height={64} className="size-16" />
           <h2 className="title-weight mt-6 font-title text-[clamp(26px,4vw,40px)] tracking-(--tracking-title) text-white">See the world as it moves</h2>
           <p className="mt-3 max-w-xl text-dim">Open the globe, switch on the layers you care about, and watch the picture build.</p>
           <Button className="mt-8" onClick={openApp}>Launch ARGUS</Button>

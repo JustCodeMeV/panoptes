@@ -8,7 +8,7 @@
     "dev:web": "vite",
     "dev:api": "tsx watch --env-file-if-exists=.env server/index.ts",
     "canvas": "vite --config vite.canvas.config.ts",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/precompress.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "start": "tsx server/index.ts",

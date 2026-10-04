@@ -8,7 +8,6 @@ import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
-import { compress } from 'hono/compress'
 import { secureHeaders } from 'hono/secure-headers'
 import { streamSSE } from 'hono/streaming'
 import { FeatureSchema, type Feature } from '../shared/feature.ts'
@@ -431,9 +430,14 @@ setAtlasLayers(LAYERS)
 // Production (e.g. Render): one service serves the API and the built frontend.
 // Skipped in dev, where Vite serves the frontend and proxies /api here.
 if (existsSync('dist/index.html')) {
-  app.use('*', async (c, next) => (c.req.path.startsWith('/api/') ? next() : compress()(c, next)))
+  // Built files are pre-compressed at build time (scripts/precompress.mjs): no compression work per request
   app.use('/assets/*', async (c, next) => (await next(), c.res.headers.set('cache-control', 'public, max-age=31536000, immutable')))
-  app.use('*', serveStatic({ root: './dist' }))
+  // Cesium's runtime files are pinned to the installed version; sky and wireframe data rarely change
+  app.use('/cesium/*', async (c, next) => (await next(), c.res.headers.set('cache-control', 'public, max-age=604800')))
+  app.use('/sky/*', async (c, next) => (await next(), c.res.headers.set('cache-control', 'public, max-age=604800')))
+  app.use('/wire/*', async (c, next) => (await next(), c.res.headers.set('cache-control', 'public, max-age=86400')))
+  app.use('/places.json', async (c, next) => (await next(), c.res.headers.set('cache-control', 'public, max-age=86400')))
+  app.use('*', serveStatic({ root: './dist', precompressed: true }))
   app.get('*', (c, next) => (c.req.path.startsWith('/api/') ? next() : serveStatic({ path: './dist/index.html' })(c, next)))
 }
 
