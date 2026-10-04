@@ -107,7 +107,7 @@ export const outletCountry = (domain: string) => find(domain)?.country
 export const outletInfo = (domain: string) => find(domain)
 
 /** Social accounts/channels (domain strings produced by the telegram/bluesky pollers). */
-export const socialSource = (domain: string) => /^(t\.me\/|bsky:)/.test(domain)
+export const socialSource = (domain: string) => /^(t\.me\/|bsky:|x:|tiktok:|instagram:)/.test(domain)
 
 /** Which government a state outlet speaks for (aligned-government-outlet detection), any bloc. */
 export const stateBloc = (domain: string): string | undefined => {

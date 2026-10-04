@@ -18,7 +18,7 @@ export const useLinkViewer = create<{
   close: () => set({ stack: [], index: -1 }),
 }))
 
-/** Telegram post / YouTube links have official embeds that work in a frame (and play video). */
+/** Telegram, YouTube, TikTok, Instagram and X posts have official embeds that work in a frame (and play video). */
 export function embedFor(url: string): string | null {
   try {
     const u = new URL(url)
@@ -31,6 +31,12 @@ export function embedFor(url: string): string | null {
       const id = u.searchParams.get('v') ?? u.pathname.match(/^\/(?:live|shorts|embed)\/([\w-]{6,})/)?.[1]
       if (id) return `https://www.youtube.com/embed/${id}?autoplay=1&mute=1`
     }
+    const tt = host.endsWith('tiktok.com') && u.pathname.match(/\/video\/(\d+)/)
+    if (tt) return `https://www.tiktok.com/embed/v2/${tt[1]}`
+    const ig = host.endsWith('instagram.com') && u.pathname.match(/^\/(p|reel|tv)\/([\w-]+)/)
+    if (ig) return `https://www.instagram.com/${ig[1]}/${ig[2]}/embed`
+    const tw = (host === 'x.com' || host === 'twitter.com' || host === 'mobile.twitter.com') && u.pathname.match(/\/status\/(\d+)/)
+    if (tw) return `https://platform.twitter.com/embed/Tweet.html?id=${tw[1]}&theme=dark`
     if (host === 'youtu.be') return `https://www.youtube.com/embed/${u.pathname.slice(1)}?autoplay=1&mute=1`
   } catch {
     return null

@@ -14,11 +14,13 @@ export const SECRET_ENV = [
   'YOUTUBE_API_KEY',
   'GOOGLE_FACTCHECK_API_KEY',
   'AISSTREAM_API_KEY',
+  'APIFY_TOKEN',
 ] as const
 
 const PATTERNS: [RegExp, string][] = [
   [/sk-ant-[A-Za-z0-9_-]{10,}/g, '[redacted]'], // Anthropic keys
   [/AIza[0-9A-Za-z_-]{30,}/g, '[redacted]'], // Google API keys
+  [/apify_api_[A-Za-z0-9]{20,}/g, '[redacted]'], // Apify tokens
   [/\bBearer\s+[A-Za-z0-9._~+/=-]{16,}/gi, 'Bearer [redacted]'], // auth headers
   [/([?&](?:key|api_key|apikey|token|access_token|password)=)[^&\s"']+/gi, '$1[redacted]'], // secrets in query strings
 ]

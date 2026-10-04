@@ -128,3 +128,12 @@ export function deleteWatch(id: number) {
 }
 
 export const auditLog = (limit = 200) => db.prepare('SELECT ts, action, detail FROM audit ORDER BY id DESC LIMIT ?').all(limit)
+
+// ---- Apify spend ledger (the key has a small prepaid credit: every run is recorded) ----
+db.exec(`CREATE TABLE IF NOT EXISTS apify_spend (id INTEGER PRIMARY KEY, ts TEXT NOT NULL, actor TEXT NOT NULL, query TEXT NOT NULL, items INTEGER NOT NULL, usd REAL NOT NULL)`)
+export function logApifySpend(actor: string, query: string, items: number, usd: number) {
+  db.prepare('INSERT INTO apify_spend (ts, actor, query, items, usd) VALUES (?, ?, ?, ?, ?)').run(now(), actor, query, items, usd)
+  log('apify.run', `${actor} "${query}" ${items} items $${usd.toFixed(4)}`)
+}
+export const apifySpent = (): number => (db.prepare('SELECT COALESCE(SUM(usd), 0) AS s FROM apify_spend').get() as { s: number }).s
+export const apifyRunsSince = (sinceIso: string): number => (db.prepare('SELECT COUNT(*) AS n FROM apify_spend WHERE ts >= ?').get(sinceIso) as { n: number }).n

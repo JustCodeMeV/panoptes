@@ -156,6 +156,8 @@ app.post('/api/llm/extract/:id', async (c) => {
   const e = entityWithTransforms(c.req.param('id'))
   return x && e ? c.json({ extraction: x, entity: e }) : c.json({ error: 'not read: unknown event, budget reached or AI unavailable' }, 503)
 })
+// Transforms fetch from outside services (and Apify spends credit): per-IP limit.
+app.use('/api/entities/:id/transform', rateLimit({ windowMs: 10 * 60_000, max: 90, name: 'transforms' }))
 app.post('/api/entities/:id/transform', async (c) => {
   const b = (await c.req.json().catch(() => ({}))) as { name?: unknown }
   if (typeof b.name !== 'string') return c.json({ error: 'name required' }, 400)

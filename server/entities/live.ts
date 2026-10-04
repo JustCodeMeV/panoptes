@@ -6,6 +6,7 @@ import { pollFeed } from '../news/ingest.ts'
 import { loadCorpus, matchFactChecks } from '../truth/factchecks.ts'
 import { hash } from '../truth/text.ts'
 import { adaptFeature as adapt, countryEntity } from './adapters.ts'
+import { socialSearch, type Network } from '../social/apify.ts'
 import { edgesOf, getEntity, link, slug, upsertEntity } from './graph.ts'
 import { checkEvent, resolveEvents } from './resolve.ts'
 import { actorId, ingestReport, locationEntity, type Report } from './rules.ts'
@@ -238,4 +239,17 @@ export async function relatedAcrossLayers(e: Entity): Promise<Subgraph> {
     if (id && id !== e.id) edges.push(link(id, 'mentions', e.id, { at: Date.now(), evidence: { featureId: f.id, url: f.source.url, quote: f.title.slice(0, 160) }, confidence: 0.5, via: 'transform' }))
   }
   return out(e.id, edges, found.length ? `${found.length} related items across news, Telegram, markets, cyber, OSINT` : 'no related item in the other layers')
+}
+
+// ---------- social networks via Apify (on demand, budgeted) ----------
+
+
+export async function socialTransform(e: Entity, network: Network): Promise<Subgraph> {
+  const { posts, status } = await socialSearch(network, termOf(e))
+  const reports: Report[] = posts.map((p) => ({
+    featureId: `${network}:${hash(p.url)}`, url: p.url, title: p.text.slice(0, 180) || `${network} post by @${p.author}`, text: p.text, at: p.at,
+    sources: [{ domain: `${network}:@${p.author}`, url: p.url, title: p.text.slice(0, 120), at: p.at }],
+  }))
+  const r = ingestAll(e.id, reports)
+  return out(e.id, r.edges, status)
 }

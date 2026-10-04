@@ -28,6 +28,9 @@ export const TRANSFORMS: TransformDef[] = [
   { id: 'threat-activity', label: '⚡ Victims and servers (cyber feeds)', types: ['actor'] },
   { id: 'related', label: '⚡ Related items in every layer', types: ['event', 'actor', 'location', 'claim', 'asset', 'source'] },
   { id: 'country-of', label: 'Located in (country)', types: ['event', 'asset', 'actor', 'source'] },
+  { id: 'social-x', label: '💲 X posts (Apify, 15 max)', types: ['event', 'actor', 'location'] },
+  { id: 'social-tiktok', label: '💲 TikTok videos (Apify, 15 max)', types: ['event', 'actor', 'location'] },
+  { id: 'social-instagram', label: '💲 Instagram posts (Apify, 15 max)', types: ['actor', 'location'] },
   { id: 'open-atlas', label: '🌍 Open country atlas', types: ['location'] },
   // graph: walk what is already known
   { id: 'sources', label: 'Who reported it', types: ['event'] },
@@ -134,6 +137,9 @@ async function run(id: string, name: string): Promise<Subgraph | null> {
     case 'threat-activity': return live.threatActorActivity(e)
     case 'related': return live.relatedAcrossLayers(e)
     case 'country-of': return live.countryOfEntity(e)
+    case 'social-x': return live.socialTransform(e, 'x')
+    case 'social-tiktok': return live.socialTransform(e, 'tiktok')
+    case 'social-instagram': return live.socialTransform(e, 'instagram')
     case 'sources': return sub(id, out(id, 'reported_by'))
     case 'actors': return sub(id, out(id, 'involves'))
     case 'claims': return sub(id, inc(id, 'about'))
