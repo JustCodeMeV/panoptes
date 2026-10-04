@@ -45,12 +45,19 @@ export const useInvestigation = create<State>((set, getState) => ({
   inspect: null,
   busy: null,
   error: null,
-  async seed(featureId) {
+  async seed(rawId) {
+    // Region-watch alerts wrap the original item: watch:<watch id>:<original id>.
+    const featureId = rawId.replace(/^watch:[^:]+:/, '')
     const entityId = featureId.startsWith('events:') ? featureId.slice(7) : null
     if (entityId) return getState().seedEntity(entityId)
+    const layer = featureId.split(':')[0]
+    if (!['news', 'telegram', 'acled', 'unrest', 'campaigns'].includes(layer)) {
+      set({ open: true, error: 'Only events become entities: open a news story, Telegram post, conflict event or unrest hotspot (or an item of the Events layer).' })
+      return
+    }
     set({ open: true, busy: 'Reading the item…', error: null })
     try {
-      const g = await get<Subgraph>(`/api/entities/seed/${encodeURIComponent(featureId)}`)
+      const g = await get<Subgraph>(`/api/entities/seed/${encodeURIComponent(featureId.replace(/^campaigns:/, 'news:'))}`)
       set((s) => ({ ...merge(s, g), busy: null }))
       const ev = g.entities.find((e) => e.type === 'event')
       if (ev) void getState().select(ev.id)

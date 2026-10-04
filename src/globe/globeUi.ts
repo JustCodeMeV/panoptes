@@ -1,27 +1,30 @@
 import { create } from 'zustand'
 
-export type Sensor = 'eo' | 'nvg' | 'flir' | 'crt'
-export const SENSORS: { id: Sensor; label: string; title: string }[] = [
-  { id: 'eo', label: 'EO', title: 'Normal view' },
-  { id: 'nvg', label: 'NVG', title: 'Night vision' },
-  { id: 'flir', label: 'FLIR', title: 'Thermal (FLIR)' },
-  { id: 'crt', label: 'CRT', title: 'CRT terminal' },
-]
+/** Clusters up to this size fan out on hover; bigger ones zoom in on click. */
+export const SPIDER_MAX = 16
+export type Spider = { key: string; x: number; y: number; ids: string[] }
 
 /** Globe view state shared between the control stack and the layer renderer. */
 export const useGlobeUi = create<{
-  pinsHidden: boolean
-  togglePins: () => void
-  sensor: Sensor
-  setSensor: (s: Sensor) => void
   /** Real night sky (stars, sun, moon, planets) behind the globe. Off on every load. */
   sky: boolean
   toggleSky: () => void
+  /** Country and city names, revealed by zoom. */
+  places: boolean
+  togglePlaces: () => void
+  /** Day/night terminator and city lights in satellite view. On by default. */
+  darkSide: boolean
+  toggleDarkSide: () => void
+  /** A hovered pin cluster fanned out around its centre (canvas pixels), or null. */
+  spider: Spider | null
+  setSpider: (s: Spider | null) => void
 }>((set) => ({
-  pinsHidden: false,
+  spider: null,
+  setSpider: (spider) => set({ spider }),
   sky: false,
+  places: false,
+  togglePlaces: () => set((s) => ({ places: !s.places })),
+  darkSide: true,
+  toggleDarkSide: () => set((s) => ({ darkSide: !s.darkSide })),
   toggleSky: () => set((s) => ({ sky: !s.sky })),
-  togglePins: () => set((s) => ({ pinsHidden: !s.pinsHidden })),
-  sensor: 'eo',
-  setSensor: (sensor) => set({ sensor }),
 }))

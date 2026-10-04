@@ -4,24 +4,22 @@ import { LAYOUTS } from '../../gui_elements/layouts'
 
 /**
  * Screen chrome state. The globe area spans the space between the panels; when a panel is
- * minimised (or the dock closed) the globe area grows into the freed space, carrying the
+ * minimised the globe area grows into the freed space, carrying the
  * position readout and globe controls with it.
  */
 type Shell = {
   leftMin: boolean
-  dockMin: boolean
-  /** Dock is on screen (it opens only after the globe controls have moved back). */
-  dockShown: boolean
-  /** Globe area reaches the right edge: the dock is closed or minimised. */
+  /** The ANALYSIS panel is rolled up. */
+  rightMin: boolean
+  /** Globe area reaches the right edge: the ANALYSIS panel is minimised. */
   toolOut: boolean
   set: (patch: Partial<Omit<Shell, 'set'>>) => void
 }
 
 export const useShell = create<Shell>((set) => ({
   leftMin: false,
-  dockMin: false,
-  dockShown: false,
-  toolOut: true,
+  rightMin: false,
+  toolOut: false,
   set: (patch) => set(patch),
 }))
 

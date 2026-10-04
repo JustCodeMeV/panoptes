@@ -7,22 +7,29 @@ import { GlobeControls } from '../../gui_elements/GlobeControls'
 import { useNow } from '../ui/useNow'
 import { useGlobeUi } from './globeUi'
 import { useViewer } from './viewerContext'
-import { SensorModes } from './sensor/SensorModes'
+import { shellGeometry } from '../ui/shell'
+import { attachPlaces } from './places'
+import { attachWheelZoom } from './wheelZoom'
 
 const HOME = { lon: 15, lat: 30, height: 20_000_000 }
-// Zoom readout Z1–Z4 maps to camera height: Z1 = whole globe, each step ×4 closer
-const MIN_Z = 1
-const MAX_Z = 4
-const heightFor = (z: number) => HOME.height / 4 ** (z - 1)
-const zoomFor = (h: number) => Math.min(MAX_Z, Math.max(MIN_Z, 1 + Math.log(HOME.height / h) / Math.log(4)))
+// Zoom as a percentage on a log scale: 0% = the whole globe (home view), 100% = 1 km up
+const CLOSEST = 1_000
+const span = Math.log(CLOSEST / HOME.height)
+const heightFor = (pct: number) => HOME.height * Math.exp((pct / 100) * span)
+const zoomFor = (h: number) => Math.min(100, Math.max(0, (Math.log(h / HOME.height) / span) * 100))
 
-/** Position readout (bottom-left) and the globe control stack (bottom-right), driving the Cesium camera. */
+/**
+ * Position readout (top right, beside ANALYSIS) and the globe control strip (bottom centre),
+ * driving the Cesium camera. Both are fixed to the screen: they never move with the panels.
+ */
 export function GlobeOverlay() {
   const viewer = useViewer()!
   const now = useNow(1000)
-  const flight = FLIGHTS[useDesign().flyto].dur / 1000
-  const pinsHidden = useGlobeUi((s) => s.pinsHidden)
-  const togglePins = useGlobeUi((s) => s.togglePins)
+  const design = useDesign()
+  const flight = FLIGHTS[design.flyto].dur / 1000
+  const right = shellGeometry(design).right
+  const places = useGlobeUi((s) => s.places)
+  const togglePlaces = useGlobeUi((s) => s.togglePlaces)
   const sky = useGlobeUi((s) => s.sky)
   const toggleSky = useGlobeUi((s) => s.toggleSky)
   const [cam, setCam] = useState({ lat: HOME.lat, lon: HOME.lon, height: HOME.height })
@@ -49,6 +56,9 @@ export function GlobeOverlay() {
       off.forEach((remove) => remove())
     }
   }, [viewer])
+
+  useEffect(() => attachWheelZoom(viewer), [viewer])
+  useEffect(() => (places ? attachPlaces(viewer) : undefined), [viewer, places])
 
   // Fly requests from outside the globe (investigation canvas)
   useEffect(() => {
@@ -98,16 +108,20 @@ export function GlobeOverlay() {
   }
 
   return (
-    <div className="pointer-events-none absolute inset-0">
-      <GlobeHUD lat={cam.lat} lon={cam.lon} altKm={cam.height / 1000} time={new Date(now)} />
-      <div className="pointer-events-auto absolute right-[76px] bottom-3">
-        <SensorModes />
-      </div>
-      <div className="pointer-events-auto absolute right-3 bottom-3">
+    <>
+      <GlobeHUD
+        className="pointer-events-none fixed z-[5]"
+        style={{ top: right.top, right: right.inset + right.width + 12 }}
+        lat={cam.lat}
+        lon={cam.lon}
+        altKm={cam.height / 1000}
+        time={new Date(now)}
+      />
+      <div className="pointer-events-auto fixed bottom-3 left-1/2 z-[5] -translate-x-1/2">
         <GlobeControls
           zoom={Math.round(zoomFor(cam.height) * 10) / 10}
-          minZoom={MIN_Z}
-          maxZoom={MAX_Z}
+          minZoom={0}
+          maxZoom={100}
           onZoom={(z) => flyTo(cam.lon, cam.lat, heightFor(z))}
           onRotate={rotate}
           onNorth={() => flyTo(cam.lon, cam.lat, cam.height, tilt ? -35 : -90, 0)}
@@ -118,8 +132,8 @@ export function GlobeOverlay() {
           }}
           playing={spin}
           onPlay={() => setSpin(!spin)}
-          layersOn={!pinsHidden}
-          onLayers={togglePins}
+          places={places}
+          onPlaces={togglePlaces}
           sky={sky}
           onSky={toggleSky}
           onHome={() => {
@@ -129,6 +143,6 @@ export function GlobeOverlay() {
           }}
         />
       </div>
-    </div>
+    </>
   )
 }

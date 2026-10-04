@@ -62,7 +62,8 @@ export function TelegramDetail({ feature }: DetailProps) {
         <>
           {media?.thumb && <img className="tg-thumb" src={media.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" />}
           <span className="tg-text">{text}</span>
-          {p.lang !== 'en' && <Translate key={feature.id} text={text} />}
+          {/* Already in English when the server translated it automatically */}
+          {p.lang !== 'en' && !p.original && <Translate key={feature.id} text={text} />}
           {c && c.channels.length >= 2 && (
             <span className={`tg-coord ${c.coordinated || c.channels.length >= 3 ? 'alert' : ''}`}>
               <b>{c.coordinated || c.channels.length >= 3 ? '⚑ Coordinated copy' : 'Copied'}</b> Same text on {c.channels.length} channels within an hour, first on @{c.first}

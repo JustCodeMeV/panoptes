@@ -72,7 +72,7 @@ function IssCamera({ spot, active, onReady }: { spot: Spot; active: boolean; onR
 /** Live ATLAS globe for the landing hero: satellite view, the real sky, the engine's pins. */
 export default function LandingGlobe({ spot, active, onReady }: { spot: Spot; active: boolean; onReady: () => void }) {
   return (
-    <GlobeHost satellite sky>
+    <GlobeHost satellite sky darkSide={false}>
       <LayerRenderer layers={LAYERS} interactive={false} />
       <IssCamera spot={spot} active={active} onReady={onReady} />
     </GlobeHost>

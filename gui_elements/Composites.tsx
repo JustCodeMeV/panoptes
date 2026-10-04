@@ -1,5 +1,5 @@
 // Composite ATLAS components. Each reads its variant from the active design (useDesign).
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { useDesign } from './context'
 import { Badge, type Tone } from './Badge'
 import { Button } from './Button'
@@ -49,6 +49,54 @@ export function Header({ name = 'ATLAS', tagline = 'Unrest & influence, mapped l
   }
 }
 
+/* ---------------- Fold (collapsible section) ---------------- */
+
+/** The ▾ toggle used by every foldable section. */
+export function FoldToggle({ open, onToggle, label }: { open: boolean; onToggle: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-label={`${open ? 'Collapse' : 'Expand'} ${label}`}
+      title={open ? 'Collapse' : 'Expand'}
+      className="grid size-5 flex-none cursor-pointer place-items-center text-accent-2 transition-colors hover:text-accent"
+    >
+      <svg viewBox="0 0 10 10" className={`size-2.5 transition-transform duration-200 ${open ? '' : '-rotate-90'}`} aria-hidden>
+        <path d="M1 3H9L5 8Z" fill="currentColor" />
+      </svg>
+    </button>
+  )
+}
+
+/** Slides its content open and shut (height eases with the design's motion). */
+export function FoldBody({ open, children }: { open: boolean; children: ReactNode }) {
+  return (
+    <div className={`grid transition-[grid-template-rows] duration-(--dur) ease-(--ease) ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`} inert={!open}>
+      <div className="min-h-0 overflow-hidden">{children}</div>
+    </div>
+  )
+}
+
+/** A titled section that folds shut: title, optional `aside` (chips, badges), then the ▾ toggle. */
+export function Fold({ title, aside, children, defaultOpen = true, className = '' }: { title: string; aside?: ReactNode; children: ReactNode; defaultOpen?: boolean; className?: string }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <section className={className}>
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={() => setOpen(!open)} className="sub t-label min-w-0 flex-1 cursor-pointer text-left text-accent">
+          {title}
+        </button>
+        {aside}
+        <FoldToggle open={open} onToggle={() => setOpen(!open)} label={title} />
+      </div>
+      <FoldBody open={open}>
+        <div className="pt-2">{children}</div>
+      </FoldBody>
+    </section>
+  )
+}
+
 /* ---------------- Layer row & panel ---------------- */
 
 function Spark({ data, color }: { data: number[]; color: string }) {
@@ -89,10 +137,11 @@ export function LayerRow({ layer, onToggle }: { layer: Layer; onToggle: (on: boo
   }
 }
 
-export function LayerPanel({ layers, onToggle, defaultOpen }: { layers: Layer[]; onToggle: (id: string, on: boolean) => void; defaultOpen?: string }) {
+/** `heading={false}` drops the "Layers" label (when a Fold above already titles it). */
+export function LayerPanel({ layers, onToggle, defaultOpen, heading = true }: { layers: Layer[]; onToggle: (id: string, on: boolean) => void; defaultOpen?: string; heading?: boolean }) {
   const v = useDesign().layerPanel
   const [open, setOpen] = useState<string | undefined>(defaultOpen ?? layers[0]?.id)
-  const label = <div className="sub t-label mb-2 text-accent">Layers</div>
+  const label = heading ? <div className="sub t-label mb-2 text-accent">Layers</div> : null
   switch (v) {
     case 1:
       return <div>{label}<div className="divide-y divide-line">{layers.map((l) => <LayerRow key={l.id} layer={l} onToggle={(on) => onToggle(l.id, on)} />)}</div></div>
@@ -376,7 +425,8 @@ export function Dock({ kind = 'Live stream', title, media, children, onClose, on
 
 /* ---------------- Legend ---------------- */
 
-export function Legend({ layers }: { layers: Layer[] }) {
+/** `heading={false}` drops the boxed variant's "Key" label (when a Fold above already titles it). */
+export function Legend({ layers, heading = true }: { layers: Layer[]; heading?: boolean }) {
   const v = useDesign().legend
   const prec = (['exact', 'approximate', 'inferred'] as const).map((p) => (
     <span key={p} className="t-caption flex items-center gap-1.5 text-dim"><Marker p={p} size={13} /><span className="sub">{p.slice(0, 6)}</span></span>
@@ -386,7 +436,7 @@ export function Legend({ layers }: { layers: Layer[] }) {
   ))
   switch (v) {
     case 1: return <div className="flex flex-col gap-1">{prec}<span className="my-1 h-px bg-line" />{cols}</div>
-    case 2: return <div className="border border-line p-2"><div className="sub t-label mb-1.5 text-accent">Key</div><div className="grid grid-cols-2 gap-1">{prec}{cols}</div></div>
+    case 2: return <div className="border border-line p-2">{heading && <div className="sub t-label mb-1.5 text-accent">Key</div>}<div className="grid grid-cols-2 gap-1">{prec}{cols}</div></div>
     case 3: return <div className="flex flex-wrap gap-1.5">{[...prec, ...cols].map((el, i) => <span key={i} className="border border-line px-1.5 py-0.5">{el}</span>)}</div>
     case 4: return <div className="flex flex-wrap gap-x-3 gap-y-1 border border-accent/30 bg-black px-2 py-1.5">{prec}{cols}</div>
     default: return <div className="flex flex-wrap items-center gap-x-3 gap-y-1">{prec}<span className="h-3 w-px bg-line" />{cols}</div>
@@ -492,7 +542,15 @@ const fmtLon = (v: number, dp: number) => `${Math.abs(v).toFixed(dp)}° ${v >= 0
 const fmtTime = (t: Date) => t.toISOString().slice(11, 19)
 
 /** Coordinates, altitude and UTC time over the globe. Pass the live camera readout; defaults are sample values. */
-export function GlobeHUD({ lat = 41.6971, lon = 44.8015, altKm = 2400, time = new Date('2026-10-03T14:32:07Z') }: Partial<HudReadout>) {
+/** `className`/`style` place the boxed readout (variant 7); by default it sits bottom-left of its parent. */
+export function GlobeHUD({
+  lat = 41.6971,
+  lon = 44.8015,
+  altKm = 2400,
+  time = new Date('2026-10-03T14:32:07Z'),
+  className = 'pointer-events-none absolute bottom-3 left-3',
+  style,
+}: Partial<HudReadout> & { className?: string; style?: CSSProperties }) {
   const pos2 = `${fmtLat(lat, 2)} ${fmtLon(lon, 2)}`
   const pos4 = `${fmtLat(lat, 4)} · ${fmtLon(lon, 4)}`
   const alt = Math.round(altKm).toLocaleString('en-US')
@@ -541,14 +599,13 @@ export function GlobeHUD({ lat = 41.6971, lon = 44.8015, altKm = 2400, time = ne
       )
     case 7:
       return (
-        // Chamfered box: an outer chamfer in the line colour, an inner one in the panel colour (1px "border")
-        <div className="chamfer pointer-events-none absolute bottom-3 left-3 bg-accent-2/45 p-px [--cut:10px]">
-          <div className="chamfer bg-panel/95 px-3 py-2 backdrop-blur-sm [--cut:10px]">
-            <div className="sub t-label mb-1 text-accent">Position</div>
-            <div className={`${txt} leading-relaxed tabular-nums`}>{pos4}</div>
-            <div className={`${txt} leading-relaxed tabular-nums`}>ALT {alt} KM</div>
-            <div className="t-caption font-mono leading-relaxed text-accent tabular-nums">{utc} UTC</div>
-          </div>
+        // Chamfered box in the search field's look: same fill (as it sits on the panel), no outline,
+        // label in the search field's type
+        <div className={`chamfer ${className} bg-[color-mix(in_srgb,var(--color-line)_60%,var(--color-panel))] px-3 py-2 [--cut:8px]`} style={style}>
+          <div className="mb-1 font-main text-[13px] text-dim">Position</div>
+          <div className={`${txt} leading-relaxed tabular-nums`}>{pos4}</div>
+          <div className={`${txt} leading-relaxed tabular-nums`}>ALT {alt} KM</div>
+          <div className="t-caption font-mono leading-relaxed text-accent tabular-nums">{utc} UTC</div>
         </div>
       )
     default:

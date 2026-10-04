@@ -102,6 +102,19 @@ export const useStore = create<State>((set) => ({
         live[layerId].eventsPerMin = e.eventsPerMin
         return { live, layers: { ...s.layers, [layerId]: { ...ls, data: { ...base, providers: e.providers, generatedAt: new Date().toISOString() } } } }
       }
+      if (e.type === 'patch') {
+        const byId = new Map(e.features.map((f) => [f.id, f]))
+        return {
+          live,
+          // Wire rows showing the old headline pick up the new one
+          ticker: s.ticker.map((t) => {
+            const f = byId.get(t.featureId)
+            const before = (f?.props.original as { title?: string } | undefined)?.title
+            return f && t.title === before ? { ...t, title: f.title } : t
+          }),
+          layers: { ...s.layers, [layerId]: { ...ls, data: { ...base, features: base.features.map((x) => byId.get(x.id) ?? x) } } },
+        }
+      }
       if (e.type === 'remove') {
         const gone = new Set(e.ids)
         return { live, layers: { ...s.layers, [layerId]: { ...ls, data: { ...base, features: base.features.filter((f) => !gone.has(f.id)) } } } }
