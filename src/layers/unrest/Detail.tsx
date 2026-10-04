@@ -7,8 +7,8 @@ export function UnrestDetail({ feature }: DetailProps) {
   return (
     <div className="detail truth">
       <div className="verdict" style={{ ['--v' as string]: rising ? '#ef4444' : '#f97316' }}>
-        <b>{u.dominant.toUpperCase()}{rising ? ' · RISING' : ''}</b>
-        <span>{u.sources} articles · {u.count} coded events · last 12 h</span>
+        <b>REPORTED {u.dominant.toUpperCase()}{rising ? ' · RISING' : ''}</b>
+        <span>{u.sources} articles · {u.count} machine-coded events · last 12 h</span>
       </div>
       <h2>{feature.title}</h2>
       <h3>Event mix</h3>
@@ -22,7 +22,7 @@ export function UnrestDetail({ feature }: DetailProps) {
         {u.articles.map((a) => (
           <li key={a.url}>
             <a href={a.url} target="_blank" rel="noreferrer">{a.title}</a>
-            <small>{new URL(a.url).hostname.replace(/^www\./, '')} · coded as {a.label}</small>
+            <small>{new URL(a.url).hostname.replace(/^www\./, '')} · GDELT code: {a.label}</small>
           </li>
         ))}
       </ul>
@@ -32,7 +32,8 @@ export function UnrestDetail({ feature }: DetailProps) {
       </div>
       <p className="note">
         Events are coded automatically from news text by GDELT and are noisy: the same article can
-        be coded to the wrong place or event type. Treat a hotspot as a lead and read the sources.
+        be coded to the wrong place or event type. Articles about entertainment, sport and local crime
+        are filtered out; what remains is a lead, not a confirmed event. Read the sources.
         Average tone {u.tone.toFixed(1)}.
       </p>
     </div>

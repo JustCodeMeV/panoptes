@@ -1,5 +1,5 @@
 import type { Feature } from '../../shared/feature.ts'
-import { ROOT_LABEL, fetchExport, latestStamp, parseStamp, stamp, type GdeltEvent } from './gdelt.ts'
+import { ROOT_LABEL, fetchExport, latestStamp, parseStamp, stamp, titleFromUrl, type GdeltEvent } from './gdelt.ts'
 
 export const LAYER_ID = 'unrest'
 const WINDOW_MS = 12 * 3600_000
@@ -24,17 +24,7 @@ const fetched = new Set<string>()
 let lastError: string | undefined
 let lastOk = 0
 
-/** Readable headline from a URL slug (GDELT export carries no titles). */
-export function titleFromUrl(url: string): string {
-  try {
-    const parts = new URL(url).pathname.split('/').filter(Boolean)
-    const slug = [...parts].reverse().find((p) => /[a-z]{3,}-[a-z]{3,}/i.test(p)) ?? parts[parts.length - 1] ?? ''
-    const t = decodeURIComponent(slug).replace(/\.(html?|php|aspx?)$/i, '').replace(/[-_+]+/g, ' ').replace(/\b\d{5,}\b/g, '').trim()
-    return t ? t.charAt(0).toUpperCase() + t.slice(1) : new URL(url).hostname
-  } catch {
-    return url
-  }
-}
+export { titleFromUrl } from './gdelt.ts'
 
 async function ingest(ts: string): Promise<boolean> {
   if (fetched.has(ts)) return true
@@ -123,7 +113,8 @@ export function hotspots(): Feature[] {
     out.push({
       id: `${LAYER_ID}:${key}`,
       layerId: LAYER_ID,
-      title: `${dominant[0].toUpperCase()}${dominant.slice(1)} activity: ${best.place.split(',')[0] || 'unknown'}`,
+      // "Reports", not "activity": these are machine-coded news reports, not confirmed events.
+      title: `${best.place.split(',')[0] || 'Unknown place'}: ${dominant} reports`,
       position: { lat, lon },
       geoPrecision: 'approximate',
       geoBasis: `GDELT ActionGeo "${best.place}" (city centroid), mention-weighted over ${list.length} events`,

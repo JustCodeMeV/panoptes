@@ -35,11 +35,35 @@ test('GDELT: stamp round-trip and export parsing keeps only city-level unrest ro
   const row = (root: string, geoType: string) => {
     const c = Array<string>(61).fill('')
     c[0] = '1'; c[26] = '140'; c[28] = root; c[31] = '3'; c[32] = '2'; c[34] = '-2'; c[51] = geoType; c[52] = 'Tbilisi, Georgia'; c[53] = 'GG'; c[56] = '41.7'; c[57] = '44.8'; c[59] = '20261003154500'; c[60] = 'https://x.example/a-b-c'
+    c[12] = 'MIL'
     return c.join('\t')
   }
   const ev = parseExport([row('14', '4'), row('14', '1'), row('04', '4'), row('19', '3')].join('\n'))
   assert.equal(ev.length, 2)
   assert.deepEqual(ev.map((e) => e.root), ['14', '19'])
+})
+
+test('GDELT relevance: entertainment, sport and local crime coded as violence are dropped', async () => {
+  const { isRelevant } = await import('../server/unrest/gdelt.ts')
+  const junk = [
+    'https://www.womansworld.com/entertainment/books/5-most-read-horror-fiction-books-on-goodreads-right-now',
+    'https://www.courant.com/2026/10/03/nurse-convicted-of-murder-in-high-speed-south-la-car-wreck-that-killed-six/',
+    'https://www.howtogeek.com/new-netflix-shows-to-watch-in-october-2026/',
+    'https://www.latimes.com/california/story/2026-10-03/culver-city-bus-shooting-victim-identified-suspect-arrested',
+    'https://kotaku.com/troves-of-unseen-star-wars-material-emerge-online-after-effects-wizards-garage-sale',
+    'https://www.hollywoodreporter.com/tv/annabelle-wallis-unabomber-netflix-1236',
+    'https://sfist.com/2026/10/03/man-killed-in-shooting-on-market-street-outside-sfs-warfield-theatre/',
+  ]
+  for (const url of junk) assert.equal(isRelevant({ root: '19', url, actor1Type: 'GOV' }), false, url)
+  const real = [
+    'https://www.thehindu.com/news/international/yemen-houthis-say-they-attacked-aramco-facility-in-riyadh-with-missiles-drones/article1.ece',
+    'https://example.org/2026/10/ethiopian-troops-retake-mekelle-airport',
+    'https://example.org/hundreds-march-against-planned-detention-site-on-east-side',
+  ]
+  for (const url of real) assert.equal(isRelevant({ root: '19', url }), true, url)
+  // No readable headline: only political/military actors (or a protest) make it count.
+  assert.equal(isRelevant({ root: '19', url: 'https://www.eng.kavkaz-uzel.eu/articles/79097', actor1Type: 'COP' }), false)
+  assert.equal(isRelevant({ root: '19', url: 'https://www.eng.kavkaz-uzel.eu/articles/79097', actor1Type: 'MIL' }), true)
 })
 
 test('titleFromUrl makes a readable headline from a slug', () => {
