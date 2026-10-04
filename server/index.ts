@@ -424,7 +424,7 @@ startXEngine()
 startCii(LAYERS)
 startEntityEngine(LAYERS)
 // Regions of the countries most likely to be opened, fetched once in the background
-prewarmRegions(['Ukraine', 'Russia', 'Israel', 'Iran', 'France', 'United States of America', 'China', 'Dem. Rep. Congo', 'Sudan', 'Syria', 'Lebanon', 'Yemen'])
+prewarmRegions(['Ukraine', 'Israel', 'Iran', 'France', 'China', 'Dem. Rep. Congo', 'Sudan', 'Syria', 'Lebanon', 'Yemen']) // Russia and the US are large (memory spike): on demand only
 setAtlasLayers(LAYERS)
 
 // Production (e.g. Render): one service serves the API and the built frontend.
