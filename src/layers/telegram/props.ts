@@ -2,18 +2,18 @@ import type { Feature } from '../../../shared/feature'
 
 export type TgCluster = { id: string; size: number; channels: string[]; first: string; firstAt: number; leadMin: number; coordinated?: boolean; recurringPair?: { from: string; to: string; count: number } }
 
-/** Colour per channel type: state-affiliated and partisan sources stand out. */
+/** Colour per channel type. Same rules for every side; official channels are neutral grey, not "trusted" green: they are parties to events. */
 export const TYPE_COLOR: Record<string, string> = {
   state: '#ef4444',
   milblog: '#f97316',
-  gov: '#22c55e',
+  gov: '#cbd5e1',
   media: '#38bdf8',
   osint: '#a78bfa',
 }
 export const TYPE_LABEL: Record<string, string> = {
-  state: 'state-affiliated',
+  state: 'government-funded outlet',
   milblog: 'partisan war blog',
-  gov: 'official',
+  gov: 'official (party to events)',
   media: 'newsroom',
   osint: 'OSINT / aggregator',
 }

@@ -21,11 +21,12 @@ const bsky = (id: string, q: string): NewsFeed => ({
   url: `https://api.bsky.app/xrpc/app.bsky.feed.searchPosts?q=${encodeURIComponent(q)}&sort=latest&limit=40`,
 })
 
-const gnews = (id: string, q: string): NewsFeed => ({
+/** Google News search. `gl` picks the regional edition, which decides whose outlets rank first: spread them. */
+const gnews = (id: string, q: string, gl = 'US'): NewsFeed => ({
   id: `gnews:${id}`,
   domain: 'news.google.com',
   everyMs: 40_000,
-  url: `https://news.google.com/rss/search?q=${encodeURIComponent(q + ' when:2h')}&hl=en-US&gl=US&ceid=US:en`,
+  url: `https://news.google.com/rss/search?q=${encodeURIComponent(q + ' when:2h')}&hl=en-${gl}&gl=${gl}&ceid=${gl}:en`,
 })
 
 export const NEWS_FEEDS: NewsFeed[] = [
@@ -42,20 +43,39 @@ export const NEWS_FEEDS: NewsFeed[] = [
   { id: 'defensenews', url: 'https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml', domain: 'defensenews.com' },
   { id: 'bellingcat', url: 'https://www.bellingcat.com/feed/', domain: 'bellingcat.com' },
   { id: 'twz', url: 'https://www.twz.com/feed', domain: 'twz.com' },
-  // state-affiliated: useful precisely because they are a different information stream
+  // beyond Europe and North America
+  { id: 'dawn', url: 'https://www.dawn.com/feeds/home', domain: 'dawn.com' },
+  { id: 'thehindu', url: 'https://www.thehindu.com/news/international/feeder/default.rss', domain: 'thehindu.com' },
+  { id: 'cna', url: 'https://www.channelnewsasia.com/rssfeeds/8395986', domain: 'channelnewsasia.com' },
+  { id: 'yonhap', url: 'https://en.yna.co.kr/RSS/news.xml', domain: 'yna.co.kr' },
+  { id: 'dailymaverick', url: 'https://www.dailymaverick.co.za/dmrss/', domain: 'dailymaverick.co.za' },
+  { id: 'premiumtimes', url: 'https://www.premiumtimesng.com/feed', domain: 'premiumtimesng.com' },
+  { id: 'africanews', url: 'https://www.africanews.com/feed/rss', domain: 'africanews.com' },
+  { id: 'arabnews', url: 'https://www.arabnews.com/rss.xml', domain: 'arabnews.com' },
+  { id: 'almonitor', url: 'https://www.al-monitor.com/rss', domain: 'al-monitor.com' },
+  { id: 'batimes', url: 'https://www.batimes.com.ar/feed', domain: 'batimes.com.ar' },
+  { id: 'meduza', url: 'https://meduza.io/rss/en/all', domain: 'meduza.io' },
+  { id: 'kyivindependent', url: 'https://kyivindependent.com/news-archive/rss/', domain: 'kyivindependent.com' },
+  { id: 'rfi', url: 'https://www.rfi.fr/en/rss', domain: 'rfi.fr' },
+  // government-funded outlets of every bloc: each is a different information stream, read with the same rule
+  { id: 'rferl', url: 'https://www.rferl.org/api/', domain: 'rferl.org' },
+  gnews('voa', 'site:voanews.com'),
+  { id: 'anadolu', url: 'https://www.aa.com.tr/en/rss/default?cat=guncel', domain: 'aa.com.tr' },
+  { id: 'xinhua', url: 'https://english.news.cn/rss/worldrss.xml', domain: 'news.cn' },
+  { id: 'globaltimes', url: 'https://www.globaltimes.cn/rss/outbrain.xml', domain: 'globaltimes.cn' },
   { id: 'tass', url: 'https://tass.com/rss/v2.xml', domain: 'tass.com' },
   { id: 'rt', url: 'https://www.rt.com/rss/news/', domain: 'rt.com' },
   { id: 'presstv', url: 'https://www.presstv.ir/rss.xml', domain: 'presstv.ir' },
   { id: 'almanar', url: 'https://english.almanar.com.lb/rss', domain: 'almanar.com.lb' },
   { id: 'cgtn', url: 'https://www.cgtn.com/subscribe/rss/section/world.xml', domain: 'cgtn.com' },
-  gnews('unrest', 'protest OR riot OR clashes OR unrest OR crackdown'),
+  gnews('unrest', 'protest OR riot OR clashes OR unrest OR crackdown', 'IN'),
   gnews('strikes', 'missile OR airstrike OR "drone attack" OR shelling OR explosion'),
-  gnews('security', 'ceasefire OR hostage OR troops OR "military buildup" OR sanctions'),
-  gnews('info', 'disinformation OR deepfake OR hoax OR "fake video" OR propaganda'),
+  gnews('security', 'ceasefire OR hostage OR troops OR "military buildup" OR sanctions', 'GB'),
+  gnews('info', 'disinformation OR deepfake OR hoax OR "fake video" OR propaganda', 'ZA'),
   // social: Bluesky keyword search (Telegram channels are read by the scouts in server/telegram/)
   bsky('unrest', 'protest clashes'),
   bsky('strikes', 'airstrike missile drone'),
   bsky('info', 'disinformation fake video'),
   bsky('security', 'ceasefire hostage troops'),
-  gnews('cyber', 'cyberattack OR "power outage" OR sabotage OR "undersea cable"'),
+  gnews('cyber', 'cyberattack OR "power outage" OR sabotage OR "undersea cable"', 'SG'),
 ]

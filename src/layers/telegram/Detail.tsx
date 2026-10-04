@@ -80,7 +80,7 @@ export function TelegramDetail({ feature }: DetailProps) {
         ['Mentions', Array.isArray(p.mentions) && p.mentions.length ? (p.mentions as string[]).map((h) => `@${h}`).join(' ') : undefined],
         ['Media', media?.kind],
         ['Link', link],
-        ['State bloc', p.bloc ? String(p.bloc) : undefined],
+        ['Speaks for / sides with', p.bloc ? String(p.bloc) : undefined],
       ]}
     />
   )

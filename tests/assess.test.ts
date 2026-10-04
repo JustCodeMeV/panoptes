@@ -26,7 +26,7 @@ test('state-only coverage is flagged and raises attention', () => {
   const base = assess({ signals: [sig('news', 'a'), sig('news', 'b')], factChecks: [], coverage: cov({ domains: 2 }) })
   const state = assess({ signals: [sig('news', 'a'), sig('news', 'b')], factChecks: [], coverage: cov({ domains: 2, stateOutlets: ['rt.com'] }) })
   assert.equal(state.verdict, 'unverified')
-  assert.ok(state.reasons.some((r) => /state-affiliated/.test(r)))
+  assert.ok(state.reasons.some((r) => /government-funded/.test(r)))
   assert.ok(state.risk > base.risk)
 })
 

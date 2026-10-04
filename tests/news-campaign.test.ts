@@ -37,11 +37,15 @@ test('no state-first flag when the lead is short', () => {
   assert.ok(!c.flags.some((f) => f.id === 'state-first'))
 })
 
-test('aligned state blocs (RU + IR) raise an alert', () => {
-  const c = campaignOf(story([item('tass.com', 0), item('presstv.ir', 5)]), false, false)
-  const f = c.flags.find((x) => x.id === 'multi-bloc')
-  assert.equal(f?.severity, 'alert')
-  assert.deepEqual(c.blocs.sort(), ['IR', 'RU'])
+test('several governments pushing a story is flagged the same way for every bloc', () => {
+  const ruIr = campaignOf(story([item('tass.com', 0), item('presstv.ir', 5)]), false, false)
+  assert.equal(ruIr.flags.find((x) => x.id === 'multi-bloc')?.severity, 'warn')
+  assert.deepEqual(ruIr.blocs.sort(), ['IR', 'RU'])
+  const usUa = campaignOf(story([item('voanews.com', 0), item('ukrinform.net', 5)]), false, false)
+  assert.equal(usUa.flags.find((x) => x.id === 'multi-bloc')?.severity, 'warn')
+  assert.deepEqual(usUa.blocs.sort(), ['UA', 'US'])
+  const three = campaignOf(story([item('voanews.com', 0), item('aljazeera.com', 3), item('rt.com', 5)]), false, false)
+  assert.equal(three.flags.find((x) => x.id === 'multi-bloc')?.severity, 'alert')
 })
 
 test('widely corroborated stories raise no spread flags', () => {

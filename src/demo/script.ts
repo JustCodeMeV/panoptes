@@ -40,10 +40,10 @@ type Src = { at: number; source: string; cls: 'established' | 'state' | 'social'
 const T0 = () => Date.now() - 50 * 60_000
 
 const FLAG = {
-  socialFirst: { id: 'social-first', label: 'Social-first', severity: 'info', detail: 'first seen on t.me/intelslava, no established outlet yet' },
-  surge: { id: 'social-surge', label: 'Social surge', severity: 'warn', detail: '4 distinct social accounts/channels amplify it with no established outlet' },
-  stateFirst: { id: 'state-first', label: 'State media first', severity: 'warn', detail: 'tass.com ran it with no established outlet confirming' },
-  bloc: { id: 'multi-bloc', label: 'Aligned state outlets', severity: 'alert', detail: 'outlets from RU + IR carry the same story' },
+  socialFirst: { id: 'social-first', label: 'Social-first', severity: 'info', detail: 'first seen on t.me/intelslava, no independent outlet yet' },
+  surge: { id: 'social-surge', label: 'Social surge', severity: 'warn', detail: '4 distinct social accounts/channels amplify it with no independent outlet' },
+  stateFirst: { id: 'state-first', label: 'Government outlet first', severity: 'warn', detail: 'tass.com ran it with no independent outlet confirming' },
+  bloc: { id: 'multi-bloc', label: 'Several governments push it', severity: 'warn', detail: 'outlets of the RU + IR governments carry the same story with no independent outlet' },
   contradicted: { id: 'contradicted', label: 'Contradicted', severity: 'alert', detail: 'a published fact-check rates a matching claim false while the story is still circulating' },
   market: { id: 'market', label: 'Market reacting', severity: 'info', detail: 'a related prediction market moved sharply' },
 } satisfies Record<string, CampaignFlag>
@@ -206,7 +206,7 @@ const BRIEF: Brief = {
   summary: 'Social accounts claimed a tanker was hit near the Strait of Hormuz; Russian and Iranian state media repeated it within minutes. Lead Stories has since shown the footage is from a 2023 port fire.',
   whyFlagged: [
     'Started on one Telegram channel and spread to three more accounts before any newsroom reported it.',
-    'TASS and Press TV ran it before any established outlet: consistent with aligned amplification, not proof of it.',
+    'TASS and Press TV ran it before any independent outlet: consistent with aligned amplification, not proof of it.',
     'A matching fact-check rates the footage false while the story is still circulating.',
   ],
   frames: [
@@ -216,7 +216,7 @@ const BRIEF: Brief = {
   ],
   checkNext: [
     'Check AIS for the named tanker and for vessels loitering near Bandar Abbas.',
-    'Watch whether established outlets correct or drop the story within 6 h.',
+    'Watch whether independent outlets correct or drop the story within 6 h.',
     'Track the Polymarket move for reversal once the debunk spreads.',
   ],
   glosses: [],
@@ -261,7 +261,7 @@ export async function runDemo(signal: AbortSignal) {
     st().select(STORY)
     await sleep(8000, signal)
 
-    say(2, 'Amplification: four accounts across two platforms', 'Social surge flagged, still no established outlet')
+    say(2, 'Amplification: four accounts across two platforms', 'Social surge flagged, still no independent outlet')
     st().applyLive('news', upsert(story({ items: [a, b, c, e], verdict: 'unverified', risk: 41, score: 25, flags: [FLAG.surge], reasons: ['only social accounts report it so far; no news outlet has covered it yet', 'appears on 4 distinct platform/region feeds'] }), 'update', '+3 social · ⚑ Social surge', b.source))
     await sleep(8000, signal)
 
@@ -280,8 +280,8 @@ export async function runDemo(signal: AbortSignal) {
     await sleep(8000, signal)
 
     const stateItems = { items: [a, b, c, e, f, g], blocs: ['RU', 'IR'], market: true, network: NETWORK }
-    say(5, 'State media pick it up: Russia and Iran align', 'TASS and Press TV frame it within minutes, before any established outlet')
-    st().applyLive('news', upsert(story({ ...stateItems, verdict: 'unverified', risk: 81, score: 75, flags: [FLAG.stateFirst, FLAG.bloc, FLAG.surge, FLAG.market], reasons: ['reported only by state-affiliated outlets so far (2 domains)', 'coverage comes only from state-affiliated outlets: tass.com, presstv.co.uk', 'markets treat this as likely while confirmation is still thin: worth a closer look'] }), 'update', '+tass.com · +presstv.co.uk · ⚑ Aligned state outlets', 'tass.com'))
+    say(5, 'Government outlets pick it up: Russia and Iran', 'TASS and Press TV frame it within minutes, before any independent outlet')
+    st().applyLive('news', upsert(story({ ...stateItems, verdict: 'unverified', risk: 81, score: 75, flags: [FLAG.stateFirst, FLAG.bloc, FLAG.surge, FLAG.market], reasons: ['reported only by government-funded outlets so far (2 domains)', 'coverage comes only from government-funded outlets: tass.com (RU), presstv.co.uk (IR)', 'markets treat this as likely while confirmation is still thin: worth a closer look'] }), 'update', '+tass.com · +presstv.co.uk · ⚑ Several governments push it', 'tass.com'))
     await sleep(8000, signal)
 
     say(6, 'Who amplifies whom: the influence network', 'TASS → Press TV is a recurring pair: same order on 5 flagged stories, Press TV ~4 min behind. The Telegram channel that started it feeds TASS too')
@@ -290,7 +290,7 @@ export async function runDemo(signal: AbortSignal) {
 
     say(7, 'The fact-check lands, and the analyst brief writes itself', 'Lead Stories: the footage is from a 2023 port fire. The verdict flips to debunked; the AI brief summarises why and what to check next')
     d.set({ tab: 'timeline' })
-    st().applyLive('news', upsert(story({ ...stateItems, verdict: 'debunked', risk: 96, score: 95, fc: [FC], brief: BRIEF, flags: [FLAG.stateFirst, FLAG.bloc, FLAG.surge, FLAG.contradicted, FLAG.market], reasons: ['Lead Stories fact-check rates a matching claim false (82% term match)', 'coverage comes only from state-affiliated outlets: tass.com, presstv.co.uk'] }), 'update', 'unverified → debunked · ⚑ Contradicted', 'leadstories.com'))
+    st().applyLive('news', upsert(story({ ...stateItems, verdict: 'debunked', risk: 96, score: 95, fc: [FC], brief: BRIEF, flags: [FLAG.stateFirst, FLAG.bloc, FLAG.surge, FLAG.contradicted, FLAG.market], reasons: ['Lead Stories fact-check rates a matching claim false (82% term match)', 'coverage comes only from government-funded outlets: tass.com (RU), presstv.co.uk (IR)'] }), 'update', 'unverified → debunked · ⚑ Contradicted', 'leadstories.com'))
     await sleep(10000, signal)
 
     say(8, 'Physical signals: does anything on the ground back it up?', 'Thermal look on. Live layers: GPS jamming from yesterday, military aircraft broadcasting now, outages and censorship. Nothing physical confirms a strike; the market keeps its fear premium')

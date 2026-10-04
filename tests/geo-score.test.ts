@@ -35,3 +35,27 @@ test('clustering needs a distinctive shared word', () => {
   assert.ok(!similar(tokenSet('Police clash with protesters in Kampala'), tokenSet('Police clash with protesters in Paris')))
   assert.ok(similar(tokenSet('Bobi Wine arrested in Kampala'), tokenSet('Bobi Wine arrested after Kampala rally')))
 })
+
+test('outlet registry: one rule for every bloc', async () => {
+  const { establishedOutlet, stateOutlet, stateBloc, outletCountry } = await import('../server/truth/domains.ts')
+  // Government-funded outlets are "state" whichever government pays for them.
+  for (const [d, bloc] of [['voanews.com', 'US'], ['rferl.org', 'US'], ['rt.com', 'RU'], ['news.cn', 'CN'], ['aljazeera.com', 'QA'], ['aa.com.tr', 'TR'], ['ukrinform.net', 'UA']] as const) {
+    assert.equal(stateOutlet(d), d, d)
+    assert.equal(stateBloc(d), bloc, d)
+    assert.equal(establishedOutlet(d), undefined, d)
+  }
+  // Independent newsrooms and public-service broadcasters from anywhere count as independent coverage.
+  for (const d of ['reuters.com', 'bbc.co.uk', 'dawn.com', 'thehindu.com', 'dailymaverick.co.za', 'meduza.io', 'premiumtimesng.com']) assert.equal(establishedOutlet(d), d, d)
+  assert.equal(outletCountry('dawn.com'), 'PK')
+  // Official channels of every side carry their government's bloc.
+  assert.equal(stateBloc('t.me/idfofficial'), 'IL')
+  assert.equal(stateBloc('t.me/kpszsu'), 'UA')
+  assert.equal(stateBloc('t.me/mod_russia_en'), 'RU')
+})
+
+test('corroboration needs independent outlets from more than one country', async () => {
+  const { assess } = await import('../server/truth/assess.ts')
+  const cov = (domains: string[]) => ({ query: 'q', window: '24h', total: domains.length, domains: domains.length, countries: [], establishedOutlets: domains, stateOutlets: [], articles: [] })
+  assert.equal(assess({ signals: [], factChecks: [], coverage: cov(['nytimes.com', 'cnn.com']) }).verdict, 'unverified') // one national press
+  assert.equal(assess({ signals: [], factChecks: [], coverage: cov(['nytimes.com', 'dawn.com']) }).verdict, 'corroborated')
+})

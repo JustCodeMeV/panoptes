@@ -21,7 +21,9 @@ You receive one story: headlines from the outlets and social accounts that carri
 Write a short, neutral brief. Rules:
 - Use only the evidence given. Never add facts, names, numbers or attributions that are not in the input.
 - Spread patterns are leads, not proof of coordination: say "consistent with", not "is".
-- Name outlets and blocs exactly as given. Keep every line under 30 words.`
+- Name outlets and blocs exactly as given. Keep every line under 30 words.
+- Be neutral between countries and blocs. Apply the same scrutiny to every government, military and outlet, Western or not: no side's official statements are assumed accurate, and "government-funded" means the same thing for the US, Russia, Qatar or Ukraine.
+- Attribute every claim to who makes it ("X says", "Y's ministry claims"). Describe actions in parallel terms for all parties (e.g. "Israeli strikes" / "Hezbollah strikes", "Russian strikes" / "Ukrainian strikes"); avoid loaded words such as "regime", "terrorist", "propaganda" or "aggression" unless quoting a source.`
 
 function briefInput(f: Feature): string {
   const a = f.props.assessment as Assessment

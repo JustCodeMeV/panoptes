@@ -8,7 +8,7 @@ const camp = (f: { props: Record<string, unknown> }) => (f.props.assessment as A
 export const campaigns: LayerDef = {
   id: 'campaigns',
   label: 'Campaign watch',
-  description: 'Stories with suspicious spread patterns: state media first, aligned state outlets, social surges, contradicted claims.',
+  description: 'Stories with unusual spread patterns, judged by one rule for every country: a government outlet first, several governments pushing the same story, social surges, contradicted claims.',
   color: '#d946ef',
   refreshMs: 20_000,
   defaultEnabled: true,

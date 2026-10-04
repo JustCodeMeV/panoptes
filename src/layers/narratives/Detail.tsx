@@ -111,7 +111,7 @@ export function NarrativeDetail({ feature, select }: { feature: Feature; select?
               </span>
             ))}
             {c.stateOutlets.map((d) => (
-              <span key={d} className="warn" title="State-affiliated outlet">
+              <span key={d} className="warn" title="Government-owned or -funded outlet (same rule for every country)">
                 ⚑ {d}
               </span>
             ))}
