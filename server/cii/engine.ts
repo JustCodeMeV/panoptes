@@ -33,6 +33,7 @@ const SPECS: Spec[] = [
   { id: 'jamming', label: 'GNSS jamming', max: 10, k: 4, unit: 'jammed cells × intensity' },
   { id: 'markets', label: 'Market moves', max: 5, k: 2, unit: 'real-money markets moving ≥5 pts/24 h' },
   { id: 'trends', label: 'Search trends', max: 10, k: 2, unit: 'security terms trending' },
+  { id: 'cyber', label: 'Cyber attacks', max: 5, k: 4, unit: 'ransomware claims + online botnet servers' },
 ]
 
 // GDELT event classes by severity: political rhetoric ("fight", "attack" in a speech) often lands in the
@@ -69,8 +70,8 @@ async function layer(id: string): Promise<Feature[]> {
 const where = (f: Feature) => (f.position ? countryAt(f.position.lat, f.position.lon) : undefined)
 
 export async function computeScores(): Promise<CountryScore[]> {
-  const [unrest, acled, news, telegram, campaigns, osint, gnss, markets, trends] = await Promise.all(
-    ['unrest', 'acled', 'news', 'telegram', 'campaigns', 'osint', 'gnss', 'markets', 'trends'].map((id) => layer(id).catch(() => [] as Feature[])),
+  const [unrest, acled, news, telegram, campaigns, osint, gnss, markets, trends, cyber] = await Promise.all(
+    ['unrest', 'acled', 'news', 'telegram', 'campaigns', 'osint', 'gnss', 'markets', 'trends', 'cyber'].map((id) => layer(id).catch(() => [] as Feature[])),
   )
   const raw = new Map<string, Record<string, number>>()
   const add = (country: string | undefined, comp: string, v: number) => {
@@ -96,6 +97,7 @@ export async function computeScores(): Promise<CountryScore[]> {
   for (const f of gnss) add(where(f), 'jamming', Number(f.props.intensity) || 0)
   for (const f of markets) if (!f.props.playMoney && Math.abs(Number(f.props.change24h) || 0) >= 0.05) add(where(f), 'markets', 1)
   for (const f of trends) add(where(f), 'trends', Number(f.props.securityTerms) || 0)
+  for (const f of cyber) if (f.props.kind === 'ransomware' || (f.props.kind === 'c2' && Number(f.props.online) > 0)) add(String(f.props.country ?? '') || where(f), 'cyber', f.props.kind === 'c2' ? Number(f.props.online) : 1)
 
   const now = Date.now()
   const out: CountryScore[] = []

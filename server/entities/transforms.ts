@@ -24,6 +24,11 @@ export const TRANSFORMS: TransformDef[] = [
   { id: 'markets', label: '⚡ Prediction markets on it', types: ['actor', 'location', 'event'] },
   { id: 'fact-checks', label: '⚡ Published fact-checks', types: ['claim', 'event'] },
   { id: 'source-items', label: '⚡ Recent items from this source', types: ['source'] },
+  { id: 'cyber-country', label: '⚡ Cyber incidents in this country', types: ['location'] },
+  { id: 'threat-activity', label: '⚡ Victims and servers (cyber feeds)', types: ['actor'] },
+  { id: 'related', label: '⚡ Related items in every layer', types: ['event', 'actor', 'location', 'claim', 'asset', 'source'] },
+  { id: 'country-of', label: 'Located in (country)', types: ['event', 'asset', 'actor', 'source'] },
+  { id: 'open-atlas', label: '🌍 Open country atlas', types: ['location'] },
   // graph: walk what is already known
   { id: 'sources', label: 'Who reported it', types: ['event'] },
   { id: 'actors', label: 'Actors involved', types: ['event'] },
@@ -94,11 +99,20 @@ async function nearbyAssets(e: Entity): Promise<Subgraph> {
   return sub(e.id, es)
 }
 
+const MAX_NEW = 40
+
 export async function runTransform(id: string, name: string): Promise<Subgraph | null> {
-  const g = await run(id, name)
-  if (!g || g.status) return g
+  const raw = await run(id, name)
+  if (!raw) return null
+  // De-duplicate and keep the canvas readable: at most MAX_NEW entities per transform.
+  const edges = [...new Map(raw.edges.map((e) => [e.id, e])).values()]
+  const ents = [...new Map(raw.entities.map((e) => [e.id, e])).values()]
+  const keep = new Set([id, ...ents.filter((e) => e.id !== id).slice(0, MAX_NEW).map((e) => e.id)])
+  const g = { entities: ents.filter((e) => keep.has(e.id)), edges: edges.filter((e) => keep.has(e.from) && keep.has(e.to)) }
+  const cut = ents.length - g.entities.length
   const n = g.edges.length
-  return { ...g, status: n ? `${n} relation${n === 1 ? '' : 's'} found` : 'nothing linked yet: try a ⚡ live transform such as "Search news now"' }
+  const status = raw.status ?? (n ? `${n} relation${n === 1 ? '' : 's'} found` : 'nothing linked yet: try a ⚡ live transform such as "Search news now"')
+  return { ...g, status: cut > 0 ? `${status} (showing ${MAX_NEW}, ${cut} more left out)` : status }
 }
 
 async function run(id: string, name: string): Promise<Subgraph | null> {
@@ -116,6 +130,10 @@ async function run(id: string, name: string): Promise<Subgraph | null> {
     case 'markets': return live.predictionMarkets(e)
     case 'fact-checks': return live.factChecks(e)
     case 'source-items': return live.sourceItems(e)
+    case 'cyber-country': return live.cyberInCountry(e)
+    case 'threat-activity': return live.threatActorActivity(e)
+    case 'related': return live.relatedAcrossLayers(e)
+    case 'country-of': return live.countryOfEntity(e)
     case 'sources': return sub(id, out(id, 'reported_by'))
     case 'actors': return sub(id, out(id, 'involves'))
     case 'claims': return sub(id, inc(id, 'about'))
@@ -158,7 +176,13 @@ async function run(id: string, name: string): Promise<Subgraph | null> {
   return null
 }
 
-const COUNTRY_ONLY = new Set(['country-events', 'leaders', 'alliances', 'neighbours', 'trade'])
+const COUNTRY_ONLY = new Set(['country-events', 'leaders', 'alliances', 'neighbours', 'trade', 'cyber-country', 'open-atlas'])
 const isCountry = (e: Entity) => e.type === 'location' && e.precision === 'country'
 export const transformsFor = (e: Entity) =>
-  TRANSFORMS.filter((t) => t.types.includes(e.type) && (!COUNTRY_ONLY.has(t.id) || isCountry(e)) && !(isCountry(e) && ['nearby-events', 'nearby-assets'].includes(t.id)))
+  TRANSFORMS.filter(
+    (t) =>
+      t.types.includes(e.type) &&
+      (!COUNTRY_ONLY.has(t.id) || isCountry(e)) &&
+      !(isCountry(e) && ['nearby-events', 'nearby-assets'].includes(t.id)) &&
+      (t.id !== 'threat-activity' || e.subtype === 'threat-actor'),
+  )

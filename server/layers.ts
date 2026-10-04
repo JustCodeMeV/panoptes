@@ -28,6 +28,9 @@ import { celestrakProvider } from './providers/space/celestrak.ts'
 import { aisstreamProvider } from './providers/maritime/aisstream.ts'
 import { eventsProvider } from './providers/events/entities.ts'
 import { financeProvider } from './providers/finance/yahoo.ts'
+import { ransomwareProvider } from './providers/cyber/ransomware.ts'
+import { feodoProvider } from './providers/cyber/feodo.ts'
+import { kevProvider } from './providers/cyber/kev.ts'
 
 /**
  * SERVER LAYER REGISTRY. A layer = an id + the providers that feed it.
@@ -44,6 +47,7 @@ export const LAYERS: Record<string, Provider[]> = {
   campaigns: [campaignsProvider],
   markets: [marketsProvider],
   finance: [financeProvider],
+  cyber: [ransomwareProvider, feodoProvider, kevProvider],
   cii: [ciiProvider],
   trends: [googleTrendsProvider],
   unrest: [gdeltEventsProvider],

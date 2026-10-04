@@ -121,6 +121,8 @@ export type Report = {
   /** Conflict-log entries carry their own event type. */
   kindHint?: EventKind
   casualties?: number
+  /** Actors the source states explicitly (e.g. ransomware group and victim), beyond what the text names. */
+  actors?: { name: string; subtype: string; role: Role; props?: Record<string, unknown> }[]
 }
 
 /** Normalises any layer's feature into a report, or null when the layer carries no events. */
@@ -142,6 +144,28 @@ export function reportOf(f: Feature): Report | null {
     const text = String(p.notes ?? f.title)
     const kind: EventKind = p.eventType === 'Disaster' ? 'disaster' : kindOf(text)
     return { featureId: f.id, url: f.source.url, title: f.title, text: `${text} ${String(p.context ?? '')}`, at, sources: [{ domain: f.source.url ? new URL(f.source.url).hostname.replace(/^www\./, '') : 'wikipedia.org', url: f.source.url, title: f.title, at }], position: f.position, kindHint: kind === 'other' ? 'clash' : kind, casualties: Number(p.fatalities) || undefined }
+  }
+  if (f.layerId === 'cyber' && p.kind === 'ransomware') {
+    const text = `${String(p.group)} ransomware group claims an attack on ${String(p.victim)}${p.sector ? ` (${String(p.sector)})` : ''}${p.country ? ` in ${String(p.country)}` : ''}. ${String(p.description ?? '')}`
+    return {
+      featureId: f.id, url: f.source.url, title: f.title, text, at, position: f.position, kindHint: 'cyber',
+      sources: [{ domain: 'ransomware.live', url: f.source.url, title: f.title, at }],
+      actors: [
+        { name: String(p.group), subtype: 'threat-actor', role: 'attacker', props: { kind: 'ransomware group' } },
+        { name: String(p.victim), subtype: 'org', role: 'victim', props: { sector: p.sector, domain: p.domain, country: p.country } },
+      ],
+    }
+  }
+  if (f.layerId === 'osint' || f.layerId === 'x') {
+    const cat = String(p.category ?? '')
+    const kind: EventKind = /outage|censor|block/i.test(cat) ? 'cyber' : /quake|flood|cyclone|volcan|fire|disaster|storm/i.test(`${cat} ${f.title}`) ? 'disaster' : kindOf(f.title)
+    let domain = f.source.platform
+    try {
+      if (f.source.url) domain = new URL(f.source.url).hostname.replace(/^www\./, '')
+    } catch {
+      /* keep platform */
+    }
+    return { featureId: f.id, url: f.source.url, title: f.title, text: `${f.title} ${String(p.summary ?? p.text ?? '')}`, at, position: f.position, kindHint: kind, sources: [{ domain, url: f.source.url, title: f.title, at }] }
   }
   if (f.layerId === 'unrest') {
     const arts = (p.articles as { url: string; title: string; at: number }[] | undefined) ?? []
@@ -173,6 +197,11 @@ export function ingestReport(r: Report): string | null {
   if (geo && pos) link(id, 'located_at', locationEntity(geo.name, geo.lat, geo.lon, precision, geo.country, r.at), { at: r.at, evidence: ev, confidence: geo.confidence })
   for (const s of r.sources) link(id, 'reported_by', sourceEntity(s.domain, s.at), { at: s.at, evidence: { featureId: r.featureId, url: s.url, quote: s.title?.slice(0, 200) }, confidence: 0.9 })
   for (const a of actorsIn(r.text.slice(0, 2000))) link(id, 'involves', a.id, { role: a.role, at: r.at, evidence: ev, confidence: 0.55 })
+  for (const a of r.actors ?? []) {
+    const aid = actorId(a.name)
+    upsertEntity({ id: aid, type: 'actor', subtype: a.subtype, label: a.name, props: a.props ?? {}, firstSeen: r.at, lastSeen: r.at, confidence: 0.9 })
+    link(id, 'involves', aid, { role: a.role, at: r.at, evidence: ev, confidence: 0.9 })
+  }
   // Claims: "X says ..." / "X denies ...": who asserts what about this event.
   const head = r.title
   if (CLAIMS.test(head) || DENIES.test(head)) {

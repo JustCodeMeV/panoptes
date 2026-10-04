@@ -1,4 +1,4 @@
-import type { Entity, Subgraph } from '../../shared/entities.ts'
+import type { Subgraph } from '../../shared/entities.ts'
 import type { Feature } from '../../shared/feature.ts'
 import { loadLayer } from '../core/aggregate.ts'
 import { streamSource } from '../core/hub.ts'
@@ -9,6 +9,7 @@ import { ingestReport, reportOf } from './rules.ts'
 import { setPhysicalSource, transformsFor } from './transforms.ts'
 import { setLayerSource } from './live.ts'
 import { extractBudget, readQueue } from './llm.ts'
+import { adaptFeature, neighbourhood } from './adapters.ts'
 
 /**
  * ENTITY ENGINE. Every 2 minutes, every new or changed entry of the event
@@ -18,7 +19,7 @@ import { extractBudget, readQueue } from './llm.ts'
  */
 
 const EVERY_MS = 2 * 60_000
-const INPUT_LAYERS = ['news', 'acled', 'unrest', 'telegram']
+const INPUT_LAYERS = ['news', 'acled', 'unrest', 'telegram', 'cyber', 'osint', 'x']
 const PHYSICAL_LAYERS = ['ships', 'military-air', 'gnss', 'infrastructure']
 
 let layers: Record<string, Provider[]> = {}
@@ -85,12 +86,16 @@ export function eventFeatures(): Feature[] {
 export const engineStats = () => ({ ...stats(), lastRun, lastMs, features: seen.size, ai: extractBudget() })
 
 /** Entities created from one feature (the canvas seed): its event plus direct neighbours. */
-export function seedFor(featureId: string): Subgraph | null {
+export async function seedFor(rawId: string): Promise<Subgraph | null> {
+  const featureId = rawId.replace(/^watch:[^:]+:/, '').replace(/^campaigns:/, 'news:')
   const event = allEntities().find((e) => e.type === 'event' && ((e.props.featureIds as string[]) ?? []).includes(featureId))
-  if (!event) return null
-  const es = edgesOf(event.id)
-  const ids = new Set([event.id, ...es.flatMap((x) => [x.from, x.to])])
-  return { entities: [...ids].map((i) => getEntity(i)).filter((x): x is Entity => !!x), edges: es }
+  if (event) return neighbourhood(event.id)
+  // Any other item: find it in its layer and adapt it on demand.
+  const layer = featureId.split(':')[0]
+  const f = featureById.get(featureId) ?? (await features(layer).catch(() => [] as Feature[])).find((x) => x.id === featureId)
+  if (!f) return null
+  const id = adaptFeature(f)
+  return id ? { ...neighbourhood(id), status: `${f.layerId} item opened as entities` } : null
 }
 
 export const entityWithTransforms = (id: string) => {

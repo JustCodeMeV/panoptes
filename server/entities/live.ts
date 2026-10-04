@@ -5,6 +5,7 @@ import { countryAt, centroidOf } from '../geo/gazetteer.ts'
 import { pollFeed } from '../news/ingest.ts'
 import { loadCorpus, matchFactChecks } from '../truth/factchecks.ts'
 import { hash } from '../truth/text.ts'
+import { adaptFeature as adapt, countryEntity } from './adapters.ts'
 import { edgesOf, getEntity, link, slug, upsertEntity } from './graph.ts'
 import { checkEvent, resolveEvents } from './resolve.ts'
 import { actorId, ingestReport, locationEntity, type Report } from './rules.ts'
@@ -184,4 +185,57 @@ export async function sourceItems(e: Entity): Promise<Subgraph> {
     if (ev) edges.push(ev)
   }
   return out(e.id, edges, feats.length ? `${feats.length} items from this source in the live layers` : 'nothing from this source in the live layers right now')
+}
+
+// ---------- cross-layer transforms ----------
+
+
+/** The country an entity is in (by position, or its stated country). */
+export function countryOfEntity(e: Entity): Subgraph {
+  const name = e.position ? countryAt(e.position.lat, e.position.lon) : typeof e.props.country === 'string' ? e.props.country : undefined
+  const c = countryEntity(name)
+  if (!c || c === e.id) return out(e.id, [], 'no country known for it')
+  return out(e.id, [link(e.id, 'located_at', c, { at: Date.now(), confidence: 0.8, via: 'transform' })], `in ${name}`)
+}
+
+/** Cyber incidents (ransomware claims, botnet servers) in a country. */
+export async function cyberInCountry(e: Entity): Promise<Subgraph> {
+  const name = countryName(e)
+  if (!name) return out(e.id, [], 'not a country')
+  const target = findCountry(name)?.name
+  const fs = (await layerFeatures('cyber')).filter((f) => findCountry(String(f.props.country ?? ''))?.name === target)
+  const edges: (Edge | undefined)[] = []
+  for (const f of fs.slice(0, 30)) {
+    const id = adapt(f)
+    if (id) edges.push(link(id, 'located_at', e.id, { at: Date.now(), evidence: { featureId: f.id, url: f.source.url }, confidence: 0.8, via: 'transform' }))
+  }
+  return out(e.id, edges, fs.length ? `${fs.length} cyber incidents and botnet servers in ${name}` : `no ransomware claim or botnet server in ${name} right now`)
+}
+
+/** A threat actor's victims and infrastructure from the cyber layer. */
+export async function threatActorActivity(e: Entity): Promise<Subgraph> {
+  const name = e.label.toLowerCase()
+  const fs = (await layerFeatures('cyber')).filter((f) => String(f.props.group ?? f.props.malware ?? '').toLowerCase() === name)
+  const ids = fs.slice(0, 30).map((f) => adapt(f)).filter((x): x is string => !!x)
+  const edges = ids.flatMap((id) => edgesOf(id, ['involves']).filter((x) => x.to === e.id || x.from === e.id))
+  return out(e.id, edges, fs.length ? `${fs.length} victims / servers attributed to ${e.label} in the live feeds` : `nothing attributed to ${e.label} in the live cyber feeds`)
+}
+
+/** Items from other layers that share distinctive words with this entity (stories, posts, markets). */
+export async function relatedAcrossLayers(e: Entity): Promise<Subgraph> {
+  const words = e.label.toLowerCase().match(/[a-z\u00c0-\u024f]{5,}/g)?.filter((w) => !['about', 'after', 'their', 'there', 'which', 'would', 'could', 'reports', 'claims'].includes(w)) ?? []
+  if (!words.length) return out(e.id, [], 'name too generic to match')
+  const layers = ['news', 'telegram', 'markets', 'cyber', 'osint', 'narratives']
+  const found: Feature[] = []
+  for (const l of layers)
+    for (const f of await layerFeatures(l)) {
+      const t = f.title.toLowerCase()
+      if (words.filter((w) => t.includes(w)).length >= Math.min(2, words.length)) found.push(f)
+    }
+  const edges: (Edge | undefined)[] = []
+  for (const f of found.slice(0, 25)) {
+    const id = adapt(f)
+    if (id && id !== e.id) edges.push(link(id, 'mentions', e.id, { at: Date.now(), evidence: { featureId: f.id, url: f.source.url, quote: f.title.slice(0, 160) }, confidence: 0.5, via: 'transform' }))
+  }
+  return out(e.id, edges, found.length ? `${found.length} related items across news, Telegram, markets, cyber, OSINT` : 'no related item in the other layers')
 }

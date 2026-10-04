@@ -141,9 +141,9 @@ app.get('/api/entities/country/:name', (c) => {
   const id = locationEntity(name, pos.lat, pos.lon, 'country', name, Date.now())
   return c.json(entityWithTransforms(id))
 })
-app.get('/api/entities/seed/:featureId', (c) => {
-  const g = seedFor(c.req.param('featureId'))
-  return g ? c.json(g) : c.json({ error: 'no entities for this item yet (extraction runs every 2 min)' }, 404)
+app.get('/api/entities/seed/:featureId', async (c) => {
+  const g = await seedFor(c.req.param('featureId'))
+  return g ? c.json(g) : c.json({ error: 'item not found in the live layers (it may have just expired)' }, 404)
 })
 app.get('/api/entities/:id', (c) => {
   const e = entityWithTransforms(c.req.param('id'))

@@ -66,17 +66,12 @@ export const useInvestigation = create<State>((set, getState) => ({
     if (featureId.startsWith('atlas:')) return getState().seedCountry(featureId.slice(6))
     const entityId = featureId.startsWith('events:') ? featureId.slice(7) : null
     if (entityId) return getState().seedEntity(entityId)
-    const layer = featureId.split(':')[0]
-    if (!['news', 'telegram', 'acled', 'unrest', 'campaigns'].includes(layer)) {
-      set({ open: true, error: 'Only events become entities: open a news story, Telegram post, conflict event or unrest hotspot (or an item of the Events layer).' })
-      return
-    }
     set({ open: true, busy: 'Reading the item…', error: null })
     try {
-      const g = await get<Subgraph>(`/api/entities/seed/${encodeURIComponent(featureId.replace(/^campaigns:/, 'news:'))}`)
-      set((s) => ({ ...merge(s, g), busy: null }))
-      const ev = g.entities.find((e) => e.type === 'event')
-      if (ev) void getState().select(ev.id)
+      const g = await get<Subgraph>(`/api/entities/seed/${encodeURIComponent(featureId)}`)
+      set((s) => ({ ...merge(s, g), busy: null, status: g.status ?? null }))
+      const main = g.entities.find((e) => e.type === 'event') ?? g.entities.find((e) => ((e.props.featureId as string) ?? '') === featureId) ?? g.entities[0]
+      if (main) void getState().select(main.id)
     } catch (e) {
       set({ busy: null, error: e instanceof Error ? e.message : String(e) })
     }
@@ -94,6 +89,13 @@ export const useInvestigation = create<State>((set, getState) => ({
     }
   },
   async expand(id, transform) {
+    // Client-side transform: open the country atlas for a country entity.
+    if (transform === 'open-atlas') {
+      const e = getState().entities[id]
+      if (e) void import('./atlas').then((m) => m.openCountry(e.label))
+      set({ status: `opened the atlas for ${e?.label ?? 'this country'}` })
+      return
+    }
     set({ busy: 'Running transform…', error: null })
     try {
       const g = await get<Subgraph>(`/api/entities/${encodeURIComponent(id)}/transform`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: transform }) })

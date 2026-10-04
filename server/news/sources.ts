@@ -42,6 +42,7 @@ export const NEWS_FEEDS: NewsFeed[] = [
   { id: 'ukrinform', url: 'https://www.ukrinform.net/rss/block-lastnews', domain: 'ukrinform.net' },
   { id: 'defensenews', url: 'https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml', domain: 'defensenews.com' },
   { id: 'bellingcat', url: 'https://www.bellingcat.com/feed/', domain: 'bellingcat.com' },
+  { id: 'thehackernews', url: 'https://feeds.feedburner.com/TheHackersNews', domain: 'thehackernews.com' },
   { id: 'twz', url: 'https://www.twz.com/feed', domain: 'twz.com' },
   // beyond Europe and North America
   { id: 'dawn', url: 'https://www.dawn.com/feeds/home', domain: 'dawn.com' },
