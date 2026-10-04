@@ -75,7 +75,7 @@ export function FullMock() {
   const [zoom, setZoom] = useState(1)
   const [spin, setSpin] = useState(false)
   const [tilt, setTilt] = useState(false)
-  const [showPins, setShowPins] = useState(true)
+  const showPins = true
   // Minimised panels. The control stack moves out to the right edge once the dock is out of the way.
   const [leftMin, setLeftMin] = useState(false)
   const [dockMin, setDockMin] = useState(false)
@@ -234,8 +234,6 @@ export function FullMock() {
             onTilt={() => setTilt(!tilt)}
             playing={spin}
             onPlay={() => setSpin(!spin)}
-            layersOn={showPins}
-            onLayers={() => setShowPins(!showPins)}
             onHome={() => {
               setZoom(1)
               setTilt(false)

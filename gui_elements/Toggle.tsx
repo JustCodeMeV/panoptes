@@ -12,6 +12,8 @@ function Inner({ v, on }: { v: number; on: boolean }) {
     case 4: return <><span className="stripes" />{k}</>
     case 5: return <>{[0, 1, 2, 3, 4].map((i) => <span key={i} style={{ ['--i' as string]: i }} />)}</>
     case 6: return <><span className="n" /><span className="n" />{k}</>
+    // Keyed so the label re-runs its glitch on every switch
+    case 8: return <><span key={String(on)} className="lbl">{on ? 'ON' : 'OFF'}</span>{k}</>
     default: return k
   }
 }

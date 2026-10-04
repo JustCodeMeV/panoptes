@@ -14,7 +14,6 @@ Open-source map of unrest and influence activity on a 3D globe (CesiumJS), built
 - **Region watch**: draw a circle around a place; anything new from any layer inside it raises an alert in the live wire.
 - **Physical layers**: GPS jamming (GPSJam), military aircraft (adsb.lol), satellites overhead (CelesTrak, SGP4), Ukraine frontline (DeepState), web censorship (OONI), submarine cables; ships at chokepoints (AISStream), ACLED, NASA FIRMS and Cloudflare Radar when keys are set.
 - **Conflict events and search trends**: Wikipedia Current Events (cited, last 3 days) beside ACLED; Google Trends per country with security terms in 12 languages.
-- **Sensor looks**: night vision, FLIR and CRT post-processing on the globe (press V), adapted from God's Eye View (MIT).
 
 ```
 npm install
@@ -40,7 +39,7 @@ src/
   core/                      LayerDef contract, zustand store, polling hook
   globe/                     GlobeHost (viewer, wireframe/satellite), LayerRenderer (pins/clusters/picking/fly-to),
                              GlobeOverlay (position readout + globe controls)
-  ui/                        LayerPanel (search, layers, live feed, case file), DetailDock, shell (minimise state)
+  ui/                        LayerPanel (search, layers, case file, key), AnalysisPanel (news feed, open story), shell (minimise state)
   layers/<id>/               CLIENT layer: LayerDef + Detail component
   layers/index.ts            CLIENT registry
 gui_elements/                ATLAS UI kit: design.ts (chosen design), components, tokens
@@ -49,7 +48,7 @@ canvas/                      Design editor: npm run canvas (port 5174), exports 
 
 Every `Feature` carries provenance: `source`, `geoPrecision` (`exact` |
 `approximate` | `inferred`) and `geoBasis` (why we put it there). The UI shows
-precision on pins (solid / framed / dashed squares) and in the dock. Don't drop these
+precision on pins (solid / framed / corner-ticked squares) and in the ANALYSIS panel. Don't drop these
 fields: later modules (cases, correlation, disinformation scoring) rely on them.
 
 ### Add a layer

@@ -117,10 +117,13 @@
   background: repeating-linear-gradient(90deg, transparent 0 4px, rgba(0, 0, 0, 0.35) 4px 5px) center / 11px 8px no-repeat,
     linear-gradient(var(--color-accent), var(--color-accent-2));
 }
-.tg-9 { width: 42px; height: 20px; --cut: 5px; background: var(--color-line); }
+.tg-9 { width: 56px; height: 20px; --cut: 5px; background: var(--color-line); }
 .tg-9 .k { position: absolute; top: 3px; left: 3px; width: 17px; height: 14px; background: var(--color-dim); animation: tg-glitch-b 0.32s steps(2); }
+.tg-9 .lbl { position: absolute; top: 0; right: 6px; line-height: 20px; font: 600 9px/20px var(--font-mono); letter-spacing: 0.08em; color: var(--color-dim); animation: tg-glitch-t 0.32s steps(2); }
 .tg-9.on { background: color-mix(in srgb, var(--color-accent-2) 30%, var(--color-line)); }
-.tg-9.on .k { transform: translateX(19px); background: var(--color-accent); animation: tg-glitch-a 0.32s steps(2); }
+.tg-9.on .k { transform: translateX(33px); background: var(--color-accent); animation: tg-glitch-a 0.32s steps(2); }
+.tg-9.on .lbl { right: auto; left: 7px; color: var(--color-accent); }
+@keyframes tg-glitch-t { 0% { text-shadow: -2px 0 #ff2bd6, 2px 0 #2bfcff; translate: 2px 0; } 50% { text-shadow: 2px 0 #ff2bd6, -2px 0 #2bfcff; translate: -2px 0; opacity: 0.6; } 100% { text-shadow: none; translate: 0; } }
 @keyframes tg-glitch-a { 0% { box-shadow: -4px 0 0 #ff2bd6, 4px 0 0 #2bfcff; } 50% { box-shadow: 4px 0 0 #ff2bd6, -4px 0 0 #2bfcff; opacity: 0.6; } 100% { box-shadow: none; } }
 @keyframes tg-glitch-b { 0% { box-shadow: 4px 0 0 #ff2bd6, -4px 0 0 #2bfcff; } 50% { box-shadow: -4px 0 0 #ff2bd6, 4px 0 0 #2bfcff; opacity: 0.6; } 100% { box-shadow: none; } }
 @property --tg-p { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
@@ -369,3 +372,12 @@
     repeating-linear-gradient(0deg, transparent 0 32px, rgba(255, 255, 255, 0.03) 32px 33px),
     var(--color-bg);
 }
+
+/* Universal minimise: the frame's accent square, grown to 18px and set 10px in from the top and right edges, with the symbol in it. The button
+   itself is a larger, invisible hit area around the square. */
+.has-min .fr-fill::before { display: none; }
+.min-sq { position: absolute; top: 0; right: 0; z-index: 4; display: flex; justify-content: flex-end; align-items: flex-start; padding: 10px; width: 38px; height: 38px; cursor: pointer; background: none; border: 0; }
+.min-sq svg { width: 18px; height: 18px; background: var(--color-accent-2); stroke: var(--color-bg); stroke-width: 1.6; transition: background 0.15s, box-shadow 0.15s; }
+.min-sq:hover svg { background: var(--color-accent); box-shadow: 0 0 8px var(--color-accent-2); }
+.min-sq:focus-visible { outline: none; }
+.min-sq:focus-visible svg { box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 3px var(--color-accent); }

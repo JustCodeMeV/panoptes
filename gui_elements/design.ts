@@ -19,7 +19,7 @@ export const DESIGN: Design = {
   iconStyle: 8, // Glyph (unicode)
   motion: 4, // Cinematic
   button: 4, // Chamfer
-  toggle: 3, // Bracket
+  toggle: 8, // Glitch
   check: 2, // LED
   icons: 2, // Ghost
   badge: 4, // Inverted block

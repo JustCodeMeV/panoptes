@@ -162,3 +162,8 @@
 .lcars-cap { border-radius: 999px 0 0 999px; }
 .typing::after { content: ''; animation: dots 1.2s steps(1) infinite; }
 .caret-b::after { content: '▌'; margin-left: 2px; animation: caret 1s steps(1) infinite; color: var(--color-accent); }
+
+/* Native scrollbar hidden: Scroller draws its own, shown only while in use */
+.no-sb { scrollbar-width: none; }
+.no-sb::-webkit-scrollbar { display: none; }
+@keyframes fade-in { from { opacity: 0; } }

@@ -1,23 +1,28 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '../../gui_elements/Button'
-import { FeedItem, Header, LayerPanel as LayerList, Legend, type Layer } from '../../gui_elements/Composites'
+import { FeedItem, Fold, Header, LayerPanel as LayerList, Legend, type Layer } from '../../gui_elements/Composites'
 import { Check, IconButton, Search } from '../../gui_elements/Controls'
 import { RollUp } from '../../gui_elements/Motion'
+import { Scroller } from '../../gui_elements/Scroller'
 import { Panel } from '../../gui_elements/Panel'
 import type { Feature } from '../../shared/feature'
+import { srcTag } from '../../shared/lang'
 import { featuresOf, useStore, type LayerState } from '../core/store'
 import type { LayerDef } from '../core/types'
 import logo from '../assets/ATLAS_LOGO.png'
 import { LAYERS } from '../layers'
 import { LANDING_HASH } from '../route'
+import { useGlobeUi } from '../globe/globeUi'
+import { useAtlasControls } from '../../gui_elements/context'
 import { CasePanel } from './CasePanel'
 import { DemoButton } from './DemoBanner'
 import { Health } from './Health'
-import { LiveFeed } from './LiveFeed'
 import { NetworkView } from './NetworkGraph'
 import { useShell, type PanelBox } from './shell'
 import { ago, useNow } from './useNow'
+
+const DARK_SIDE = 'dark-side'
 
 const matches = (f: Feature, q: string) => !q || f.title.toLowerCase().includes(q)
 
@@ -53,6 +58,37 @@ function SourceStatus({ def, st, live, now }: { def: LayerDef; st: LayerState; l
   )
 }
 
+/**
+ * The logo, linking to the landing page. Its hover glow is drawn in a layer above every panel
+ * (the panel's clipped frame would otherwise cut it off and draw its border over it).
+ */
+function LogoLink() {
+  const [glow, setGlow] = useState<DOMRect | null>(null)
+  return (
+    <a
+      href={LANDING_HASH}
+      title="About ATLAS"
+      className="flex-none"
+      onPointerEnter={(e) => setGlow(e.currentTarget.getBoundingClientRect())}
+      onPointerLeave={() => setGlow(null)}
+      onClick={() => setGlow(null)}
+    >
+      <img src={logo} alt="ATLAS home" className="block size-[calc(var(--fs-title)*1.3)]" />
+      {glow &&
+        createPortal(
+          <img
+            src={logo}
+            alt=""
+            aria-hidden
+            className="pointer-events-none fixed z-[100] animate-[fade-in_200ms_ease-out] [filter:drop-shadow(0_0_5px_var(--color-accent-2))_drop-shadow(0_0_14px_var(--color-accent-2))]"
+            style={{ left: glow.left, top: glow.top, width: glow.width, height: glow.height }}
+          />,
+          document.querySelector('.atlas') ?? document.body,
+        )}
+    </a>
+  )
+}
+
 /** Left panel: header, search, layers (with their sources, controls and features), live feed, case file, legend. */
 export function LayerPanel({ box }: { box: PanelBox }) {
   const layerStates = useStore((s) => s.layers)
@@ -67,6 +103,9 @@ export function LayerPanel({ box }: { box: PanelBox }) {
   const [query, setQuery] = useState('')
   const [net, setNet] = useState<false | 'flagged' | 'all'>(false)
   const q = query.trim().toLowerCase()
+  const darkSide = useGlobeUi((s) => s.darkSide)
+  const toggleDarkSide = useGlobeUi((s) => s.toggleDarkSide)
+  const { satellite } = useAtlasControls()
 
   const layers: Layer[] = LAYERS.map((def) => {
     const st = layerStates[def.id]
@@ -87,56 +126,69 @@ export function LayerPanel({ box }: { box: PanelBox }) {
           <SourceStatus def={def} st={st} live={live[def.id]} now={now} />
           {def.Controls && <def.Controls pin={pin} />}
           {features.length > 0 && (
-            <div className="-mx-1.5 max-h-[28vh] overflow-y-auto">
+            <Scroller className="-mx-1.5" innerClassName="max-h-[28vh] pr-2">
               {features.slice(0, 40).map((f) => (
                 <FeedItem
                   key={f.id}
-                  entry={{ id: f.id, title: f.title, sub: def.subtitle(f), p: f.geoPrecision, time: '', viewers: '', color: def.pin(f).color ?? def.color }}
+                  entry={{ id: f.id, title: f.title, sub: [srcTag(f.props), def.subtitle(f)].filter(Boolean).join(' · '), p: f.geoPrecision, time: '', viewers: '', color: def.pin(f).color ?? def.color }}
                   selected={f.id === selectedId}
                   onClick={() => select(f.id)}
                 />
               ))}
-            </div>
+            </Scroller>
           )}
         </div>
       ),
     }
   })
 
+  // Not a data layer: the globe's own day/night view, listed with the layers so it's easy to find
+  const darkLayer: Layer = {
+    id: DARK_SIDE,
+    label: 'Dark Side of the Moon',
+    count: '☾',
+    on: darkSide,
+    desc: 'Day and night as they are right now: the real sunrise line (following the seasons and the Earth\u2019s tilt), with city lights on the night side (NASA Black Marble).',
+    status: '',
+    color: '#7c86ff',
+    extra: !satellite && <p className="sub t-caption text-dim">Shows in satellite view (map button in the globe controls).</p>,
+  }
+
   return (
-    <div className="absolute z-10" style={{ left: box.inset, top: box.top, width: box.width, height: box.height }}>
-      <RollUp minimized={leftMin} className="h-full">
-        <Panel className="h-full">
-          <div className="flex h-full flex-col overflow-y-auto pr-1">
-            <div data-roll-keep>
+    // Only as tall as its content, up to the layout's full height
+    <div className="absolute z-10 flex flex-col" style={{ left: box.inset, top: box.top, width: box.width, maxHeight: box.height }}>
+      <RollUp minimized={leftMin} className="flex min-h-0 flex-col">
+        <Panel className="min-h-0" onMinimize={() => setShell({ leftMin: !leftMin })} minimized={leftMin}>
+          <div className="flex min-h-0 flex-auto flex-col">
+            {/* Pinned: logo, name and search stay put while the rest scrolls under them */}
+            {/* data-roll-keep="flush": minimised, the panel ends exactly on this block's bottom line */}
+            <div data-roll-keep="flush" className="flex-none border-b border-line/60 pb-3">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <a href={LANDING_HASH} title="About ATLAS" className="flex-none rounded-[22%] transition-[filter] duration-200 hover:drop-shadow-[0_0_10px_var(--color-accent-2)]">
-                    <img src={logo} alt="ATLAS home" className="block size-[calc(var(--fs-title)*1.3)]" />
-                  </a>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <LogoLink />
                   <Header />
                 </div>
-                <IconButton icon={leftMin ? 'expand' : 'collapse'} onClick={() => setShell({ leftMin: !leftMin })} />
               </div>
               <div className="mt-3">
-                <Search value={query} onChange={setQuery} placeholder="Search features" label="Search features" />
+                <Search value={query} onChange={setQuery} placeholder="Search" label="Search" />
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Health />
-              <DemoButton />
-              <Button variant="secondary" onClick={() => setNet(net ? false : 'flagged')} title="Who amplifies the same stories, and who goes first">
-                Network
-              </Button>
-            </div>
-            <div className="mt-4">
-              <LayerList layers={layers} onToggle={(id) => toggle(id)} defaultOpen="campaigns" />
-            </div>
-            <LiveFeed />
-            <CasePanel />
-            <div className="mt-4 border-t border-line pt-3">
-              <Legend layers={layers.filter((l) => l.on)} />
-            </div>
+            <Scroller className="flex-auto" innerClassName="pr-2.5">
+              {/* Two equal buttons on one line, never wrapping */}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <DemoButton className="w-full whitespace-nowrap" />
+                <Button variant="secondary" className="w-full whitespace-nowrap" onClick={() => setNet(net ? false : 'flagged')} title="Who amplifies the same stories, and who goes first">
+                  Network
+                </Button>
+              </div>
+              <Fold title="Layers" aside={<Health />} className="mt-4">
+                <LayerList heading={false} layers={[...layers, darkLayer]} onToggle={(id) => (id === DARK_SIDE ? toggleDarkSide() : toggle(id))} defaultOpen="campaigns" />
+              </Fold>
+              <CasePanel />
+              <Fold title="Key" className="mt-4 border-t border-line pt-3">
+                <Legend heading={false} layers={layers.filter((l) => l.on)} />
+              </Fold>
+            </Scroller>
           </div>
         </Panel>
       </RollUp>
@@ -146,7 +198,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
           // Rendered inside the ATLAS root so it keeps the design tokens
           <div className="fixed top-1/2 left-1/2 z-30 w-[min(720px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2">
             <Panel>
-              <div className="max-h-[calc(100vh-64px)] overflow-y-auto">
+              <Scroller innerClassName="max-h-[calc(100vh-64px)] pr-2">
                 <div className="mb-3 flex items-center gap-3">
                   <span className="sub t-label text-accent">Influence network</span>
                   <Check checked={net === 'all'} onChange={() => setNet(net === 'all' ? 'flagged' : 'all')} label="All stories, not just flagged" />
@@ -157,7 +209,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
                   Sources linked when both carried a story within 6 h; arrows point from the source that was usually first. Red = same pair on 3+ flagged
                   stories. Leads, not attribution.
                 </p>
-              </div>
+              </Scroller>
             </Panel>
           </div>,
           document.querySelector('.atlas') ?? document.body,

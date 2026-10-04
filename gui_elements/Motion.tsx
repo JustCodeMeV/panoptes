@@ -209,7 +209,11 @@ export function RollUp({ minimized, children, className = '' }: { minimized: boo
       const keep = el.querySelector<HTMLElement>('[data-roll-keep]')
       const fill = el.querySelector<HTMLElement>('.fr-fill')
       const padB = fill ? parseFloat(getComputedStyle(fill).paddingBottom) : 12
-      const minH = keep ? keep.getBoundingClientRect().bottom - el.getBoundingClientRect().top + (scroller?.scrollTop ?? 0) + padB + 2 : 56
+      // A keep block inside the scroller is measured as if scrolled to the top
+      const scrolled = keep && scroller?.contains(keep) ? scroller.scrollTop : 0
+      // "flush": end right on the keep block's bottom edge (its divider line), no padding below
+      const flush = keep?.dataset.rollKeep === 'flush'
+      const minH = keep ? keep.getBoundingClientRect().bottom - el.getBoundingClientRect().top + scrolled + (flush ? 0 : padB + 2) : 56
       scroller?.scrollTo({ top: 0, behavior: 'smooth' })
       el.style.height = `${el.offsetHeight}px`
       el.style.overflow = 'hidden'

@@ -4,7 +4,7 @@ import { useDemo } from '../core/demo'
 import { runDemo, STEPS } from '../demo/script'
 
 /** Narration for the scripted replay + the button that starts it. */
-export function DemoButton() {
+export function DemoButton({ className = '' }: { className?: string }) {
   const running = useDemo((s) => s.running)
   const ac = useRef<AbortController | null>(null)
   const start = () => {
@@ -22,7 +22,7 @@ export function DemoButton() {
     return () => window.removeEventListener('keydown', esc)
   }, [])
   return (
-    <Button variant="secondary" onClick={() => (running ? ac.current?.abort() : start())}>
+    <Button variant="secondary" className={className} onClick={() => (running ? ac.current?.abort() : start())}>
       {running ? '■ Stop demo' : '▶ Run demo'}
     </Button>
   )

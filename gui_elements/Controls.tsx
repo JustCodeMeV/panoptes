@@ -132,7 +132,7 @@ function markerShape(v: number, p: Precision): ReactNode {
     case 0:
       return ex ? <rect x="8" y="8" width="8" height="8" fill="currentColor" />
         : ap ? <><rect x="9" y="9" width="6" height="6" fill="currentColor" /><rect x="5" y="5" width="14" height="14" {...S} opacity=".6" /></>
-        : <rect x="7.5" y="7.5" width="9" height="9" {...S} {...DASH} fill="currentColor" fillOpacity=".25" />
+        : <><rect x="7.5" y="7.5" width="9" height="9" fill="currentColor" fillOpacity=".25" /><path d="M7.5 10.5V7.5H10.5M13.5 7.5H16.5V10.5M16.5 13.5V16.5H13.5M10.5 16.5H7.5V13.5" {...S} strokeLinecap="square" /></>
     case 1:
       return ex ? <polygon points="12,6 18,12 12,18 6,12" fill="currentColor" />
         : ap ? <><circle cx="12" cy="12" r="9" fill="currentColor" opacity=".2" /><polygon points="12,8 16,12 12,16 8,12" fill="currentColor" /></>

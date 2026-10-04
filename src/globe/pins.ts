@@ -58,7 +58,7 @@ function glyphPath(g: CanvasRenderingContext2D, glyph: string, mid: number, r: n
 
 /**
  * Square marker in the layer colour, encoding position confidence: solid = exact,
- * framed = approximate, dashed and translucent = inferred. Selected pins get a crosshair lock.
+ * framed = approximate, translucent with corner ticks = inferred. Selected pins get a crosshair lock.
  */
 export function pinImage(
   color: string,
@@ -89,10 +89,23 @@ export function pinImage(
   g.fillStyle = precision === 'inferred' ? color + '77' : color
   g.fillRect(mid - inner, mid - inner, inner * 2, inner * 2)
   g.lineWidth = 1.5
-  g.strokeStyle = precision === 'inferred' ? color : '#05080c'
-  if (precision === 'inferred') g.setLineDash([3, 2])
-  g.strokeRect(mid - inner, mid - inner, inner * 2, inner * 2)
-  g.setLineDash([])
+  if (precision === 'inferred') {
+    // Corner ticks: a flat, uncertain-looking square (a dashed outline reads as tilted when small)
+    const a = mid - inner
+    const b = mid + inner
+    const t = inner * 0.7
+    g.strokeStyle = color
+    g.beginPath()
+    for (const [x, y, dx, dy] of [[a, a, 1, 1], [b, a, -1, 1], [b, b, -1, -1], [a, b, 1, -1]]) {
+      g.moveTo(x, y + dy * t)
+      g.lineTo(x, y)
+      g.lineTo(x + dx * t, y)
+    }
+    g.stroke()
+  } else {
+    g.strokeStyle = '#05080c'
+    g.strokeRect(mid - inner, mid - inner, inner * 2, inner * 2)
+  }
   if (precision === 'approximate') {
     g.strokeStyle = color
     g.lineWidth = 1.2

@@ -14,6 +14,7 @@ import { FeatureSchema } from '../shared/feature.ts'
 import { rateLimit } from './core/ratelimit.ts'
 import { configuredSecrets, redact } from './core/secrets.ts'
 import { loadLayer } from './core/aggregate.ts'
+import { localizeAll, localizeEvent, onTranslated } from './core/translate.ts'
 import * as cases from './cases/db.ts'
 import { LAYERS } from './layers.ts'
 import { streamSource, subscribe } from './core/hub.ts'
@@ -67,7 +68,8 @@ app.get('/api/layers', (c) =>
 app.get('/api/layers/:id', async (c) => {
   const providers = LAYERS[c.req.param('id')]
   if (!providers) return c.json({ error: 'unknown layer' }, 404)
-  return c.json(await loadLayer(c.req.param('id'), providers))
+  const res = await loadLayer(c.req.param('id'), providers)
+  return c.json({ ...res, features: localizeAll(res.features) })
 })
 
 app.get('/api/markets/history', async (c) => {
@@ -206,12 +208,27 @@ app.get('/api/stream/:id', (c) => {
       queue.push({ event, data: JSON.stringify(data) })
       wake?.()
     }
-    const off = subscribe(layerId, (e) => push(e.type, e))
+    const off = subscribe(layerId, (e) => push(e.type, localizeEvent(e)))
     stream.onAbort(() => {
       off()
+      offTranslated()
+      clearTimeout(patchTimer)
       wake?.()
     })
-    push('snapshot', source.snapshot())
+    const snap = source.snapshot()
+    const first = localizeAll(snap.features)
+    push('snapshot', { ...snap, features: first })
+    // Translations that land later are sent as quiet patches (at most every few seconds)
+    const sent = new Set(first.filter((f) => f.props.original).map((f) => f.id))
+    let patchTimer: ReturnType<typeof setTimeout> | undefined
+    const offTranslated = onTranslated(() => {
+      patchTimer ??= setTimeout(() => {
+        patchTimer = undefined
+        const features = localizeAll(source.snapshot().features).filter((f) => f.props.original && !sent.has(f.id))
+        for (const f of features) sent.add(f.id)
+        if (features.length) push('patch', { type: 'patch', features })
+      }, 3000)
+    })
     let lastBeat = Date.now()
     while (!stream.aborted) {
       while (queue.length) {

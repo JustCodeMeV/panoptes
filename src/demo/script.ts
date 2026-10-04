@@ -4,7 +4,6 @@ import type { MarketProps } from '../../shared/markets'
 import type { NetGraph } from '../../shared/network'
 import type { Assessment, Brief, Campaign, CampaignFlag, FactCheckMatch } from '../../shared/truth'
 import { useCases } from '../core/cases'
-import { useGlobeUi } from '../globe/globeUi'
 import { useDemo } from '../core/demo'
 import { useStore } from '../core/store'
 import { useWatches, type Watch } from '../layers/watch/state'
@@ -237,7 +236,6 @@ export async function runDemo(signal: AbortSignal) {
   const say = (step: number, caption: string, sub?: string) => d.set({ step, caption, sub })
   for (const id of ['watch', 'news', 'telegram', 'markets', 'campaigns', 'osint', 'livestreams']) if (!st().layers[id]?.enabled) st().toggle(id)
   const ciiWasOn = !!st().layers.cii?.enabled
-  const sensorBefore = useGlobeUi.getState().sensor
   const physical = ['gnss', 'military-air'].filter((id) => st().layers[id] && !st().layers[id].enabled)
   useWatches.setState((w) => ({ list: [...w.list.filter((x) => x.id !== WATCH.id), WATCH] }))
   const prevCase = useCases.getState().activeId
@@ -293,14 +291,12 @@ export async function runDemo(signal: AbortSignal) {
     st().applyLive('news', upsert(story({ ...stateItems, verdict: 'debunked', risk: 96, score: 95, fc: [FC], brief: BRIEF, flags: [FLAG.stateFirst, FLAG.bloc, FLAG.surge, FLAG.contradicted, FLAG.market], reasons: ['Lead Stories fact-check rates a matching claim false (82% term match)', 'coverage comes only from state-affiliated outlets: tass.com, presstv.co.uk'] }), 'update', 'unverified → debunked · ⚑ Contradicted', 'leadstories.com'))
     await sleep(10000, signal)
 
-    say(8, 'Physical signals: does anything on the ground back it up?', 'Thermal look on. Live layers: GPS jamming from yesterday, military aircraft broadcasting now, outages and censorship. Nothing physical confirms a strike; the market keeps its fear premium')
+    say(8, 'Physical signals: does anything on the ground back it up?', 'Live layers: GPS jamming from yesterday, military aircraft broadcasting now, outages and censorship. Nothing physical confirms a strike; the market keeps its fear premium')
     for (const id of physical) st().toggle(id)
-    useGlobeUi.getState().setSensor('flir')
     st().applyLive('markets', upsert(market(0.27, -0.04), 'update', 'Yes: 31% → 27% (−4.0 pts)', 'polymarket'))
     await sleep(9000, signal)
 
     say(9, 'Country risk: Iran climbs the instability index', 'One explainable score per country from every layer: attention, flagged narratives, shutdowns, jamming, markets. Iran +9 in the last hour')
-    useGlobeUi.getState().setSensor('eo')
     if (!st().layers.cii?.enabled) st().toggle('cii')
     st().applyLive('cii', upsert(ciiIran(55, 9), 'new', '▲ 9 in the last hour', 'cii'))
     st().select(CII)
@@ -331,7 +327,6 @@ export async function runDemo(signal: AbortSignal) {
     st().removeFeatures('telegram', TG)
     st().removeFeatures('cii', [CII])
     if (!ciiWasOn && st().layers.cii?.enabled) st().toggle('cii')
-    useGlobeUi.getState().setSensor(sensorBefore)
     useWatches.setState((w) => ({ list: w.list.filter((x) => x.id !== WATCH.id) }))
     for (const id of physical) if (st().layers[id]?.enabled) st().toggle(id)
     if (prevCase && prevCase !== useCases.getState().activeId) void useCases.getState().setActive(prevCase).catch(() => {})

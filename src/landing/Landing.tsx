@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '../../gui_elements/Button'
+import { Marker } from '../../gui_elements/Controls'
 import logo from '../assets/ATLAS_LOGO.png'
 import { featuresOf, useStore } from '../core/store'
 import { useLayerData } from '../core/useLayerData'
@@ -33,10 +34,10 @@ const STEPS = [
   { k: '03', title: 'Stream', text: 'Changes are pushed to the browser as they happen over server-sent events, and land on a CesiumJS globe in real time.' },
 ]
 
-const PRECISION = [
-  { label: 'Exact', text: 'Platform-reported coordinates', mark: 'bg-accent-2' },
-  { label: 'Approximate', text: 'Broadcaster base or a coarsened location', mark: 'border-2 border-accent-2 bg-accent-2/40' },
-  { label: 'Inferred', text: 'Guessed from the text, and labelled as such', mark: 'border border-dashed border-accent-2 bg-accent-2/15' },
+const PRECISION: { p: 'exact' | 'approximate' | 'inferred'; label: string; text: string }[] = [
+  { p: 'exact', label: 'Exact', text: 'Platform-reported coordinates' },
+  { p: 'approximate', label: 'Approximate', text: 'Broadcaster base or a coarsened location' },
+  { p: 'inferred', label: 'Inferred', text: 'Guessed from the text, and labelled as such' },
 ]
 
 /** Fades a block up into place the first time it scrolls into view. */
@@ -244,7 +245,7 @@ export default function Landing() {
             <ul className="mt-4 space-y-3">
               {PRECISION.map((p) => (
                 <li key={p.label} className="flex items-center gap-3">
-                  <span className={`size-4 flex-none ${p.mark}`} />
+                  <Marker p={p.p} size={20} color="var(--color-accent-2)" />
                   <span className="sub t-label w-28 text-white">{p.label}</span>
                   <span className="text-[14px] text-dim">{p.text}</span>
                 </li>
