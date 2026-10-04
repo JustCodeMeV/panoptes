@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Button } from '../../gui_elements/Button'
 import { FeedItem, Fold, Header, LayerPanel as LayerList, Legend, type Layer } from '../../gui_elements/Composites'
 import { Check, IconButton } from '../../gui_elements/Controls'
+import { Toggle } from '../../gui_elements/Toggle'
 import { RollUp } from '../../gui_elements/Motion'
 import { Scroller } from '../../gui_elements/Scroller'
 import { Panel } from '../../gui_elements/Panel'
@@ -94,6 +95,7 @@ function LogoLink() {
 export function LayerPanel({ box }: { box: PanelBox }) {
   const layerStates = useStore((s) => s.layers)
   const toggle = useStore((s) => s.toggle)
+  const setEnabled = useStore((s) => s.setEnabled)
   const selectedId = useStore((s) => s.selectedId)
   const select = useStore((s) => s.select)
   const pin = useStore((s) => s.pin)
@@ -118,7 +120,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
       .sort((a, b) => rank(b) - rank(a))
     return {
       id: def.id,
-      group: def.group ?? 'Overview',
+      group: def.group ?? LAYER_GROUPS[0],
       label: def.label,
       count: st.loading && !st.data ? '…' : features.length,
       on: st.enabled,
@@ -130,7 +132,8 @@ export function LayerPanel({ box }: { box: PanelBox }) {
           <SourceStatus def={def} st={st} live={live[def.id]} now={now} />
           {def.Controls && <def.Controls pin={pin} features={features} select={select} />}
           {features.length > 0 && (
-            <Scroller className="-mx-1.5" innerClassName="max-h-[28vh] pr-2">
+            // Full height: an opened layer takes the whole panel if it needs it (the panel scrolls)
+            <div className="-mx-1.5 pr-2">
               {features.slice(0, 40).map((f) => (
                 <FeedItem
                   key={f.id}
@@ -139,12 +142,14 @@ export function LayerPanel({ box }: { box: PanelBox }) {
                   onClick={() => select(f.id)}
                 />
               ))}
-            </Scroller>
+            </div>
           )}
         </div>
       ),
     }
   })
+
+  const allOn = darkSide && layers.every((l) => l.on)
 
   // Not a data layer: the globe's own day/night view, listed with the layers so it's easy to find
   const darkLayer: Layer = {
@@ -185,14 +190,33 @@ export function LayerPanel({ box }: { box: PanelBox }) {
                   Network
                 </Button>
               </div>
-              <Fold title="Layers" aside={<Health />} className="mt-4">
+              <Fold
+                title="Layers"
+                aside={
+                  // Master switch, in line with every layer's own switch below
+                  <span className="flex items-center gap-3">
+                    <Health />
+                    <span className="-mr-1">
+                      <Toggle
+                        checked={allOn}
+                        onChange={(on) => {
+                          setEnabled(layers.map((l) => l.id), on)
+                          if (darkSide !== on) toggleDarkSide()
+                        }}
+                        label={allOn ? 'Switch every layer off' : 'Switch every layer on'}
+                      />
+                    </span>
+                  </span>
+                }
+                className="mt-4"
+              >
                 {/* One fold per group; the first three start open */}
                 {LAYER_GROUPS.map((g, i) => {
-                  const inGroup: Layer[] = [...layers.filter((l) => l.group === g), ...(g === 'Overview' ? [darkLayer] : [])]
+                  const inGroup: Layer[] = [...layers.filter((l) => l.group === g), ...(g === LAYER_GROUPS[LAYER_GROUPS.length - 1] ? [darkLayer] : [])]
                   if (!inGroup.length) return null
                   return (
                     <Fold key={g} title={g} aside={<span className="sub t-caption text-dim">{inGroup.filter((l) => l.on).length}/{inGroup.length} on</span>} defaultOpen={i < 3} className="mt-2.5 border-l border-line/60 pl-2">
-                      <LayerList heading={false} layers={inGroup} onToggle={(id) => (id === DARK_SIDE ? toggleDarkSide() : toggle(id))} defaultOpen={g === 'Information space' ? 'campaigns' : ''} />
+                      <LayerList heading={false} layers={inGroup} onToggle={(id) => (id === DARK_SIDE ? toggleDarkSide() : toggle(id))} defaultOpen={g === LAYER_GROUPS[0] ? 'campaigns' : ''} />
                     </Fold>
                   )
                 })}

@@ -5,7 +5,7 @@ import { PublicationDetail } from './Detail'
 export const statements: LayerDef = {
   id: 'statements',
   label: 'Official Statements',
-  group: 'Information space',
+  group: 'News & social media',
   description:
     'What governments say themselves: foreign and defence ministries and heads of state of every bloc (US, Russia, China, Ukraine, India, Turkey, Iran, Israel, Gulf, Europe, Asia, Africa, Latin America), plus the UN, EU and NATO. Placed where the statement is about, else at the issuer.',
   color: '#fb923c',

@@ -116,7 +116,8 @@ export function GlobeOverlay() {
     if (!spin) return
     let id = 0
     const step = () => {
-      viewer.camera.rotate(Cartesian3.UNIT_Z, -0.0025)
+      // A slow, calm turn (about 2.6° a second)
+      viewer.camera.rotate(Cartesian3.UNIT_Z, -0.00075)
       viewer.scene.requestRender()
       id = requestAnimationFrame(step)
     }

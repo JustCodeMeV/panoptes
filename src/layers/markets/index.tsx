@@ -7,7 +7,7 @@ const BASE = '#10b981'
 /** Prediction markets: what people with money on the line expect to happen. */
 export const markets: LayerDef = {
   id: 'markets',
-  group: 'Economy',
+  group: 'Markets & economy',
   label: 'Prediction Markets',
   description: 'Polymarket, Kalshi and Manifold odds on conflict, security and politics. Money-backed probabilities, updated live.',
   color: BASE,

@@ -8,7 +8,7 @@ const sev = (f: { props: Record<string, unknown> }) => (f.props.severity as Sev)
 export const hazards: LayerDef = {
   id: 'hazards',
   label: 'Natural Hazards',
-  group: 'Humanitarian & hazards',
+  group: 'Hazards & humanitarian',
   description: 'UN/EC disaster alerts (GDACS orange and red), earthquakes (USGS), NASA natural events (EONET) and active fires (FIRMS).',
   color: '#f59e0b',
   refreshMs: 120_000,

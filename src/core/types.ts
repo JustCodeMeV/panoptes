@@ -11,8 +11,8 @@ export type ControlsProps = {
   select?(id: string): void
 }
 
-/** Layer panel groups, in display order. */
-export const LAYER_GROUPS = ['Overview', 'Information space', 'Conflict & security', 'Cyber & infrastructure', 'Humanitarian & hazards', 'Economy'] as const
+/** Layer panel groups, in display order: verification first, then sources, money, conflict, signals, and the physical world last. */
+export const LAYER_GROUPS = ['Truth & overview', 'News & social media', 'Markets & economy', 'War & security', 'Jamming, outages & cyber', 'Hazards & humanitarian', 'Space & infrastructure'] as const
 export type LayerGroup = (typeof LAYER_GROUPS)[number]
 
 /** Layer-specific text/colour for a live-wire row. */

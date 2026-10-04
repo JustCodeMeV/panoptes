@@ -30,10 +30,13 @@ import { humanitarian } from './humanitarian'
 
 /** CLIENT LAYER REGISTRY. One line per layer. */
 export const LAYERS: LayerDef[] = [
-  atlas, watch, events, cii,
-  campaigns, news, telegram, statements, research, narratives, x, trends, livestreams,
-  unrest, acled, frontlines, warnings, militaryAir, ships, satellites, gnss,
-  cyber, osint, infrastructure,
-  hazards, humanitarian,
+  atlas,
+  // In panel order (groups: see LAYER_GROUPS)
+  narratives, campaigns, events, cii, watch,
+  news, telegram, x, livestreams, trends, statements, research,
   markets, finance,
+  acled, frontlines, unrest, warnings, militaryAir, ships,
+  gnss, osint, cyber,
+  hazards, humanitarian,
+  satellites, infrastructure,
 ]

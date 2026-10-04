@@ -31,6 +31,8 @@ const cssVar = (name: string, fallback: string) => {
 
 /** Hair spaces between letters: the tracked caps of a map's country names. */
 const tracked = (s: string) => s.toUpperCase().split('').join(' ')
+// Glyphs are drawn at twice the size they show at and scaled down, so their edges stay smooth
+const LABEL_SCALE = 0.5
 
 /** Adds the place labels; returns a cleanup that frees them. */
 export function attachPlaces(viewer: Viewer): () => void {
@@ -80,6 +82,7 @@ export function attachPlaces(viewer: Viewer): () => void {
           position: Cartesian3.fromDegrees(lon, lat),
           text: tracked(name),
           font: `600 24px ${sub}`,
+          scale: LABEL_SCALE,
           fillColor: dim,
           outlineColor: outline,
           outlineWidth: 5,
@@ -97,7 +100,7 @@ export function attachPlaces(viewer: Viewer): () => void {
         const at = shown(zoom)
         const dot = dots.add({
           position,
-          pixelSize: capital ? 10 : 8,
+          pixelSize: capital ? 6 : 5,
           color: capital ? ink : ink.withAlpha(0.8),
           outlineColor: capital ? outline : Color.TRANSPARENT,
           outlineWidth: capital ? 2 : 0,
@@ -109,13 +112,14 @@ export function attachPlaces(viewer: Viewer): () => void {
           position,
           text: name,
           font: `${capital ? 600 : 500} 26px ${main}`,
+          scale: LABEL_SCALE,
           fillColor: capital ? ink : ink.withAlpha(0.85),
           outlineColor: outline,
           outlineWidth: 5,
           style: LabelStyle.FILL_AND_OUTLINE,
           horizontalOrigin: HorizontalOrigin.LEFT,
           verticalOrigin: VerticalOrigin.CENTER,
-          pixelOffset: new Cartesian2(13, 0),
+          pixelOffset: new Cartesian2(7, 0),
           disableDepthTestDistance: ALWAYS_ON_TOP,
           ...at,
         })

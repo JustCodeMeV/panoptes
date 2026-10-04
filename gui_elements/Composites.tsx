@@ -1,5 +1,6 @@
 // Composite ARGUS components. Each reads its variant from the active design (useDesign).
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { durationMs } from './catalog'
 import { useDesign } from './context'
 import { Badge, type Tone } from './Badge'
 import { Button } from './Button'
@@ -137,10 +138,52 @@ export function LayerRow({ layer, onToggle }: { layer: Layer; onToggle: (on: boo
   }
 }
 
+/** The nearest scrolling box around an element (the panel's scroller). */
+function scrollBox(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) if (/(auto|scroll)/.test(getComputedStyle(p).overflowY)) return p
+  return null
+}
+
+/**
+ * Pushes an element's top to the top of its scroller, easing over `ms`. The target is re-read every
+ * frame: the body opening beneath it grows the room to scroll into as it goes.
+ */
+function pushToTop(el: HTMLElement, ms: number) {
+  const box = scrollBox(el)
+  if (!box) return
+  const from = box.scrollTop
+  const t0 = performance.now()
+  const step = (t: number) => {
+    const k = Math.min(1, (t - t0) / ms)
+    const target = el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop
+    box.scrollTop = from + (target - from) * (1 - (1 - k) ** 3)
+    if (k < 1) requestAnimationFrame(step)
+  }
+  requestAnimationFrame(step)
+}
+
 /** `heading={false}` drops the "Layers" label (when a Fold above already titles it). */
 export function LayerPanel({ layers, onToggle, defaultOpen, heading = true }: { layers: Layer[]; onToggle: (id: string, on: boolean) => void; defaultOpen?: string; heading?: boolean }) {
-  const v = useDesign().layerPanel
+  const design = useDesign()
+  const v = design.layerPanel
   const [open, setOpen] = useState<string | undefined>(defaultOpen ?? layers[0]?.id)
+  // Accordion: the layer sliding shut keeps its body until the slide ends
+  const [closing, setClosing] = useState<string | undefined>()
+  const rows = useRef(new Map<string, HTMLDivElement>())
+  const dur = durationMs(design)
+  /** Opening focuses the layer (its title pushed to the top, its body at full height); closing slides it shut. */
+  const focus = (id: string) => {
+    if (open === id) {
+      setOpen(undefined)
+      setClosing(id)
+      setTimeout(() => setClosing((c) => (c === id ? undefined : c)), dur)
+      return
+    }
+    setOpen(id)
+    setClosing(undefined)
+    const row = rows.current.get(id)
+    if (row) pushToTop(row, Math.max(350, dur * 1.5))
+  }
   const label = heading ? <div className="sub t-label mb-2 text-accent">Layers</div> : null
   switch (v) {
     case 1:
@@ -150,12 +193,15 @@ export function LayerPanel({ layers, onToggle, defaultOpen, heading = true }: { 
         <div>
           {label}
           {layers.map((l) => (
-            <div key={l.id} className="border-b border-line">
+            <div key={l.id} ref={(el) => void (el ? rows.current.set(l.id, el) : rows.current.delete(l.id))} className="border-b border-line">
               <div className="flex items-center gap-2">
                 <div className="flex-1"><LayerRow layer={l} onToggle={(on) => onToggle(l.id, on)} /></div>
-                <button type="button" onClick={() => setOpen(open === l.id ? undefined : l.id)} className={`cursor-pointer text-dim transition-transform duration-(--dur) ${open === l.id ? 'rotate-90' : ''}`} aria-label="Expand"><Icon name="play" className="text-[9px]" /></button>
+                <button type="button" onClick={() => focus(l.id)} className={`cursor-pointer text-dim transition-transform duration-(--dur) ${open === l.id ? 'rotate-90' : ''}`} aria-label={open === l.id ? 'Collapse' : 'Expand'} aria-expanded={open === l.id}><Icon name="play" className="text-[9px]" /></button>
               </div>
-              {open === l.id && <div className="pb-2"><p className="t-caption text-dim">{l.desc}</p>{l.extra}</div>}
+              {/* Only the open (or closing) layer renders its body: the others may hold long lists */}
+              <FoldBody open={open === l.id}>
+                {(open === l.id || closing === l.id) && <div className="pb-2"><p className="t-caption text-dim">{l.desc}</p>{l.extra}</div>}
+              </FoldBody>
             </div>
           ))}
         </div>

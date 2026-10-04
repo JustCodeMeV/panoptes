@@ -7,7 +7,7 @@ const OWN_COLOR: Record<string, string> = { state: '#f97316', public: '#38bdf8',
 export const research: LayerDef = {
   id: 'research',
   label: 'Research & Analysis',
-  group: 'Information space',
+  group: 'News & social media',
   description:
     'Think tanks and research groups of every bloc: ISW, CSIS, RUSI, Chatham House, Carnegie, Crisis Group, Bellingcat, IISS, SIPRI, Valdai, RIAC, CIIS, ORF, MP-IDSA, SETA, Al Jazeera Centre, ISS Africa. Each carries who funds and steers it.',
   color: '#a78bfa',

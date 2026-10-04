@@ -5,7 +5,7 @@ import { str } from './props'
 /** Military aircraft broadcasting ADS-B right now (adsb.lol, unfiltered community network). */
 export const militaryAir: LayerDef = {
   id: 'military-air',
-  group: 'Conflict & security',
+  group: 'War & security',
   label: 'Military Aircraft',
   description: 'Military aircraft broadcasting ADS-B right now: tankers, ISR, transports (adsb.lol). Many fly dark.',
   color: '#a3e635',

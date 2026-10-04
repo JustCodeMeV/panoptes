@@ -9,7 +9,7 @@ import { VERDICT_COLOR, VERDICT_LABEL, X_COLOR, checkOf } from './props'
  */
 export const x: LayerDef = {
   id: 'x',
-  group: 'Information space',
+  group: 'News & social media',
   label: 'Twitter/X',
   description:
     'A second opinion from X. When a story is spreading but unverified, Argus briefs Grok, which reads public X posts in real time and reports what they show, who is posting, contradictions and a verdict. Runs only while switched on (needs an xAI key).',
