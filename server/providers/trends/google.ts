@@ -1,7 +1,7 @@
 import { XMLParser } from 'fast-xml-parser'
 import type { Feature } from '../../../shared/feature.ts'
 import type { Provider } from '../../core/provider.ts'
-import { cached, refresh, trendsError } from '../../core/googletrends.ts'
+import { cached, pullRelay, refresh, trendsError } from '../../core/googletrends.ts'
 import { LAYER_GEOS } from '../../core/trendsGeos.ts'
 import { centroidOf } from '../../geo/gazetteer.ts'
 
@@ -55,6 +55,8 @@ export const googleTrendsProvider: Provider = {
   ttlMs: 15 * 60_000,
   // Never waits on Google: serves what the shared client has cached and queues refreshes in the background.
   async fetch() {
+    // The relay first (at most 10 s): otherwise a fresh start publishes an empty layer until the next refresh
+    await Promise.race([pullRelay(), new Promise((r) => setTimeout(r, 10_000))])
     const now = new Date().toISOString()
     const out: Feature[] = []
     for (const [geo, name] of Object.entries(GEOS)) {

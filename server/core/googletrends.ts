@@ -26,7 +26,7 @@ let relayTriedAt = 0
 let relayInflight: Promise<void> | undefined
 
 /** Loads the relay file into the cache (at most every RELAY_EVERY_MS). */
-function pullRelay(): Promise<void> {
+export function pullRelay(): Promise<void> {
   if (relayInflight || Date.now() - relayTriedAt < RELAY_EVERY_MS) return relayInflight ?? Promise.resolve()
   relayTriedAt = Date.now()
   relayInflight = (async () => {
