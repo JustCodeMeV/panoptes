@@ -85,10 +85,11 @@ export function Fold({ title, aside, children, defaultOpen = true, className = '
   return (
     <section className={className}>
       <div className="flex items-center gap-2">
-        <button type="button" onClick={() => setOpen(!open)} className="sub t-label min-w-0 flex-1 cursor-pointer text-left text-accent">
+        <button type="button" onClick={() => setOpen(!open)} className="sub t-label min-w-0 flex-1 cursor-pointer truncate text-left text-accent">
           {title}
         </button>
-        {aside}
+        {/* The title is cut before anything on the right moves */}
+        {aside && <span className="flex flex-none items-center">{aside}</span>}
         <FoldToggle open={open} onToggle={() => setOpen(!open)} label={title} />
       </div>
       <FoldBody open={open}>
@@ -111,9 +112,10 @@ function Spark({ data, color }: { data: number[]; color: string }) {
 
 export function LayerRow({ layer, onToggle }: { layer: Layer; onToggle: (on: boolean) => void }) {
   const v = useDesign().layerRow
-  const tg = <Toggle checked={layer.on} onChange={onToggle} label={layer.label} />
-  const title = <span className={`t-body flex-1 truncate font-semibold ${layer.on ? '' : 'text-dim'}`}>{layer.label}</span>
-  const count = <Badge>{layer.count}</Badge>
+  // Long names are cut ("Maritime & Air Warn…"): the count and switch never move
+  const tg = <span className="flex flex-none"><Toggle checked={layer.on} onChange={onToggle} label={layer.label} /></span>
+  const title = <span className={`t-body min-w-0 flex-1 truncate font-semibold ${layer.on ? '' : 'text-dim'}`}>{layer.label}</span>
+  const count = <span className="flex flex-none"><Badge>{layer.count}</Badge></span>
   const dot = <span className="size-2 flex-none" style={{ background: layerColor(layer.color) }} />
   switch (v) {
     case 1: return <div className="flex items-center gap-m py-s">{dot}{title}{count}{tg}</div>
@@ -195,8 +197,8 @@ export function LayerPanel({ layers, onToggle, defaultOpen, heading = true }: { 
           {layers.map((l) => (
             <div key={l.id} ref={(el) => void (el ? rows.current.set(l.id, el) : rows.current.delete(l.id))} className="border-b border-line">
               <div className="flex items-center gap-2">
-                <div className="flex-1"><LayerRow layer={l} onToggle={(on) => onToggle(l.id, on)} /></div>
-                <button type="button" onClick={() => focus(l.id)} className={`cursor-pointer text-dim transition-transform duration-(--dur) ${open === l.id ? 'rotate-90' : ''}`} aria-label={open === l.id ? 'Collapse' : 'Expand'} aria-expanded={open === l.id}><Icon name="play" className="text-[9px]" /></button>
+                <div className="min-w-0 flex-1"><LayerRow layer={l} onToggle={(on) => onToggle(l.id, on)} /></div>
+                <button type="button" onClick={() => focus(l.id)} className={`flex-none cursor-pointer text-dim transition-transform duration-(--dur) ${open === l.id ? 'rotate-90' : ''}`} aria-label={open === l.id ? 'Collapse' : 'Expand'} aria-expanded={open === l.id}><Icon name="play" className="text-[9px]" /></button>
               </div>
               {/* Only the open (or closing) layer renders its body: the others may hold long lists */}
               <FoldBody open={open === l.id}>

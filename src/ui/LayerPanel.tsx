@@ -216,7 +216,30 @@ export function LayerPanel({ box }: { box: PanelBox }) {
                   const inGroup: Layer[] = [...layers.filter((l) => l.group === g), ...(g === LAYER_GROUPS[LAYER_GROUPS.length - 1] ? [darkLayer] : [])]
                   if (!inGroup.length) return null
                   return (
-                    <Fold key={g} title={g} aside={<span className="sub t-caption text-dim">{inGroup.filter((l) => l.on).length}/{inGroup.length} on</span>} defaultOpen={i < 3} className="mt-2.5 border-l border-line/60 pl-2">
+                    <Fold
+                      key={g}
+                      title={g}
+                      aside={
+                        // The group's own switch, in line with its layers' switches: all of them on or off
+                        <span className="flex items-center gap-3">
+                          <span className="sub t-caption text-dim">
+                            {inGroup.filter((l) => l.on).length}/{inGroup.length}
+                          </span>
+                          <span className="-mr-1">
+                            <Toggle
+                              checked={inGroup.every((l) => l.on)}
+                              onChange={(on) => {
+                                setEnabled(inGroup.filter((l) => l.id !== DARK_SIDE).map((l) => l.id), on)
+                                if (inGroup.some((l) => l.id === DARK_SIDE) && darkSide !== on) toggleDarkSide()
+                              }}
+                              label={`${g}: switch every layer ${inGroup.every((l) => l.on) ? 'off' : 'on'}`}
+                            />
+                          </span>
+                        </span>
+                      }
+                      defaultOpen={i < 3}
+                      className="mt-2.5 border-l border-line/60 pl-2"
+                    >
                       <LayerList heading={false} layers={inGroup} onToggle={(id) => (id === DARK_SIDE ? toggleDarkSide() : toggle(id))} defaultOpen={g === LAYER_GROUPS[0] ? 'campaigns' : ''} />
                     </Fold>
                   )
