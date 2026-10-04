@@ -64,8 +64,11 @@ async function runProvider(p: Provider): Promise<{ features: Feature[]; status: 
       }
     })()
   }
-  // First load waits for the request; later ones answer from cache immediately.
+  // First load waits for the request; later ones answer from cache immediately, unless the cache is
+  // long out of date (nobody asked for a while) and the source is quick: then a short wait beats old data.
   if (s.inflight && !s.okAt && !s.error) await s.inflight
+  else if (s.inflight && s.okAt && now - s.okAt > 4 * ttl && s.ms < 3000)
+    await Promise.race([s.inflight, new Promise((r) => setTimeout(r, 3000))])
   const stale = !!s.error && s.okAt > 0
   return {
     features: s.features,
