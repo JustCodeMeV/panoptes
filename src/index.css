@@ -4,10 +4,10 @@
 
 /*
  * Shell and controls come from gui_elements. The rules below style the layer detail views
- * (src/layers/<id>/Detail.tsx) and network graph, using the ATLAS tokens so they follow the
+ * (src/layers/<id>/Detail.tsx) and network graph, using the ARGUS tokens so they follow the
  * design and the in-app colour scheme switch.
  */
-.atlas {
+.argus {
   --bg: var(--color-bg);
   --panel: var(--color-panel);
   --line: var(--color-line);
@@ -242,6 +242,13 @@ h3.tabs button.on { color: var(--text); border-color: var(--c, var(--color-accen
 .inv-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .inv-summary { margin: 6px 0; padding-left: 8px; border-left: 2px solid var(--color-accent-2); color: var(--color-ink); }
 .investigation header > span { white-space: nowrap; } .investigation header em { flex-basis: 100%; order: 9; }
+/* Twitter/X detail: link back to the checked story, and the posts Grok cites */
+.detail .linkish { background: none; border: 0; padding: 0; color: var(--color-accent-2); cursor: pointer; text-align: left; font: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.detail .xposts { list-style: none; padding: 0; display: grid; gap: 8px; }
+.detail .xposts li { border-left: 2px solid var(--color-line); padding-left: 8px; }
+.detail .xstance { font: 11px var(--font-mono); letter-spacing: 0.06em; }
+.detail .xstance-supports { color: #22c55e; } .detail .xstance-contradicts { color: #ef4444; } .detail .xstance-context { color: var(--dim); }
+
 .investigation header em.ok { color: var(--color-accent-2); }
 
 /* ---- atlas (country profile, game-style) ---- */

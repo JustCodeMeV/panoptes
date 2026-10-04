@@ -6,23 +6,25 @@ import { useViewer } from '../globe/viewerContext'
 import { LAYERS } from '../layers'
 import type { Spot } from './useGeoIp'
 
-// The view from the ISS cupola: high above the visitor, looking out over them to the horizon
+// The view from orbit: high above the visitor, looking out over them to the horizon
 const PITCH = -21
 const RANGE = 2_600_000
 const FOV = 95
-// Slow eastward drift, like the station's orbit (radians per frame)
+// Slow eastward drift, like an orbit (radians per frame)
 const DRIFT = 0.00003
 
-function issPose(viewer: Viewer, spot: Spot) {
+function orbitPose(viewer: Viewer, spot: Spot) {
   const c = new Camera(viewer.scene)
   c.lookAt(Cartesian3.fromDegrees(spot.lon, spot.lat), new HeadingPitchRange(0, CMath.toRadians(PITCH), RANGE))
   c.lookAtTransform(Matrix4.IDENTITY)
   return { destination: c.positionWC.clone(), orientation: { direction: c.directionWC.clone(), up: c.upWC.clone() } }
 }
 
-/** Drag turns the globe; zoom, tilt, look and pan are off. A wide lens bends the horizon. */
+/** No mouse input at all (the page scrolls over it). A wide lens bends the horizon. */
 function lockControls(viewer: Viewer) {
   const ctl = viewer.scene.screenSpaceCameraController
+  ctl.enableInputs = false
+  ctl.enableRotate = false
   ctl.enableZoom = false
   ctl.enableTilt = false
   ctl.enableLook = false
@@ -30,8 +32,8 @@ function lockControls(viewer: Viewer) {
   if (viewer.camera.frustum instanceof PerspectiveFrustum) viewer.camera.frustum.fov = CMath.toRadians(FOV)
 }
 
-/** Fixed ISS-style camera: drag to turn the globe, no zoom, tilt or navigation. Drifts while on screen. */
-function IssCamera({ spot, active, onReady }: { spot: Spot; active: boolean; onReady: () => void }) {
+/** Fixed orbital camera: no interaction at all, just a slow drift while on screen. */
+function OrbitCamera({ spot, active, onReady }: { spot: Spot; active: boolean; onReady: () => void }) {
   const viewer = useViewer()!
   const placed = useRef(false)
 
@@ -47,7 +49,7 @@ function IssCamera({ spot, active, onReady }: { spot: Spot; active: boolean; onR
 
   // Centre on the visitor; glide there if the IP lookup lands after the first view
   useEffect(() => {
-    const pose = issPose(viewer, spot)
+    const pose = orbitPose(viewer, spot)
     if (placed.current) viewer.camera.flyTo({ ...pose, duration: 2.5 })
     else viewer.camera.setView(pose)
     placed.current = true
@@ -69,12 +71,13 @@ function IssCamera({ spot, active, onReady }: { spot: Spot; active: boolean; onR
   return null
 }
 
-/** Live ATLAS globe for the landing hero: satellite view, the real sky, the engine's pins. */
+/** Live ARGUS globe for the landing hero: satellite view, the real sky, the engine's pins. */
 export default function LandingGlobe({ spot, active, onReady }: { spot: Spot; active: boolean; onReady: () => void }) {
   return (
-    <GlobeHost satellite sky darkSide={false}>
+    // Satellite imagery only: no wireframe lines, which shimmer against the surface at this low, oblique angle
+    <GlobeHost satellite sky darkSide={false} wireframe={false}>
       <LayerRenderer layers={LAYERS} interactive={false} />
-      <IssCamera spot={spot} active={active} onReady={onReady} />
+      <OrbitCamera spot={spot} active={active} onReady={onReady} />
     </GlobeHost>
   )
 }

@@ -5,7 +5,7 @@ import { GROUP_COLOR } from './props'
 /** Satellites overhead now (military, radar, Earth observation, GNSS, stations), propagated from CelesTrak elements. */
 export const satellites: LayerDef = {
   id: 'satellites',
-  label: 'Satellites',
+  label: 'Low Orbit Satellites',
   description: 'About 400 satellites in real time: military and reconnaissance, Earth observation, navigation and crewed stations (CelesTrak elements, SGP4).',
   color: '#e2e8f0',
   refreshMs: 20_000,

@@ -44,7 +44,8 @@ export function looksForeign(t: string): boolean {
   if (FOREIGN_SCRIPT.test(t)) return true
   const en = t.match(ENGLISH)?.length ?? 0
   const other = t.match(OTHER_LATIN)?.length ?? 0
-  return other >= 2 && other > en ? true : LATIN_ACCENTS.test(t) && en === 0 && t.split(/\s+/).length >= 3
+  // Accented Latin with no English words is foreign even when it's a single word ("explosión")
+  return other >= 2 && other > en ? true : LATIN_ACCENTS.test(t) && en === 0
 }
 
 /** Cached translation, or undefined (and queued) when not known yet. Null means "already English". */
@@ -90,20 +91,46 @@ async function work() {
 }
 setInterval(() => void work(), EVERY_MS).unref()
 
-/** The feature in English, if it's foreign and a translation is ready (otherwise unchanged). */
+// Fields that are never prose: links, ids, codes. Everything else that is text gets translated.
+const SKIP = new Set(['id', 'url', 'link', 'href', 'handle', 'platform', 'provider', 'image', 'thumbnail', 'lang', 'key', 'cluster', 'media', 'original', 'code', 'iso', 'tags'])
+
+/** Deep copy with every foreign string swapped for its English, when ready. Reports the first language seen. */
+function deep(v: unknown, found: { lang?: string }, depth = 0): unknown {
+  if (typeof v === 'string') {
+    // Short Latin-script values in nested fields are usually names ("Lula", "Ciro Gomes"):
+    // leave those as they are; non-Latin scripts are always translated
+    const phrase = FOREIGN_SCRIPT.test(v) || v.trim().split(/\s+/).length >= 3
+    const t = phrase && v.length >= 2 && v.length <= MAX_TEXT ? lookup(v) : null
+    if (!t) return v
+    found.lang ??= t.lang
+    return t.en
+  }
+  if (depth > 6 || !v || typeof v !== 'object') return v
+  if (Array.isArray(v)) return v.map((x) => deep(x, found, depth + 1))
+  const out: Record<string, unknown> = {}
+  for (const [k, x] of Object.entries(v)) out[k] = SKIP.has(k) ? x : deep(x, found, depth + 1)
+  return out
+}
+
+/**
+ * The feature in English: its title and every text field in its props (post bodies, article
+ * headlines, timelines, search queries, names), as far as translations are ready; the rest stays
+ * as scraped and is picked up on a later pass.
+ */
 export function localize(f: Feature): Feature {
   if (f.props.original) return f
+  const found: { lang?: string } = {}
   const title = lookup(f.title)
-  if (!title) return f
-  const body = typeof f.props.text === 'string' ? lookup(f.props.text) : null
+  const props = deep(f.props, found) as Feature['props']
+  const lang = title?.lang ?? found.lang
+  if (!lang) return f
   return {
     ...f,
-    title: title.en,
+    title: title?.en ?? f.title,
     props: {
-      ...f.props,
-      lang: title.lang,
-      ...(body ? { text: body.en } : {}),
-      original: { title: f.title, ...(body ? { text: f.props.text } : {}) },
+      ...props,
+      lang,
+      original: { title: f.title, ...(typeof f.props.text === 'string' && props.text !== f.props.text ? { text: f.props.text } : {}) },
     },
   }
 }

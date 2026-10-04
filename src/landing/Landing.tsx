@@ -1,12 +1,11 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '../../gui_elements/Button'
 import { Marker } from '../../gui_elements/Controls'
-import logo from '../assets/ATLAS_LOGO.png'
+import logo from '../assets/ARGUS_LOGO.png'
 import { featuresOf, useStore } from '../core/store'
 import { useLayerData } from '../core/useLayerData'
 import { LAYERS } from '../layers'
 import { openApp } from '../route'
-import { IssFrame } from './IssFrame'
 import { useGeoIp } from './useGeoIp'
 
 // Cesium loads after the page so the hero text is there at once
@@ -14,7 +13,7 @@ const LandingGlobe = lazy(() => import('./LandingGlobe'))
 
 const NAV = [
   { id: 'home', label: 'Home' },
-  { id: 'about', label: 'What is ATLAS' },
+  { id: 'about', label: 'What is ARGUS' },
   { id: 'layers', label: 'Layers' },
   { id: 'sources', label: 'Sources' },
   { id: 'tech', label: 'Technology' },
@@ -88,7 +87,7 @@ function useStats() {
   return { features, sources }
 }
 
-/** The public face of ATLAS, behind the logo: a live view from orbit, then what ATLAS is and how it works. */
+/** The public face of ARGUS, behind the logo: a live view from orbit, then what ARGUS is and how it works. */
 export default function Landing() {
   useLayerData()
   const spot = useGeoIp()
@@ -120,7 +119,7 @@ export default function Landing() {
         <nav className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-8">
           <button type="button" onClick={() => go('home')} className="flex cursor-pointer items-center gap-2.5">
             <img src={logo} alt="" className="size-8" />
-            <span className="title-weight font-title text-lg tracking-(--tracking-title) text-white">ATLAS</span>
+            <span className="title-weight font-title text-lg tracking-(--tracking-title) text-white">ARGUS</span>
           </button>
           <ul className="ml-auto hidden items-center gap-6 md:flex">
             {NAV.map((n) => (
@@ -131,39 +130,42 @@ export default function Landing() {
               </li>
             ))}
           </ul>
-          <Button className="ml-auto md:ml-0" onClick={openApp}>Launch ATLAS</Button>
+          <Button className="ml-auto md:ml-0" onClick={openApp}>Launch ARGUS</Button>
         </nav>
       </header>
 
       {/* Hero: the live globe from orbit */}
       <section id="home" ref={hero} className="relative h-svh min-h-[560px] overflow-hidden bg-black">
-        <div className={`absolute inset-0 transition-opacity duration-[1500ms] ${globeReady ? 'opacity-100' : 'opacity-0'}`}>
+        {/* The globe is a backdrop: it never takes the mouse, so scrolling over it scrolls the page */}
+        <div className={`pointer-events-none absolute inset-0 transition-opacity duration-[1500ms] ${globeReady ? 'opacity-100' : 'opacity-0'}`} aria-hidden>
           <Suspense fallback={null}>
             <LandingGlobe spot={spot} active={heroOnScreen} onReady={onGlobeReady} />
           </Suspense>
         </div>
-        <IssFrame />
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
           <h1 className="title-weight font-title text-[clamp(64px,15vw,220px)] leading-none tracking-[0.14em] pl-[0.14em] text-white [text-shadow:0_0_40px_rgba(127,209,255,0.35),0_2px_18px_rgba(0,0,0,0.8)]">
-            ATLAS
+            ARGUS
           </h1>
-          <p className="sub t-label mt-5 text-[clamp(12px,1.4vw,16px)] text-white/85 [text-shadow:0_1px_8px_#000]">Unrest &amp; influence, mapped live</p>
+          {/* Size set inline: the t-label class carries its own (small) font size */}
+          <p className="sub t-label mt-6 leading-tight text-white/90 [text-shadow:0_2px_14px_#000]" style={{ fontSize: 'clamp(26px, 2.6vw, 36px)' }}>
+            Unrest &amp; influence, mapped live
+          </p>
           <div className="pointer-events-auto mt-8 flex flex-wrap justify-center gap-3">
-            <Button onClick={openApp}>Launch ATLAS</Button>
-            <Button variant="secondary" onClick={() => go('about')}>What is ATLAS</Button>
+            <Button onClick={openApp}>Launch ARGUS</Button>
+            <Button variant="secondary" onClick={() => go('about')}>What is ARGUS</Button>
           </div>
         </div>
         <p className="sub t-caption pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2 text-white/60">
-          {spot.city ? `Live over ${spot.city}` : 'Live view'} · drag to turn the globe
+          {spot.city ? `Live over ${spot.city}` : 'Live view'}
         </p>
       </section>
 
-      {/* What is ATLAS */}
-      <Section id="about" kicker="What is ATLAS" title="One live globe for what's happening, and why">
+      {/* What is ARGUS */}
+      <Section id="about" kicker="What is ARGUS" title="One live globe for what's happening, and why">
         <div className="grid gap-10 md:grid-cols-[1.3fr_1fr]">
           <Reveal className="space-y-4 font-news text-[17px] leading-relaxed text-ink/85">
             <p>
-              ATLAS is an open-source intelligence map. It pulls protests, conflict, news, prediction markets, outages,
+              ARGUS is an open-source intelligence map. It pulls protests, conflict, news, prediction markets, outages,
               aircraft, ships and satellites onto one 3D globe, updated as it happens.
             </p>
             <p>
@@ -226,7 +228,7 @@ export default function Landing() {
       </Section>
 
       {/* Technology */}
-      <Section id="tech" kicker="Technology" title="How ATLAS works">
+      <Section id="tech" kicker="Technology" title="How ARGUS works">
         <div className="grid gap-4 md:grid-cols-3">
           {STEPS.map((s, i) => (
             <Reveal key={s.k} delay={i * 120}>
@@ -274,13 +276,13 @@ export default function Landing() {
           <img src={logo} alt="" className="size-16" />
           <h2 className="title-weight mt-6 font-title text-[clamp(26px,4vw,40px)] tracking-(--tracking-title) text-white">See the world as it moves</h2>
           <p className="mt-3 max-w-xl text-dim">Open the globe, switch on the layers you care about, and watch the picture build.</p>
-          <Button className="mt-8" onClick={openApp}>Launch ATLAS</Button>
+          <Button className="mt-8" onClick={openApp}>Launch ARGUS</Button>
         </Reveal>
       </section>
 
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-[12px] text-dim sm:px-8">
-          <span className="sub t-caption">ATLAS · open-source intelligence</span>
+          <span className="sub t-caption">ARGUS · open-source intelligence</span>
           <span>Imagery Esri · Star map NASA SVS · Globe CesiumJS</span>
         </div>
       </footer>

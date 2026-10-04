@@ -1,6 +1,6 @@
-/* ATLAS: design-wide behaviours (focus, scrollbars, icons, micro-interactions, motion) and composites. */
+/* ARGUS: design-wide behaviours (focus, scrollbars, icons, micro-interactions, motion) and composites. */
 
-.atlas { font-size: var(--fs-body); }
+.argus { font-size: var(--fs-body); }
 .sr .sel { color: var(--color-ink); font: 13px var(--font-main); }
 .sr .sel option { background: var(--color-panel); color: var(--color-ink); }
 
@@ -17,7 +17,7 @@
 .glyph { display: inline-grid; place-items: center; width: 1.1em; height: 1.1em; font: 1em/1 var(--font-mono); }
 
 /* ---------- Focus ring (.focus-N) — .demo-focus shows it without a keyboard ---------- */
-.atlas :focus { outline: none; }
+.argus :focus { outline: none; }
 .focus-1 :focus-visible, .focus-1 .demo-focus { outline: 1px dashed var(--color-accent-2); outline-offset: 3px; }
 .focus-2 :focus-visible, .focus-2 .demo-focus { outline: 2px solid var(--color-accent); outline-offset: 3px; }
 .focus-3 :focus-visible, .focus-3 .demo-focus { filter: drop-shadow(0 0 1px var(--color-accent-2)) drop-shadow(0 0 6px var(--color-accent-2)); }
@@ -50,7 +50,7 @@
 .sb-8 ::-webkit-scrollbar-thumb { background: var(--color-dim); border: 3px solid var(--color-bg); }
 
 /* ---------- Micro-interactions (.mi-N) on buttons, toggles, checks, icon buttons ---------- */
-.atlas .btn, .atlas .ic, .atlas .tg, .atlas .ck { transition-property: all; }
+.argus .btn, .argus .ic, .argus .tg, .argus .ck { transition-property: all; }
 .mi-1 :is(.btn, .ic, .tg, .ck):active { scale: 0.94; }
 .mi-2 :is(.btn, .ic, .tg, .ck):active { animation: mi-flash 0.3s; }
 @keyframes mi-flash { 0% { filter: brightness(2.2); } 100% { filter: brightness(1); } }

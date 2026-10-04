@@ -1,7 +1,7 @@
 // The globe control strip (flat along the bottom of the screen, centred), including the colour
 // scheme switcher.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { useAtlasControls } from './context'
+import { useArgusControls } from './context'
 import { COLOURS } from './catalog'
 
 /* ---------------- Globe control strip ---------------- */
@@ -117,7 +117,7 @@ export type GlobeControlsProps = {
 
 /** The globe control stack: zoom, rotate, north, 3D tilt, base map (wireframe/satellite), auto-rotate, place names, night sky, colour scheme, home. */
 export function GlobeControls(p: GlobeControlsProps) {
-  const { satellite, setSatellite } = useAtlasControls()
+  const { satellite, setSatellite } = useArgusControls()
   const min = p.minZoom ?? 0
   const max = p.maxZoom ?? 100
   const step = (max - min) / 10
@@ -139,7 +139,7 @@ export function GlobeControls(p: GlobeControlsProps) {
         <Cell icon="cube" label="3D tilt" onClick={p.onTilt} active={p.tilt} />
       </Group>
       <Group>
-        <Cell icon={p.playing ? 'pause' : 'play'} label={p.playing ? 'Stop rotation' : 'Auto-rotate'} onClick={p.onPlay} active={p.playing} />
+        <Cell icon={p.playing ? 'pause' : 'play'} label={p.playing ? 'Stop rotation (Space)' : 'Auto-rotate (Space)'} onClick={p.onPlay} active={p.playing} />
         {/* Base map: wireframe or satellite imagery */}
         <Cell icon="layers" label={satellite ? 'Wireframe view' : 'Satellite view'} onClick={() => setSatellite(!satellite)} active={satellite} />
         {p.onPlaces && <Cell icon="place" label={p.places ? 'Hide place names' : 'Show place names'} onClick={p.onPlaces} active={p.places} />}
@@ -155,7 +155,7 @@ export function GlobeControls(p: GlobeControlsProps) {
 
 /** Control-strip cell that opens the 10 colour schemes above it. */
 function ColourCell() {
-  const { colour, setColour } = useAtlasControls()
+  const { colour, setColour } = useArgusControls()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 

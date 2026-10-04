@@ -2,7 +2,7 @@
 
 Open-source map of unrest and influence activity on a 3D globe (CesiumJS), built for defense analysts.
 
-- **Live wire**: news feeds polled every 30-40 s, grouped into stories (never across countries) and re-analyzed as more outlets pick them up, pushed to the browser over SSE.
+- **News Wire**: news feeds polled every 30-40 s, grouped into stories (never across countries) and re-analyzed as more outlets pick them up, pushed to the browser over SSE.
 - **Telegram scouts**: a swarm reading ~70 public channels (official, newsroom, OSINT, state-affiliated, partisan) through the keyless web preview; same text on several channels is flagged as a coordinated copy, channels others keep forwarding are discovered automatically, posts can be translated on demand.
 - **Instability index**: one explainable 0-100 score per country from every other layer (clashes, attention, flagged narratives, shutdowns, jamming, markets, search trends), shaded on the globe.
 - **Markets**: Polymarket, Kalshi and Manifold odds on conflict and security, with live probability moves, price history, and links to the news stories they relate to.
@@ -11,6 +11,7 @@ Open-source map of unrest and influence activity on a 3D globe (CesiumJS), built
 - **Truth sensor**: trending narratives and fresh debunks cross-referenced against fact-check feeds and news coverage, plus an ad-hoc claim checker.
 - **Campaign watch + influence network**: stories whose spread looks coordinated, and a graph of which sources co-amplify them and who usually goes first (recurring pairs highlighted).
 - **AI analyst brief** (optional, Claude): a sourced summary of why a story is flagged, how each bloc frames it and what to check next; also semantic fact-check matching for the claim checker.
+- **Twitter/X (Grok second opinion)**: when a story is spreading but still unverified, Argus briefs Grok (xAI) with what it already knows; Grok's `x_search` reads public X posts in real time and returns a verdict, what X shows, conflicts and the posts themselves, placed on the map and shown on the story. Optional `XAI_API_KEY`; runs only while the switch is on, capped at `XAI_MAX_PER_HOUR` (default 20).
 - **Region watch**: draw a circle around a place; anything new from any layer inside it raises an alert in the live wire.
 - **Physical layers**: GPS jamming (GPSJam), military aircraft (adsb.lol), satellites overhead (CelesTrak, SGP4), Ukraine frontline (DeepState), web censorship (OONI), submarine cables; ships at chokepoints (AISStream), ACLED, NASA FIRMS and Cloudflare Radar when keys are set.
 - **Conflict events and search trends**: Wikipedia Current Events (cited, last 3 days) beside ACLED; Google Trends per country with security terms in 12 languages, relayed every 30 min by a GitHub Actions job (`trends-relay`) because Google rate-limits cloud IPs.
@@ -42,7 +43,7 @@ src/
   ui/                        LayerPanel (search, layers, case file, key), AnalysisPanel (news feed, open story), shell (minimise state)
   layers/<id>/               CLIENT layer: LayerDef + Detail component
   layers/index.ts            CLIENT registry
-gui_elements/                ATLAS UI kit: design.ts (chosen design), components, tokens
+gui_elements/                ARGUS UI kit: design.ts (chosen design), components, tokens
 canvas/                      Design editor: npm run canvas (port 5174), exports to gui_elements/design.ts
 ```
 
@@ -116,7 +117,7 @@ POST /api/llm/translate       on-demand translation of one post (Claude, rate-li
   stories as social reports; unplaced posts are listed, not pinned. Near-identical text on 3+
   channels within an hour is a coordination cluster; clusters and forwards feed the network graph.
 
-## Live wire (`news` layer, real-time)
+## News Wire (`news` layer, real-time)
 
 ```
 server/news/sources.ts   feeds (BBC, Al Jazeera, DW, France 24, Guardian, Euronews, Sky, NPR, SCMP,

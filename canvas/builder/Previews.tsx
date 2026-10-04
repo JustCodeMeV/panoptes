@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import { useDesign } from '../../gui_elements/context'
 import { LAYOUTS, type LayoutRect } from '../../gui_elements/layouts'
 
-const LABEL: Record<LayoutRect['k'], string> = { panel: 'LAYERS', dock: 'DETAIL', bar: 'ATLAS', card: '', rail: '', tab: '' }
+const LABEL: Record<LayoutRect['k'], string> = { panel: 'LAYERS', dock: 'DETAIL', bar: 'ARGUS', card: '', rail: '', tab: '' }
 
 function Box({ r, mode }: { r: LayoutRect; mode: number }) {
   const style: CSSProperties = {

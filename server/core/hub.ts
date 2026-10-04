@@ -39,3 +39,6 @@ export function eventsPerMin(layerId: string): number {
   recent.set(layerId, r)
   return r.length
 }
+
+/** How many clients are listening to a layer right now (e.g. to skip paid work nobody sees). */
+export const listenerCount = (layerId: string) => listeners.get(layerId)?.size ?? 0

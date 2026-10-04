@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { designClasses, designVars, type Design } from './catalog'
-import { ControlsContext, DesignContext, type AtlasControls } from './context'
+import { ControlsContext, DesignContext, type ArgusControls } from './context'
 import { DESIGN } from './design'
 
 // Per-viewer preferences; storage can be unavailable (private mode), so every access is guarded.
@@ -30,15 +30,15 @@ type Props = {
 }
 
 /**
- * Applies an ATLAS design to everything inside it: fonts, colours, surface and glow as CSS variables,
- * and the chosen variant of every component. Wrap the app once: <AtlasTheme remember>…</AtlasTheme>.
+ * Applies an ARGUS design to everything inside it: fonts, colours, surface and glow as CSS variables,
+ * and the chosen variant of every component. Wrap the app once: <ArgusTheme remember>…</ArgusTheme>.
  */
-export function AtlasTheme({ design = DESIGN, remember = false, className = '', style, children }: Props) {
+export function ArgusTheme({ design = DESIGN, remember = false, className = '', style, children }: Props) {
   const [override, setOverride] = useState<number | null>(() => {
-    const v = remember ? read('atlas-colour') : null
+    const v = remember ? read('argus-colour') : null
     return v === null ? null : Number(v)
   })
-  const [satellite, setSat] = useState(() => remember && read('atlas-satellite') === '1')
+  const [satellite, setSat] = useState(() => remember && read('argus-satellite') === '1')
   // A new design colour (e.g. picked in the design editor) wins over a runtime switch
   const [baseColour, setBaseColour] = useState(design.colour)
   if (design.colour !== baseColour) {
@@ -47,23 +47,23 @@ export function AtlasTheme({ design = DESIGN, remember = false, className = '', 
   }
 
   const active = override === null ? design : { ...design, colour: override }
-  const controls: AtlasControls = {
+  const controls: ArgusControls = {
     colour: active.colour,
     setColour: (i) => {
       setOverride(i)
-      if (remember) write('atlas-colour', String(i))
+      if (remember) write('argus-colour', String(i))
     },
     satellite,
     setSatellite: (on) => {
       setSat(on)
-      if (remember) write('atlas-satellite', on ? '1' : null)
+      if (remember) write('argus-satellite', on ? '1' : null)
     },
   }
 
   return (
     <DesignContext.Provider value={active}>
       <ControlsContext.Provider value={controls}>
-        <div className={`atlas font-main text-ink ${designClasses(active)} ${className}`} style={{ ...designVars(active), ...style }}>
+        <div className={`argus font-main text-ink ${designClasses(active)} ${className}`} style={{ ...designVars(active), ...style }}>
           {children}
         </div>
       </ControlsContext.Provider>

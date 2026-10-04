@@ -2,10 +2,10 @@ import type { LayerDef } from '../../core/types'
 import { NarrativeDetail } from '../narratives/Detail'
 import { VERDICT, assessmentOf } from '../narratives/verdict'
 
-/** Live wire: stories from continuously polled news feeds, analyzed on arrival. */
+/** News Wire: stories from continuously polled news feeds, analyzed on arrival. */
 export const news: LayerDef = {
   id: 'news',
-  label: 'Live wire',
+  label: 'News Wire',
   description:
     'Breaking stories from news feeds and public Telegram/Bluesky, grouped by event and re-analyzed as more outlets pick them up.',
   color: '#38bdf8',

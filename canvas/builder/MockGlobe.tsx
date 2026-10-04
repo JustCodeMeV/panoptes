@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { geoContains, geoDistance, geoGraticule, geoGraticule10, geoOrthographic, geoPath, type GeoPermissibleObjects } from 'd3-geo'
 import { feature } from 'topojson-client'
 import land110 from 'world-atlas/land-110m.json'
-import { useAtlasControls, useDesign } from '../../gui_elements/context'
+import { useArgusControls, useDesign } from '../../gui_elements/context'
 import { MarkerGlyph, type Precision } from '../../gui_elements/Controls'
 import { DEMO_CLUSTERS, DEMO_PINS } from './demo'
 import { FLIGHTS } from '../../gui_elements/flights'
@@ -137,7 +137,7 @@ const SATELLITE_STYLE: Style = { ocean: '#02060c', outline: 'rgba(160,210,255,.6
 
 export function MockGlobe({ size = 240, pins = DEMO_PINS, clusters = DEMO_CLUSTERS, autoplay = false, flashes = true, zoom: view = 1, spin = false, tilt = false, showPins = true, api, onSelect, children }: Props) {
   const d = useDesign()
-  const { satellite } = useAtlasControls()
+  const { satellite } = useArgusControls()
   const st = satellite ? SATELLITE_STYLE : STYLES[d.globe]
   const [rot, setRot] = useState<[number, number]>(HOME)
   const [dip, setDip] = useState(1)

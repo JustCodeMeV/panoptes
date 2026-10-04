@@ -4,7 +4,7 @@ import { CountryProfile } from './CountryProfile'
 /** Click any country: its atlas profile (people, economy, trade, strategic, relations, right now) and map modes. */
 export const atlas: LayerDef = {
   id: 'atlas',
-  label: 'Atlas',
+  label: 'Country atlas',
   description: 'Click a country on the globe for its profile and map modes.',
   color: '#38bdf8',
   refreshMs: 0,

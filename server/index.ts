@@ -32,6 +32,7 @@ import { readEvent } from './entities/llm.ts'
 import { blocProfile, countryProfile, setAtlasLayers } from './atlas/profile.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
 import { reloadWatches, startWatchEngine } from './watch/engine.ts'
+import { startXEngine } from './x/engine.ts'
 import { centroidOf, geolocate } from './geo/gazetteer.ts'
 import { locationEntity } from './entities/rules.ts'
 import { briefFor } from './llm/analysis.ts'
@@ -267,14 +268,16 @@ app.get('/api/stream/:id', (c) => {
     const snap = source.snapshot()
     const first = localizeAll(snap.features)
     push('snapshot', { ...snap, features: first })
-    // Translations that land later are sent as quiet patches (at most every few seconds)
-    const sent = new Set(first.filter((f) => f.props.original).map((f) => f.id))
+    // Translations that land later are sent as quiet patches (at most every few seconds). A
+    // feature is re-sent whenever more of it has been translated since it was last sent.
+    const english = (f: (typeof first)[number]) => f.title + JSON.stringify(f.props).length
+    const sent = new Map(first.filter((f) => f.props.original).map((f) => [f.id, english(f)]))
     let patchTimer: ReturnType<typeof setTimeout> | undefined
     const offTranslated = onTranslated(() => {
       patchTimer ??= setTimeout(() => {
         patchTimer = undefined
-        const features = localizeAll(source.snapshot().features).filter((f) => f.props.original && !sent.has(f.id))
-        for (const f of features) sent.add(f.id)
+        const features = localizeAll(source.snapshot().features).filter((f) => f.props.original && sent.get(f.id) !== english(f))
+        for (const f of features) sent.set(f.id, english(f))
         if (features.length) push('patch', { type: 'patch', features })
       }, 3000)
     })
@@ -303,6 +306,7 @@ startMarketsEngine()
 startUnrestEngine()
 startTelegramScouts()
 startWatchEngine(LAYERS)
+startXEngine()
 startCii(LAYERS)
 startEntityEngine(LAYERS)
 setAtlasLayers(LAYERS)

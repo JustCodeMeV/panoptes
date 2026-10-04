@@ -7,6 +7,7 @@ test('foreign scripts and Latin-script languages are sent for translation', () =
   assert.equal(looksForeign('انفجار في بيروت'), true)
   assert.equal(looksForeign('Los estudiantes protestan en la plaza por la reforma'), true)
   assert.equal(looksForeign('Die Regierung hat nicht mit der Opposition gesprochen'), true)
+  assert.equal(looksForeign('explosión'), true)
 })
 
 test('English is left alone', () => {

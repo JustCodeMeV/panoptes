@@ -1,4 +1,4 @@
-// Composite ATLAS components. Each reads its variant from the active design (useDesign).
+// Composite ARGUS components. Each reads its variant from the active design (useDesign).
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { useDesign } from './context'
 import { Badge, type Tone } from './Badge'
@@ -16,7 +16,7 @@ const layerColor = (c: number | string) => (typeof c === 'number' ? `var(--layer
 
 /* ---------------- Header / wordmark ---------------- */
 
-export function Header({ name = 'ATLAS', tagline = 'Unrest & influence, mapped live' }: { name?: string; tagline?: string }) {
+export function Header({ name = 'ARGUS', tagline = 'Unrest & influence, mapped live' }: { name?: string; tagline?: string }) {
   const v = useDesign().header
   const word = <span className="title-weight g-text t-title font-title tracking-(--tracking-title) whitespace-nowrap text-white">{name}</span>
   const tag = <span className="sub t-caption text-dim">{tagline}</span>
@@ -192,7 +192,7 @@ export function LayerPanel({ layers, onToggle, defaultOpen, heading = true }: { 
     case 5:
       return (
         <div className="t-caption font-mono">
-          <div className="mb-2 text-accent-2">$ atlas layers --list</div>
+          <div className="mb-2 text-accent-2">$ argus layers --list</div>
           {layers.map((l) => (
             <button key={l.id} type="button" onClick={() => onToggle(l.id, !l.on)} className="flex w-full cursor-pointer gap-2 py-0.5 text-left hover:text-accent">
               <span className={l.on ? 'text-accent' : 'text-dim'}>[{l.on ? 'ON ' : 'OFF'}]</span>
@@ -507,7 +507,7 @@ export function StateView({ kind, onRetry }: { kind: 'loading' | 'empty' | 'erro
 
 /* ---------------- Boot / refresh loader ---------------- */
 
-const BOOT_LINES = ['ATLAS v0.3 init', 'link globe ........ ok', 'mount layers ...... ok', 'fetch streams ..... 128', 'ready']
+const BOOT_LINES = ['ARGUS v0.3 init', 'link globe ........ ok', 'mount layers ...... ok', 'fetch streams ..... 128', 'ready']
 
 export function BootLoader() {
   const v = useDesign().boot
@@ -516,7 +516,7 @@ export function BootLoader() {
     const t = setInterval(() => setN((x) => (x + 1) % (BOOT_LINES.length + 3)), 450)
     return () => clearInterval(t)
   }, [])
-  const word = <span className="title-weight t-h font-title tracking-(--tracking-title) text-white">ATLAS</span>
+  const word = <span className="title-weight t-h font-title tracking-(--tracking-title) text-white">ARGUS</span>
   switch (v) {
     case 1: return <div className="flex flex-col items-center gap-2">{word}<div className="relative h-1 w-40 overflow-hidden bg-line"><span className="absolute inset-y-0 w-1/3 bg-accent-2" style={{ animation: 'marquee 1.2s linear infinite reverse' }} /></div></div>
     case 2: return <div className="flex items-center gap-3"><span className="size-10 rounded-full border border-line" style={{ background: 'conic-gradient(from 0deg, transparent 70%, var(--color-accent-2))', animation: 'spin 1.6s linear infinite' }} />{word}</div>

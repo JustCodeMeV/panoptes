@@ -1,4 +1,4 @@
-// The chosen ATLAS design: one option index per category (option names are in catalog.ts).
+// The chosen ARGUS design: one option index per category (option names are in catalog.ts).
 // Exported from the design editor on 2026-10-03 19:32 UTC. Safe to edit by hand.
 import type { Design } from './catalog'
 
@@ -54,6 +54,6 @@ export const DESIGN: Design = {
   dockAnim: 2, // Fade up
   listAnim: 6, // Push down, new from left
   micro: 0, // Scale press
-  boot: 0, // Boot sequence
+  boot: 2, // Radar sweep
   reduced: 1, // Always animate
 }

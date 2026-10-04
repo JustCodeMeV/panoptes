@@ -11,6 +11,7 @@ import { useInvestigation } from '../core/investigation'
 import { srcTag, translatedFrom } from '../../shared/lang'
 import { featuresOf, useSelected, useStore } from '../core/store'
 import { LAYERS } from '../layers'
+import { VERDICT_COLOR, VERDICT_LABEL, checkOf } from '../layers/x/props'
 import { NewsFeedHead, NewsFeedList } from './NewsFeed'
 import { useShell, type PanelBox } from './shell'
 
@@ -39,6 +40,27 @@ function Translated({ props }: { props: Record<string, unknown> }) {
   )
 }
 
+/** When Grok has checked this story on X: its verdict, one click from the full reading. */
+function XSecondOpinion({ storyId }: { storyId: string }) {
+  const check = useStore((s) => featuresOf(s.layers.x).find((f) => f.props.storyId === storyId))
+  const select = useStore((s) => s.select)
+  if (!check) return null
+  const c = checkOf(check)
+  return (
+    <button
+      type="button"
+      onClick={() => select(check.id)}
+      className="mb-3 flex w-full cursor-pointer items-center gap-2 border border-line px-2.5 py-2 text-left transition-colors hover:border-accent-2/60"
+    >
+      <span className="sub t-label" style={{ color: VERDICT_COLOR[c.verdict] }}>
+        𝕏 {VERDICT_LABEL[c.verdict]}
+      </span>
+      <span className="t-caption text-dim">{c.confidence}% · Grok read {c.posts.length} posts</span>
+      <span className="ml-auto text-accent-2">›</span>
+    </button>
+  )
+}
+
 /** The open story: its layer's detail view, the stack chooser for co-located items, and "Add to case". */
 function Story() {
   const feature = useSelected()
@@ -56,6 +78,7 @@ function Story() {
     <div className="dock-body mt-4 border-t border-line pt-3 [animation:da-fade_var(--dur)_var(--ease)_both]" style={{ '--c': def.color } as CSSProperties} key={feature.id}>
       <Dock kind={def.label} title={feature.title} onClose={() => select(null)}>
         <Translated props={feature.props} />
+        <XSecondOpinion storyId={feature.id} />
         {stack.length > 1 && (
           <Scroller className="mb-3 border border-line" innerClassName="flex max-h-36 flex-col gap-0.5 p-2">
             <span className="sub t-label mb-1 text-dim">{stack.length} items at this location</span>
