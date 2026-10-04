@@ -13,7 +13,7 @@ Open-source map of unrest and influence activity on a 3D globe (CesiumJS), built
 - **AI analyst brief** (optional, Claude): a sourced summary of why a story is flagged, how each bloc frames it and what to check next; also semantic fact-check matching for the claim checker.
 - **Region watch**: draw a circle around a place; anything new from any layer inside it raises an alert in the live wire.
 - **Physical layers**: GPS jamming (GPSJam), military aircraft (adsb.lol), satellites overhead (CelesTrak, SGP4), Ukraine frontline (DeepState), web censorship (OONI), submarine cables; ships at chokepoints (AISStream), ACLED, NASA FIRMS and Cloudflare Radar when keys are set.
-- **Conflict events and search trends**: Wikipedia Current Events (cited, last 3 days) beside ACLED; Google Trends per country with security terms in 12 languages.
+- **Conflict events and search trends**: Wikipedia Current Events (cited, last 3 days) beside ACLED; Google Trends per country with security terms in 12 languages, relayed every 30 min by a GitHub Actions job (`trends-relay`) because Google rate-limits cloud IPs.
 
 ```
 npm install
@@ -79,6 +79,25 @@ entry (a named site if the text names one, else city, else country centroid), la
 `inferred`, so overlapping pins stack at one point; clicking a stack opens a chooser.
 Scraping is best-effort and may break when YouTube changes; a failing provider never
 takes the layer down (see provider chips in the panel).
+
+## Source neutrality
+
+One rule for every country, applied in code rather than by taste:
+
+- **Outlets are classed by funding and control** (`server/truth/domains.ts`): `state` = government-owned or
+  -funded with government editorial control, whichever government it is (VOA and RFE/RL, RT and Xinhua,
+  Al Jazeera, TRT and Anadolu, Ukrinform...); `public` = public-service broadcasters with statutory
+  independence; `private` = independent newsrooms from any country. Contested cases carry a note.
+- **Corroboration needs independent outlets from more than one country**: one national press echoing
+  itself is not confirmation.
+- **Campaign flags are symmetric**: "government outlet first" and "several governments push it" fire for
+  any bloc. Official government and military Telegram channels of every side share one type ("official,
+  party to events") and one neutral colour.
+- **Sources span regions and blocs**: Pakistani, Indian, Singaporean, Korean, South African, Nigerian,
+  Saudi, Argentine and exiled Russian newsrooms alongside Western ones; government-funded outlets of the
+  US, Russia, China, Iran, Qatar, Turkey and Ukraine. Google News queries rotate regional editions.
+- **The AI brief is told to apply the same scrutiny to every government**, attribute every claim and
+  describe all parties' actions in parallel terms.
 
 ## Telegram scouts (`telegram` layer, real-time)
 

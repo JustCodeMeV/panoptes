@@ -35,6 +35,7 @@ function connect() {
   const key = process.env.AISSTREAM_API_KEY
   if (!key || ws || Date.now() < reconnectAt) return
   const sock = new WebSocket('wss://stream.aisstream.io/v0/stream')
+  sock.binaryType = 'arraybuffer' // AISStream sends binary frames; Node would otherwise hand us Blobs
   ws = sock
   sock.onopen = () => {
     sock.send(JSON.stringify({ APIKey: key, BoundingBoxes: BOXES.map((b) => b.box), FilterMessageTypes: ['PositionReport', 'ShipStaticData'] }))

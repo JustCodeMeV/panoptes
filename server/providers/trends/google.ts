@@ -2,6 +2,7 @@ import { XMLParser } from 'fast-xml-parser'
 import type { Feature } from '../../../shared/feature.ts'
 import type { Provider } from '../../core/provider.ts'
 import { cached, refresh, trendsError } from '../../core/googletrends.ts'
+import { LAYER_GEOS } from '../../core/trendsGeos.ts'
 import { centroidOf } from '../../geo/gazetteer.ts'
 
 /**
@@ -12,13 +13,7 @@ import { centroidOf } from '../../geo/gazetteer.ts'
  * country, listing its trending searches and how many are security-related.
  */
 
-// ISO 3166 code -> gazetteer country name. Kept to ~30: Google rate-limits trending RSS per IP.
-const GEOS: Record<string, string> = {
-  UA: 'Ukraine', RU: 'Russia', BY: 'Belarus', PL: 'Poland', MD: 'Moldova', GE: 'Georgia', TR: 'Turkey', IL: 'Israel',
-  SA: 'Saudi Arabia', AE: 'United Arab Emirates', EG: 'Egypt', IQ: 'Iraq', LB: 'Lebanon', NG: 'Nigeria', KE: 'Kenya',
-  ZA: 'South Africa', ET: 'Ethiopia', IN: 'India', PK: 'Pakistan', BD: 'Bangladesh', ID: 'Indonesia', PH: 'Philippines',
-  TW: 'Taiwan', KR: 'South Korea', US: 'United States', MX: 'Mexico', BR: 'Brazil', VE: 'Venezuela', FR: 'France', GB: 'United Kingdom',
-}
+const GEOS = LAYER_GEOS
 
 // Security vocabulary in the languages people search in (stems).
 export const SECURITY = new RegExp(
@@ -77,7 +72,7 @@ export const googleTrendsProvider: Provider = {
         // Pinned only when something security-related trends; the rest stay in the list.
         ...(sec.length ? { position: pos } : {}),
         geoPrecision: sec.length ? 'approximate' : 'none',
-        geoBasis: `country-level trending searches (Google Trends, ${geo})`,
+        geoBasis: `country-level trending searches (Google Trends ${geo}, ${c.via === 'relay' ? 'relayed via GitHub Actions' : 'fetched directly'}, ${Math.max(0, Math.round((Date.now() - c.at) / 60_000))} min old)`,
         observedAt: new Date(Math.max(...trends.map((t) => t.at))).toISOString(),
         source: { provider: 'google-trends', platform: 'trends.google.com', url: `https://trends.google.com/trending?geo=${geo}`, retrievedAt: now },
         tags: ['trends', ...(sec.length ? ['security'] : [])],

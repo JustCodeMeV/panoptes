@@ -4,9 +4,11 @@
  * ours and editable: it says what kind of source a channel is, not whether a
  * given post is true.
  *
- *  tier  1 official body · 2 established newsroom / reputable OSINT · 3 aggregator · 4 partisan / unvetted
- *  type  gov · media · osint · state (state-affiliated) · milblog (partisan war blogger)
- *  bloc  state alignment, for coordinated-amplification flags (RU, IR, CN, ...)
+ *  tier  1 official body · 2 newsroom / reputable OSINT · 3 aggregator · 4 partisan / unvetted
+ *  type  gov (official government or military channel, any side: a party to events, not a neutral source)
+ *        · media · osint · state (government-funded outlet, any country) · milblog (partisan war blogger, any side)
+ *  bloc  which government a channel speaks for or sides with (UA, RU, IL, IR, US, ...)
+ * The same rules apply to every side; see server/truth/domains.ts for outlets.
  *  region  gazetteer name used as the location when a post names no place
  */
 export type ChannelType = 'gov' | 'media' | 'osint' | 'state' | 'milblog'
@@ -27,16 +29,16 @@ const c = (handle: string, name: string, tier: Channel['tier'], type: ChannelTyp
 })
 
 export const CHANNELS: Channel[] = [
-  // --- official bodies: first word on alerts and strikes, but parties to the conflict ---
+  // --- official government and military channels, every side: first word on alerts and strikes, but parties to events ---
   c('dsns_telegram', 'Ukraine State Emergency Service', 1, 'gov', 'ukraine', 'Ukraine', 'UA'),
   c('kpszsu', 'Ukrainian Air Force', 1, 'gov', 'ukraine', 'Ukraine', 'UA'),
   c('PikudHaOref_all', 'Israel Home Front Command', 1, 'gov', 'middleeast', 'Israel', 'IL'),
   c('IDFofficial', 'IDF', 1, 'gov', 'middleeast', 'Israel', 'IL'),
-  c('RocketAlert', 'Rocket Alert', 1, 'gov', 'middleeast', 'Israel'),
+  c('RocketAlert', 'Rocket Alert', 3, 'osint', 'middleeast', 'Israel', 'IL'),
   c('SaudiDCD', 'Saudi Civil Defense', 1, 'gov', 'middleeast', 'Saudi Arabia', 'SA'),
-  c('InaTEWS_BMKG', 'BMKG InaTEWS (Indonesia)', 1, 'gov', 'breaking', 'Indonesia'),
-  c('mod_russia_en', 'Russian MoD (EN)', 1, 'state', 'ukraine', 'Russia', 'RU'),
-  c('MFARussia', 'Russian MFA', 1, 'state', 'geopolitics', 'Russia', 'RU'),
+  c('InaTEWS_BMKG', 'BMKG InaTEWS (Indonesia)', 1, 'gov', 'breaking', 'Indonesia', 'ID'),
+  c('mod_russia_en', 'Russian MoD (EN)', 1, 'gov', 'ukraine', 'Russia', 'RU'),
+  c('MFARussia', 'Russian MFA', 1, 'gov', 'geopolitics', 'Russia', 'RU'),
   // --- newsrooms ---
   c('cnalatest', 'CNA', 2, 'media', 'geopolitics', 'Singapore'),
   c('france24_en', 'France 24', 2, 'media', 'geopolitics'),
@@ -47,11 +49,18 @@ export const CHANNELS: Channel[] = [
   c('nexta_tv', 'NEXTA', 3, 'media', 'geopolitics', 'Belarus'),
   c('nexta_live', 'NEXTA Live', 3, 'media', 'geopolitics', 'Belarus'),
   c('wamnews_en', 'WAM (UAE)', 2, 'state', 'middleeast', 'United Arab Emirates', 'AE'),
-  // --- state-affiliated outlets ---
+  c('aljazeeraglobal', 'Al Jazeera', 2, 'state', 'middleeast', undefined, 'QA'),
+  c('trtworld', 'TRT World', 2, 'state', 'geopolitics', 'Turkey', 'TR'),
+  c('anadoluajansi', 'Anadolu Agency', 2, 'state', 'geopolitics', 'Turkey', 'TR'),
+  c('ukrinform_news', 'Ukrinform', 2, 'state', 'ukraine', 'Ukraine', 'UA'),
+  c('radiosvoboda', 'Radio Svoboda (RFE/RL Ukrainian)', 2, 'state', 'ukraine', 'Ukraine', 'US'),
+  c('currenttime', 'Current Time (RFE/RL)', 2, 'state', 'geopolitics', undefined, 'US'),
+  c('golosameriki', 'Voice of America (Russian)', 2, 'state', 'geopolitics', undefined, 'US'),
+  // --- government-funded outlets, every country ---
   c('tass_agency', 'TASS', 2, 'state', 'geopolitics', 'Russia', 'RU'),
   c('PressTV', 'Press TV', 2, 'state', 'geopolitics', 'Iran', 'IR'),
-  c('defapress_ir', 'DefaPress (Iran MoD)', 2, 'state', 'conflict', 'Iran', 'IR'),
-  c('SaberinFa', 'Saberin (IRGC-aligned)', 3, 'state', 'conflict', 'Iran', 'IR'),
+  c('defapress_ir', 'DefaPress (Iran MoD)', 1, 'gov', 'conflict', 'Iran', 'IR'),
+  c('SaberinFa', 'Saberin (IRGC-aligned)', 4, 'milblog', 'conflict', 'Iran', 'IR'),
   // --- OSINT and aggregators ---
   c('ClashReport', 'Clash Report', 3, 'osint', 'conflict'),
   c('OSINTdefender', 'OSINTdefender', 3, 'osint', 'conflict'),
@@ -62,17 +71,17 @@ export const CHANNELS: Channel[] = [
   c('warfareanalysis', 'Warfare Analysis', 3, 'osint', 'conflict'),
   c('wfwitness', 'Witness', 3, 'osint', 'breaking'),
   c('faytuks', 'Faytuks News', 3, 'osint', 'breaking'),
-  c('wartranslated', 'WarTranslated', 3, 'osint', 'ukraine', 'Ukraine'),
+  c('wartranslated', 'WarTranslated', 3, 'osint', 'ukraine', 'Ukraine', 'UA'),
   c('vxunderground', 'vx-underground', 3, 'osint', 'cyber'),
   c('thehackernews', 'The Hacker News', 2, 'media', 'cyber'),
   c('Middle_East_Spectator', 'Middle East Spectator', 4, 'osint', 'middleeast'),
-  c('abualiexpress', 'Abu Ali Express', 3, 'milblog', 'middleeast', 'Israel'),
-  c('englishabuali', 'Abu Ali Express (EN)', 3, 'milblog', 'middleeast', 'Israel'),
-  c('israelwarroom', 'Israel War Room', 4, 'milblog', 'middleeast', 'Israel'),
+  c('abualiexpress', 'Abu Ali Express', 3, 'milblog', 'middleeast', 'Israel', 'IL'),
+  c('englishabuali', 'Abu Ali Express (EN)', 3, 'milblog', 'middleeast', 'Israel', 'IL'),
+  c('israelwarroom', 'Israel War Room', 4, 'milblog', 'middleeast', 'Israel', 'IL'),
   c('LebUpdate', 'Lebanon Update', 4, 'osint', 'middleeast', 'Lebanon'),
   c('VahidOnline', 'Vahid Online', 3, 'osint', 'geopolitics', 'Iran'),
   c('disclosetv', 'Disclose.tv', 4, 'osint', 'breaking'),
-  // --- partisan war bloggers and aligned networks: where coordinated narratives often start ---
+  // --- partisan war bloggers, every side: where coordinated narratives often start ---
   c('intelslava', 'Intel Slava Z', 4, 'milblog', 'ukraine', 'Russia', 'RU'),
   c('rybar', 'Rybar', 4, 'milblog', 'ukraine', 'Russia', 'RU'),
   c('rybar_in_english', 'Rybar (EN)', 4, 'milblog', 'ukraine', 'Russia', 'RU'),
@@ -83,7 +92,7 @@ export const CHANNELS: Channel[] = [
   c('militarysummary', 'Military Summary', 4, 'milblog', 'ukraine'),
   c('ukrainenow', 'Ukraine NOW', 3, 'media', 'ukraine', 'Ukraine'),
   c('operativnoZSU', 'Operativno ZSU', 4, 'milblog', 'ukraine', 'Ukraine', 'UA'),
-  c('Tsaplienko', 'Tsaplienko', 3, 'milblog', 'ukraine', 'Ukraine'),
+  c('Tsaplienko', 'Tsaplienko', 3, 'milblog', 'ukraine', 'Ukraine', 'UA'),
   c('thecradlemedia', 'The Cradle', 4, 'media', 'middleeast'),
   c('QudsNen', 'Quds News Network', 4, 'media', 'middleeast', 'Palestine'),
   c('FotrosResistancee', 'Fotros Resistance', 4, 'milblog', 'conflict', 'Iran', 'IR'),

@@ -1,5 +1,6 @@
 import type { MarketRef } from '../../shared/markets.ts'
 import type { Assessment, Coverage, FactCheckMatch, Signal, Verdict } from '../../shared/truth.ts'
+import { outletCountry } from './domains.ts'
 import { MATCH_STRONG } from './factchecks.ts'
 
 const how = (m: FactCheckMatch) => (m.judged === 'same' ? 'same claim, AI-judged' : `${Math.round(m.score * 100)}% term match`)
@@ -30,6 +31,9 @@ export function assess(input: {
   const mislead = strong.find((m) => m.verdict === 'misleading' || m.verdict === 'analysis')
   const trueHit = strong.find((m) => m.verdict === 'true')
   const established = coverage?.establishedOutlets.length ?? 0
+  // Independent coverage must come from more than one country: one national press echoing itself is not corroboration.
+  const estCountries = new Set((coverage?.establishedOutlets ?? []).map((d) => outletCountry(d) ?? d)).size
+  const govOf = (d: string) => `${d}${outletCountry(d) ? ` (${outletCountry(d)})` : ''}`
   const stateOnly = !!coverage && coverage.stateOutlets.length > 0 && established === 0
   const spread = spreadOf(signals)
   const volume = signals.reduce((n, s) => n + (s.volume ?? 0), 0)
@@ -44,19 +48,21 @@ export function assess(input: {
   } else if (trueHit) {
     verdict = 'corroborated'
     reasons.push(`${trueHit.publisher} fact-check supports a matching claim`)
-  } else if (established >= 2) {
+  } else if (established >= 2 && (estCountries >= 2 || established >= 4)) {
     verdict = 'corroborated'
-    reasons.push(`covered by ${established} established outlets: ${coverage!.establishedOutlets.slice(0, 4).join(', ')}`)
+    reasons.push(`covered by ${established} independent outlets from ${estCountries} countr${estCountries === 1 ? 'y' : 'ies'}: ${coverage!.establishedOutlets.slice(0, 4).map(govOf).join(', ')}`)
   } else if (coverage && (spread >= 2 || volume >= 10_000 || established >= 1 || stateOnly || signals.some((s) => s.platform === 'user-input'))) {
     verdict = 'unverified'
     reasons.push(
       established === 1
-        ? `only 1 established outlet covers it so far (${coverage.establishedOutlets[0]}) out of ${coverage.domains} domains`
+        ? `only 1 independent outlet covers it so far (${govOf(coverage.establishedOutlets[0])}) out of ${coverage.domains} domains`
         : coverage.domains === 0
           ? 'only social accounts report it so far; no news outlet has covered it yet'
           : stateOnly
-          ? `reported only by state-affiliated outlets so far (${coverage.domains} domains)`
-          : `${coverage.total} articles from ${coverage.domains} domains, none from the established-outlet list`,
+          ? `reported only by government-funded outlets so far (${coverage.domains} domains)`
+          : established >= 2
+            ? `${established} independent outlets, all from one country (${outletCountry(coverage.establishedOutlets[0]) ?? '?'}): no outside confirmation yet`
+            : `${coverage.total} articles from ${coverage.domains} domains, none from the independent-outlet list`,
     )
   } else if (!coverage && (spread >= 2 || volume >= 10_000)) {
     verdict = 'unverified'
@@ -66,8 +72,8 @@ export function assess(input: {
     reasons.push(coverage ? 'low spread and little coverage; not enough to judge' : input.coveragePending ? 'no fact-check match; news-coverage lookup in progress' : 'no fact-check match and no coverage data')
   }
 
-  if (stateOnly) reasons.push(`coverage comes only from state-affiliated outlets: ${coverage!.stateOutlets.join(', ')}`)
-  if (coverage && coverage.stateOutlets.length && established > 0) reasons.push(`also pushed by state-affiliated outlets: ${coverage.stateOutlets.join(', ')}`)
+  if (stateOnly) reasons.push(`coverage comes only from government-funded outlets: ${coverage!.stateOutlets.map(govOf).join(', ')}`)
+  if (coverage && coverage.stateOutlets.length && established > 0) reasons.push(`also carried by government-funded outlets: ${coverage.stateOutlets.map(govOf).join(', ')}`)
   if (spread >= 2) reasons.push(`appears on ${spread} distinct platform/region feeds`)
   if (input.coverageError) reasons.push(`coverage lookup failed: ${input.coverageError}`)
   else if (input.coveragePending && !coverage) reasons.push('news-coverage lookup still running (GDELT is rate-limited): re-check in a minute')

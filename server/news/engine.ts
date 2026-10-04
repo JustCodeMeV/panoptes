@@ -6,7 +6,7 @@ import type { Assessment, Coverage, Signal } from '../../shared/truth.ts'
 import { scoreLocations } from '../geo/gazetteer.ts'
 import { assess } from '../truth/assess.ts'
 import type { Campaign, CampaignFlag, SourceClass } from '../../shared/truth.ts'
-import { establishedOutlet, socialSource, stateBloc, stateOutlet } from '../truth/domains.ts'
+import { establishedOutlet, outletCountry, socialSource, stateBloc, stateOutlet } from '../truth/domains.ts'
 import { loadCorpus, matchFactChecks } from '../truth/factchecks.ts'
 import { hash, tokenSet } from '../truth/text.ts'
 import { isTopical } from '../truth/topics.ts'
@@ -126,21 +126,23 @@ export function campaignOf(story: Story, strongFalse: boolean, marketMove: boole
   const firstHour = new Set(sorted.filter((i) => i.published - t0 <= 3600_000).map((i) => i.domain)).size
   const ageMin = (Date.now() - t0) / 60_000
 
-  const estCount = new Set(sorted.filter((i) => classOf(i.domain) === 'established').map((i) => i.domain)).size
-  // Widely corroborated stories are simply news: patterns on them are not suspicious.
-  const widely = estCount >= 3
+  const est = [...new Set(sorted.filter((i) => classOf(i.domain) === 'established').map((i) => i.domain))]
+  const estCount = est.length
+  // Widely corroborated stories are simply news: patterns on them are not suspicious. "Widely" means
+  // independent outlets from more than one country, so one national press echoing itself does not count.
+  const widely = estCount >= 3 && new Set(est.map((d) => outletCountry(d))).size >= 2
   const flags: CampaignFlag[] = []
   const flag = (id: string, label: string, severity: CampaignFlag['severity'], detail: string) => flags.push({ id, label, severity, detail })
   if (!widely) {
     if (fs && fe && (stateLeadMin ?? 0) >= 60 && (stateLeadMin ?? 0) <= 1440) {
-      flag('state-first', 'State media first', 'warn', `${fs.domain} ran it ${stateLeadMin} min before the first established outlet (${fe.domain})`)
+      flag('state-first', 'Government outlet first', 'warn', `${fs.domain} (${stateBloc(fs.domain)} government) ran it ${stateLeadMin} min before the first independent outlet (${fe.domain})`)
     }
     if (fs && !fe && ageMin >= 60 && ageMin <= 720) {
-      flag('state-only', 'State-only story', 'info', `no established outlet in ${Math.round(ageMin)} min; carried by ${[...new Set(sorted.filter((i) => classOf(i.domain) === 'state').map((i) => i.domain))].join(', ')}`)
+      flag('state-only', 'Government outlets only', 'info', `no independent outlet in ${Math.round(ageMin)} min; carried by ${[...new Set(sorted.filter((i) => classOf(i.domain) === 'state').map((i) => `${i.domain} (${stateBloc(i.domain)})`))].join(', ')}`)
     }
-    if (blocs.length >= 2) flag('multi-bloc', 'Aligned state outlets', 'alert', `outlets from ${blocs.join(' + ')} carry the same story${estCount ? ` (only ${estCount} established outlet${estCount === 1 ? '' : 's'})` : ''}`)
-    if (social.size >= 3) flag('social-surge', 'Social surge', 'warn', `${social.size} distinct social accounts/channels amplify it${estCount ? '' : ' with no established outlet'}`)
-    if (sorted[0] && classOf(sorted[0].domain) === 'social' && !fe) flag('social-first', 'Social-first', 'info', `first seen on ${sorted[0].domain}, no established outlet yet`)
+    if (blocs.length >= 2) flag('multi-bloc', 'Several governments push it', blocs.length >= 3 ? 'alert' : 'warn', `outlets of the ${blocs.join(' + ')} governments carry the same story${estCount ? ` (only ${estCount} independent outlet${estCount === 1 ? '' : 's'})` : ' with no independent outlet'}`)
+    if (social.size >= 3) flag('social-surge', 'Social surge', 'warn', `${social.size} distinct social accounts/channels amplify it${estCount ? '' : ' with no independent outlet'}`)
+    if (sorted[0] && classOf(sorted[0].domain) === 'social' && !fe) flag('social-first', 'Social-first', 'info', `first seen on ${sorted[0].domain}, no independent outlet yet`)
     if (firstHour >= 5 && estCount < 2) flag('rapid', 'Rapid spread', 'info', `${firstHour} distinct sources within an hour of the first report`)
   }
   if (strongFalse) flag('contradicted', 'Contradicted', 'alert', 'a published fact-check rates a matching claim false while the story is still circulating')

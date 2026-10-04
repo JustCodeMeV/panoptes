@@ -1,0 +1,41 @@
+name: trends-relay
+# Fetches Google Trends "trending now" feeds from a fresh GitHub runner IP every 30 min and publishes
+# them as trends.json on the `data` branch, which the server reads instead of calling Google
+# (Google rate-limits per IP and has flagged our Render instance). See scripts/trends-relay.ts.
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: trends-relay
+  cancel-in-progress: false
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts
+            server/core/trendsGeos.ts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Previous data (keeps feeds that fail this run)
+        run: git fetch --depth=1 origin data && git show FETCH_HEAD:trends.json > trends.json || echo 'no previous data'
+      - name: Fetch feeds
+        run: node scripts/trends-relay.ts trends.json
+      - name: 'Publish to data branch (single commit, force-pushed, no history growth)'
+        run: |
+          mkdir pub && mv trends.json pub/ && cd pub
+          git init -q -b data
+          git config user.name 'trends-relay[bot]'
+          git config user.email 'trends-relay@users.noreply.github.com'
+          git add trends.json
+          git commit -qm "trends relay $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

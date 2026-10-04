@@ -8,7 +8,7 @@ export const telegram: LayerDef = {
   id: 'telegram',
   label: 'Telegram scouts',
   description:
-    'Posts from ~70 public Telegram channels (official, newsroom, OSINT, state-affiliated, partisan), read live by a swarm of scouts. Same text across channels is flagged as coordination; channels others forward are discovered automatically.',
+    'Posts from ~70 public Telegram channels from every side (official, newsroom, OSINT, government-funded, partisan), read live by a swarm of scouts. Same text across channels is flagged as coordination; channels others forward are discovered automatically.',
   color: '#2aabee',
   refreshMs: 0,
   stream: '/api/stream/telegram',
