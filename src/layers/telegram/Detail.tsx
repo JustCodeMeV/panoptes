@@ -40,13 +40,22 @@ function Translate({ text }: { text: string }) {
   )
 }
 
+/** Plays the scraped video; when the signed URL has expired (or the post was too big for the preview), Telegram's own embed. */
+function TgVideo({ src, poster, post }: { src?: string; poster?: string; post?: string }) {
+  const [failed, setFailed] = useState(!src)
+  const embed = post?.match(/t\.me\/([A-Za-z0-9_]+)\/(\d+)/)
+  if (failed && embed) return <iframe className="tg-embed" src={`https://t.me/${embed[1]}/${embed[2]}?embed=1&dark=1`} title="Telegram post" allow="autoplay; fullscreen" />
+  if (failed) return poster ? <img className="tg-thumb" src={poster} alt="" referrerPolicy="no-referrer" /> : null
+  return <video className="tg-video" src={src} poster={poster} controls preload="metadata" playsInline onError={() => setFailed(true)} />
+}
+
 export function TelegramDetail({ feature }: DetailProps) {
   const p = feature.props
   const type = String(p.type ?? 'osint')
   const color = TYPE_COLOR[type] ?? '#a78bfa'
   const c = clusterOf(feature)
   const text = String(p.text ?? feature.title)
-  const media = p.media as { kind: string; thumb?: string } | undefined
+  const media = p.media as { kind: string; thumb?: string; src?: string; duration?: string } | undefined
   const link = p.link ? (
     <a href={String(p.link)} target="_blank" rel="noreferrer">
       {String(p.link).replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}
@@ -60,7 +69,7 @@ export function TelegramDetail({ feature }: DetailProps) {
       color={color}
       summary={
         <>
-          {media?.thumb && <img className="tg-thumb" src={media.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" />}
+          {media?.kind === 'video' ? <TgVideo key={feature.id} src={media.src} poster={media.thumb} post={feature.source.url} /> : media?.thumb && <img className="tg-thumb" src={media.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" />}
           <span className="tg-text">{text}</span>
           {/* Already in English when the server translated it automatically */}
           {p.lang !== 'en' && !p.original && <Translate key={feature.id} text={text} />}

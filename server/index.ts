@@ -30,6 +30,7 @@ import { search as searchEntities } from './entities/graph.ts'
 import { runTransform } from './entities/transforms.ts'
 import { readEvent } from './entities/llm.ts'
 import { blocProfile, countryProfile, setAtlasLayers } from './atlas/profile.ts'
+import { readPage } from './reader/reader.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
 import { reloadWatches, startWatchEngine } from './watch/engine.ts'
 import { startXEngine } from './x/engine.ts'
@@ -106,6 +107,18 @@ app.post('/api/llm/brief', async (c) => {
 
 app.get('/api/telegram/swarm', (c) => c.json(swarmStats()))
 app.get('/api/cii', (c) => c.json(snapshotScores()))
+
+// ---- in-app link window: framing check + reader view ----
+app.use('/api/reader', rateLimit({ windowMs: 10 * 60_000, max: 120, name: 'reader' }))
+app.get('/api/reader', async (c) => {
+  const url = c.req.query('url')
+  if (!url) return c.json({ error: 'url required' }, 400)
+  try {
+    return c.json(await readPage(url))
+  } catch (e) {
+    return c.json({ url, framable: false, error: redact(e instanceof Error ? e.message : String(e)) }, 200)
+  }
+})
 
 // ---- atlas: click a country ----
 app.get('/api/atlas/country/:name', async (c) => {

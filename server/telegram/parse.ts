@@ -9,7 +9,8 @@ export type TgPost = {
   text: string
   at: number
   views?: number
-  media?: { kind: 'photo' | 'video'; thumb?: string }
+  /** `src` is Telegram's signed CDN URL (expires after some hours; refreshed whenever the post is re-read). */
+  media?: { kind: 'photo' | 'video'; thumb?: string; src?: string; duration?: string }
   /** Channel this post was forwarded from (handle), when it is a forward. */
   forwardedFrom?: string
   forwardedName?: string
@@ -68,6 +69,8 @@ export function parsePage(html: string, handle: string): TgPage {
     const photo = block.match(/tgme_widget_message_photo_wrap[^"]*" style="[^"]*background-image:url\('([^']+)'/)?.[1]
     const video = /tgme_widget_message_video/.test(block)
     const videoThumb = block.match(/tgme_widget_message_video_thumb" style="background-image:url\('([^']+)'/)?.[1]
+    const videoSrc = block.match(/<video[^>]+src="([^"]+)"/)?.[1]?.replace(/&amp;/g, '&')
+    const duration = block.match(/message_video_duration[^>]*>([^<]+)</)?.[1]
     const link = [...textHtml.matchAll(/href="(https?:\/\/[^"]+)"/g)].map((m) => m[1]).find((u) => !/^https?:\/\/t\.me\//.test(u))
     const msgId = Number(post.split('/').pop())
     posts.push({
@@ -77,7 +80,7 @@ export function parsePage(html: string, handle: string): TgPage {
       text,
       at: Number.isNaN(t) ? Date.now() : Math.min(t, Date.now()),
       views: count(block.match(/tgme_widget_message_views">([^<]*)/)?.[1]),
-      ...(photo || video ? { media: { kind: video ? ('video' as const) : ('photo' as const), thumb: videoThumb ?? photo } } : {}),
+      ...(photo || video ? { media: { kind: video ? ('video' as const) : ('photo' as const), thumb: videoThumb ?? photo, ...(videoSrc ? { src: videoSrc } : {}), ...(duration ? { duration } : {}) } } : {}),
       ...(fwd ? { forwardedFrom: fwd[1], forwardedName: stripHtml(fwd[2]) } : {}),
       // Only references that survive footer removal: ads and sign-offs are not a channel network.
       mentions: mentionsIn(textHtml, handle).filter((h) => text.toLowerCase().includes(h.toLowerCase())),

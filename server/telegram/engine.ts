@@ -259,6 +259,12 @@ async function ingest(s: Scout, got: TgPost[], silent: boolean) {
     const prev = posts.get(key)
     if (prev) {
       if (p.views && p.views !== prev.views) prev.views = p.views // views keep growing while a post is on the page
+      // Signed video URLs expire: keep the freshest one, and refresh the map feature.
+      if (p.media?.src && p.media.src !== prev.media?.src) {
+        prev.media = p.media
+        const id = `${LAYER_ID}:${prev.key}`
+        if (features.has(id)) features.set(id, toFeature(prev))
+      }
       continue
     }
     if (p.at < cutoff || (p.text.length < 25 && !p.media)) continue

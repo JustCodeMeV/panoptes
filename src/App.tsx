@@ -5,6 +5,8 @@ import { useLayerData } from './core/useLayerData'
 import { DemoBanner } from './ui/DemoBanner'
 import { AnalysisPanel } from './ui/AnalysisPanel'
 import { Investigation } from './ui/Investigation'
+import { LinkViewer } from './ui/LinkViewer'
+import { useLinkCapture } from './core/linkViewer'
 import { LayerPanel } from './ui/LayerPanel'
 import { shellGeometry, useShell } from './ui/shell'
 import { useGlobeUi } from './globe/globeUi'
@@ -24,6 +26,7 @@ function useWindowWidth() {
 
 export default function App() {
   useLayerData()
+  useLinkCapture()
   const geo = shellGeometry(useDesign())
   const leftMin = useShell((s) => s.leftMin)
   const toolOut = useShell((s) => s.toolOut)
@@ -72,6 +75,7 @@ export default function App() {
       <LayerPanel box={geo.left} />
       <AnalysisPanel box={geo.right} />
       <Investigation />
+      <LinkViewer />
       <DemoBanner />
     </div>
   )
