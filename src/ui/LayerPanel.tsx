@@ -124,7 +124,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
       extra: st.enabled && (
         <div className="mt-1.5 flex flex-col gap-2">
           <SourceStatus def={def} st={st} live={live[def.id]} now={now} />
-          {def.Controls && <def.Controls pin={pin} />}
+          {def.Controls && <def.Controls pin={pin} features={features} select={select} />}
           {features.length > 0 && (
             <Scroller className="-mx-1.5" innerClassName="max-h-[28vh] pr-2">
               {features.slice(0, 40).map((f) => (

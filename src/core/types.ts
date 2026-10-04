@@ -5,6 +5,10 @@ import type { Feature } from '../../shared/feature'
 export type ControlsProps = {
   /** Adds an analyst-created feature to this layer, selects it and flies to it. */
   pin(feature: Feature): void
+  /** This layer's current features (ranked), for boards and summaries. */
+  features?: Feature[]
+  /** Opens a feature in the analysis panel. */
+  select?(id: string): void
 }
 
 /** Layer-specific text/colour for a live-wire row. */

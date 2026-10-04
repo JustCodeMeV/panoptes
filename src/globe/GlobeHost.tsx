@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Cartesian3, Color, ImageryLayer, JulianDate, UrlTemplateImageryProvider, Viewer } from 'cesium'
+import { Cartesian3, Color, EllipsoidTerrainProvider, ImageryLayer, Ion, JulianDate, Terrain, UrlTemplateImageryProvider, Viewer } from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import { COLOURS } from '../../gui_elements/catalog'
 import { useArgusControls } from '../../gui_elements/context'
@@ -7,6 +7,17 @@ import { useGlobeUi } from './globeUi'
 import { attachSky } from './sky'
 import { ViewerContext } from './viewerContext'
 import { Wireframe, type WireStyle } from './wireframe'
+
+// Cesium World Terrain needs an ion token: VITE_CESIUM_ION_TOKEN if set, otherwise Cesium's built-in evaluation token.
+const ION = import.meta.env.VITE_CESIUM_ION_TOKEN as string | undefined
+if (ION) Ion.defaultAccessToken = ION
+
+/** 3D relief (Cesium World Terrain) in satellite view; the smooth ellipsoid under the wireframe. */
+function applyTerrain(v: Viewer, on: boolean) {
+  if (on) v.scene.setTerrain(Terrain.fromWorldTerrain({ requestVertexNormals: true }))
+  else v.terrainProvider = new EllipsoidTerrainProvider()
+  v.scene.requestRender()
+}
 
 const WATER = Color.fromCssColorString('#4fa8ff')
 const PARK = Color.fromCssColorString('#5fd38d')
@@ -142,6 +153,12 @@ export function GlobeHost({
       setTimeout(() => v.destroy())
     }
   }, [])
+
+  // Terrain follows the satellite view in the app (the landing page keeps the light ellipsoid).
+  useEffect(() => {
+    if (!viewer || forceSatellite !== undefined) return
+    applyTerrain(viewer, satellite)
+  }, [viewer, satellite, forceSatellite])
 
   // Colour scheme and satellite / wireframe view
   useEffect(() => {

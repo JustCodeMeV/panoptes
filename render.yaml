@@ -31,3 +31,5 @@ services:
         sync: false
       - key: AISSTREAM_API_KEY
         sync: false
+      - key: VITE_CESIUM_ION_TOKEN # public client token, used at build time for 3D terrain
+        sync: false

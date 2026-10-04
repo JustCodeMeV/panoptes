@@ -135,7 +135,7 @@ export async function countryProfile(name: string) {
   const code = c.currency?.match(/\(([A-Z]{3})\)/)?.[1]
   const ciiRow = snapshotScores().countries.find((x) => findCountry(x.country)?.name === c.name)
   const inCountry = (f: Feature) => (f.position ? findCountry(countryAt(f.position.lat, f.position.lon) ?? '')?.name === c.name : false)
-  const [events, unrest, telegram, news, markets, trends, ships, air] = await Promise.all(['events', 'unrest', 'telegram', 'news', 'markets', 'trends', 'ships', 'military-air'].map((l) => features(l)))
+  const [events, unrest, telegram, news, markets, trends, ships, air, fin] = await Promise.all(['events', 'unrest', 'telegram', 'news', 'markets', 'trends', 'ships', 'military-air', 'finance'].map((l) => features(l)))
   const pick = (fs: Feature[], n = 5) => fs.slice(0, n).map((f) => ({ id: f.id, title: f.title, at: f.observedAt, props: { check: (f.props.check as { status?: string } | undefined)?.status, sources: f.props.sources, p: f.props.p, headline: f.props.headline } }))
   const evIn = events.filter(inCountry).sort((a, b) => Number(b.props.sources ?? 0) - Number(a.props.sources ?? 0))
   const conflictHot = new Set(snapshotScores().countries.filter((x) => (x.components.find((k) => k.id === 'conflict')?.points ?? 0) >= 15).map((x) => findCountry(x.country)?.name ?? x.country))
@@ -168,6 +168,8 @@ export async function countryProfile(name: string) {
       news: { count: news.filter(inCountry).length, top: pick(news.filter(inCountry)) },
       markets: pick(markets.filter((m) => new RegExp(`\\b${display}\\b`, 'i').test(m.title)), 4),
       trends: trends.find((t) => findCountry(String(t.props.country ?? ''))?.name === c.name)?.props.trends ?? null,
+      // Its stock index and currency on the world markets (if listed).
+      finance: fin.filter((f) => findCountry(String(f.props.country ?? ''))?.name === c.name || (code && String(f.props.sym ?? '').includes(code))).map((f) => ({ id: f.id, name: f.props.name, price: f.props.price, day: f.props.day, month: f.props.month })),
       ships: ships.filter(inCountry).length,
       aircraft: air.filter(inCountry).length,
     },

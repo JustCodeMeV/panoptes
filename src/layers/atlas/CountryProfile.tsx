@@ -28,6 +28,7 @@ type Profile = {
     telegram: { count: number }
     news: { count: number; top: { id: string; title: string }[] }
     markets: { id: string; title: string; props: { p?: number } }[]
+    finance?: { id: string; name: string; price: number; day: number; month?: number }[]
     ships: number
     aircraft: number
   }
@@ -154,6 +155,15 @@ export function CountryProfile({ feature, select }: DetailProps) {
         {p.now.cii ? <b>Instability {p.now.cii.score}/100</b> : <b>No instability signals</b>} · {p.now.events.count} checked events · {p.now.unrest.count} unrest hotspots ·{' '}
         {p.now.news.count} stories · {p.now.telegram.count} Telegram posts · {p.now.ships} ships · {p.now.aircraft} military aircraft
       </p>
+      {!!p.now.finance?.length && (
+        <p className="atlas-fin">
+          {p.now.finance.map((f) => (
+            <button key={f.id} className="atlas-chip" onClick={() => select(f.id)}>
+              {f.name} <b style={{ color: f.day >= 0 ? '#4ade80' : '#f87171' }}>{f.day >= 0 ? '+' : ''}{f.day.toFixed(2)}%</b>
+            </button>
+          ))}
+        </p>
+      )}
       <ul className="evidence">
         {[...p.now.events.top, ...p.now.news.top].slice(0, 6).map((x) => (
           <li key={x.id}>
