@@ -22,6 +22,7 @@ import { Health } from './Health'
 import { NetworkView } from './NetworkGraph'
 import { Omnibox } from './Omnibox'
 import { Key } from './Key'
+import { Help } from './Help'
 import { matchesQuery } from '../core/search'
 import { atTime } from '../core/time'
 import { setCaseMode, useShell, type PanelBox } from './shell'
@@ -108,6 +109,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
   const now = useNow(1000)
   const [query, setQuery] = useState('')
   const [net, setNet] = useState<false | 'flagged' | 'all'>(false)
+  const [help, setHelp] = useState(false)
   useEscape(!!net, () => setNet(false))
   const q = query.trim().toLowerCase()
   const darkSide = useGlobeUi((s) => s.darkSide)
@@ -194,6 +196,9 @@ export function LayerPanel({ box }: { box: PanelBox }) {
                   Network
                 </Button>
               </div>
+              <Button variant="secondary" className="mt-2 w-full whitespace-nowrap" onClick={() => setHelp(true)} title="How to use ARGUS">
+                ? Help
+              </Button>
               <Fold
                 title="Layers"
                 aside={
@@ -260,6 +265,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
         </Panel>
       </RollUp>
 
+      {help && <Help onClose={() => setHelp(false)} />}
       {net &&
         createPortal(
           // Rendered inside the ARGUS root so it keeps the design tokens
