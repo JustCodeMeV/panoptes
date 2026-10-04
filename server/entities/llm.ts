@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import type { Precision } from '../../shared/entities.ts'
+import type { EventKind, Precision, Role } from '../../shared/entities.ts'
 import { llmEnabled, memo, structured } from '../llm/client.ts'
 import { ACTORS } from './actors.ts'
 import { geocode } from './geocode.ts'
@@ -24,7 +24,7 @@ const calls: number[] = []
 const readAt = new Map<string, number>() // event id -> sources count when last read
 
 const Extraction = z.object({
-  kind: z.enum(['strike', 'drone-attack', 'shelling', 'clash', 'protest', 'arrest', 'explosion', 'ceasefire', 'talks', 'sanction', 'cyber', 'disaster', 'missile-test', 'other']),
+  kind: z.string().describe('One of: strike, drone-attack, shelling, clash, protest, arrest, explosion, ceasefire, talks, sanction, cyber, disaster, missile-test, other'),
   summary: z.string().describe('One neutral sentence: who did what, where, when. Attribute contested facts ("X says").'),
   place: z
     .object({
@@ -39,13 +39,13 @@ const Extraction = z.object({
     .array(
       z.object({
         name: z.string().describe('Common English name, e.g. "Houthis", "Russian Armed Forces", "Volodymyr Zelensky"'),
-        type: z.enum(['military', 'armed-group', 'government', 'person', 'org', 'party']),
-        role: z.enum(['attacker', 'target', 'victim', 'claimant', 'mediator', 'participant']),
+        type: z.string().describe('One of: military, armed-group, government, person, org, party'),
+        role: z.string().describe('One of: attacker, target, victim, claimant, mediator, participant'),
       }),
     )
     .max(8),
   claims: z
-    .array(z.object({ claimant: z.string(), statement: z.string().describe('What they claim, in their framing, max 25 words'), stance: z.enum(['asserts', 'denies']) }))
+    .array(z.object({ claimant: z.string(), statement: z.string().describe('What they claim, in their framing, max 25 words'), stance: z.string().describe('asserts or denies') }))
     .max(5),
 })
 export type Extraction = z.infer<typeof Extraction>
@@ -56,6 +56,30 @@ const SYSTEM = `You extract structured facts about ONE real-world event from new
 - place.name is the most precise location the text supports; precision says how precise it is.
 - An actor's role is from the event's point of view: attacker, target, victim, claimant (asserts/denies something), mediator, participant.
 - Claims: statements by a party about the event (casualties, responsibility, denials), each with its claimant.`
+
+const KINDS = ['strike', 'drone-attack', 'shelling', 'clash', 'protest', 'arrest', 'explosion', 'ceasefire', 'talks', 'sanction', 'cyber', 'disaster', 'missile-test', 'other'] as const
+/** The model sometimes answers "airstrike", "drone strike", "attack": map to our kinds, never fail. */
+export function kindFrom(k: string): EventKind {
+  const w = k.toLowerCase()
+  const hit = KINDS.find((x) => x === w)
+  if (hit) return hit
+  if (/drone|uav/.test(w)) return 'drone-attack'
+  if (/missile test|launch|test/.test(w)) return 'missile-test'
+  if (/air|strike|bomb|missile|rocket|attack/.test(w)) return 'strike'
+  if (/shell|artillery|mortar/.test(w)) return 'shelling'
+  if (/clash|fight|battle|offensive|combat/.test(w)) return 'clash'
+  if (/protest|riot|demonstr|rally/.test(w)) return 'protest'
+  if (/arrest|detain/.test(w)) return 'arrest'
+  if (/explo|blast/.test(w)) return 'explosion'
+  if (/ceasefire|truce/.test(w)) return 'ceasefire'
+  if (/talk|negotiat|summit|meeting|diplom/.test(w)) return 'talks'
+  if (/sanction/.test(w)) return 'sanction'
+  if (/cyber|hack/.test(w)) return 'cyber'
+  if (/quake|flood|storm|fire|disaster/.test(w)) return 'disaster'
+  return 'other'
+}
+const ROLES = ['attacker', 'target', 'victim', 'claimant', 'mediator', 'participant'] as const
+const roleFrom = (r: string): Role => ROLES.find((x) => r.toLowerCase().includes(x)) ?? (/attack|perpetrat|aggress/i.test(r) ? 'attacker' : /victim|killed|injur/i.test(r) ? 'victim' : 'participant')
 
 /** Normalises the model's precision word (it sometimes says "city", "village", "province"). */
 export function precisionOf(p: string): Precision {
@@ -102,8 +126,9 @@ async function apply(eventId: string, x: Extraction, featureId: string) {
   if (!e) return
   const now = Date.now()
   const ev = { featureId, quote: x.summary.slice(0, 200) }
-  e.subtype = x.kind
-  e.props = { ...e.props, kind: x.kind, summary: x.summary, casualties: x.casualties ?? e.props.casualties, read: 'llm', readAt: now }
+  const kind = kindFrom(x.kind)
+  e.subtype = kind
+  e.props = { ...e.props, kind, summary: x.summary, casualties: x.casualties ?? e.props.casualties, read: 'llm', readAt: now }
   if (x.place) {
     const g = await geocode(x.place.name, x.place.admin, x.place.country, precisionOf(x.place.precision))
     if (g) {
@@ -121,12 +146,13 @@ async function apply(eventId: string, x: Extraction, featureId: string) {
   for (const a of x.actors) {
     const name = KNOWN.get(a.name.toLowerCase()) ?? a.name
     const id = actorId(name)
-    if (!getEntity(id)) upsertEntity({ id, type: 'actor', subtype: a.type, label: name, props: {}, firstSeen: now, lastSeen: now, confidence: 0.75 })
-    link(eventId, 'involves', id, { role: a.role, at: now, evidence: ev, confidence: 0.8, via: 'llm' })
+    if (!getEntity(id)) upsertEntity({ id, type: 'actor', subtype: a.type.toLowerCase().replace(/\s+/g, '-'), label: name, props: {}, firstSeen: now, lastSeen: now, confidence: 0.75 })
+    link(eventId, 'involves', id, { role: roleFrom(a.role), at: now, evidence: ev, confidence: 0.8, via: 'llm' })
   }
   for (const c of x.claims) {
     const cid = `claim:${slug(`${eventId}-${c.claimant}-${c.statement}`).slice(0, 90)}`
-    upsertEntity({ id: cid, type: 'claim', subtype: c.stance === 'denies' ? 'denial' : 'assertion', label: `${c.claimant}: ${c.statement}`.slice(0, 160), props: { statement: c.statement, stance: c.stance, claimant: c.claimant }, firstSeen: now, lastSeen: now, confidence: 0.7 })
+    const stance = /den|reject/i.test(c.stance) ? 'denies' : 'asserts'
+    upsertEntity({ id: cid, type: 'claim', subtype: stance === 'denies' ? 'denial' : 'assertion', label: `${c.claimant}: ${c.statement}`.slice(0, 160), props: { statement: c.statement, stance, claimant: c.claimant }, firstSeen: now, lastSeen: now, confidence: 0.7 })
     link(cid, 'about', eventId, { at: now, evidence: ev, via: 'llm' })
     const name = KNOWN.get(c.claimant.toLowerCase()) ?? c.claimant
     const aid = actorId(name)

@@ -61,3 +61,11 @@ test('article text extraction keeps paragraphs, drops boilerplate', () => {
   assert.match(t, /Pivdennyi bridge/)
   assert.doesNotMatch(t, /newsletter/)
 })
+
+test('model event kinds and roles never fail parsing', async () => {
+  const { kindFrom } = await import('../server/entities/llm.ts')
+  assert.equal(kindFrom('airstrike'), 'strike')
+  assert.equal(kindFrom('Drone strike'), 'drone-attack')
+  assert.equal(kindFrom('armed clash'), 'clash')
+  assert.equal(kindFrom('something new'), 'other')
+})
