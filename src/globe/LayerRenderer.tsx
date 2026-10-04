@@ -292,7 +292,8 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
         destination: Cartesian3.fromDegrees(
           hit.feature.position.lon,
           hit.feature.position.lat - (here > 2e6 ? 0 : 0.4),
-          Math.min(here, 1_800_000),
+          // A country (atlas) is seen whole, with room for its neighbours and trade arcs.
+          hit.def.id === 'atlas' ? 5_500_000 : Math.min(here, 1_800_000),
         ),
         duration: flightSeconds.current,
       })
@@ -350,8 +351,8 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
         void openCountry(String(featureById.current.get(id)!.feature.props.country))
       } else if (id && featureById.current.has(id)) {
         useStore.getState().select(id)
-      } else if (!defined(picked) || (id && id.startsWith('atlas'))) {
-        // Empty globe (or a country fill): open the country under the cursor in the atlas.
+      } else {
+        // Empty globe, a country fill, a border line or a place label: open the country under the cursor.
         const cart = viewer.camera.pickEllipsoid(click.position)
         const c = cart && Cartographic.fromCartesian(cart)
         const country = c && countryAtPoint(CesiumMath.toDegrees(c.latitude), CesiumMath.toDegrees(c.longitude))
