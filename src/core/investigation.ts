@@ -19,6 +19,8 @@ type State = {
   seed(featureId: string): Promise<void>
   /** Start from an entity id (e.g. an event in the events layer). */
   seedEntity(id: string): Promise<void>
+  /** A region or city opened in the atlas. */
+  seedPlace(p: { name: string; kind: 'region' | 'city'; lat: number; lon: number; country?: string; region?: string }): Promise<void>
   expand(id: string, transform: string): Promise<void>
   /** Ask Claude to read this event now (precise place, actor roles, claims). */
   readAI(id: string): Promise<void>
@@ -64,6 +66,14 @@ export const useInvestigation = create<State>((set, getState) => ({
     // Region-watch alerts wrap the original item: watch:<watch id>:<original id>.
     const featureId = rawId.replace(/^watch:[^:]+:/, '')
     if (featureId.startsWith('atlas:')) return getState().seedCountry(featureId.slice(6))
+    if (featureId.startsWith('atlas-region-sel:') || featureId.startsWith('atlas-city:')) {
+      // Lazy: the store imports the layer registry, which imports this module
+      const f = (await import('./store')).useStore.getState().layers.atlas?.pinned.find((x) => x.id === featureId)
+      if (f?.position) {
+        const p = f.props as { kind: 'region' | 'city'; region?: string; city?: string; country?: string }
+        return getState().seedPlace({ name: (p.kind === 'city' ? p.city : p.region) ?? f.title, kind: p.kind, lat: f.position.lat, lon: f.position.lon, country: p.country, region: p.kind === 'city' ? p.region : undefined })
+      }
+    }
     const entityId = featureId.startsWith('events:') ? featureId.slice(7) : null
     if (entityId) return getState().seedEntity(entityId)
     set({ open: true, busy: 'Reading the item…', error: null })
@@ -71,6 +81,17 @@ export const useInvestigation = create<State>((set, getState) => ({
       const g = await get<Subgraph>(`/api/entities/seed/${encodeURIComponent(featureId)}`)
       set((s) => ({ ...merge(s, g), busy: null, status: g.status ?? null }))
       const main = g.entities.find((e) => e.type === 'event') ?? g.entities.find((e) => ((e.props.featureId as string) ?? '') === featureId) ?? g.entities[0]
+      if (main) void getState().select(main.id)
+    } catch (e) {
+      set({ busy: null, error: e instanceof Error ? e.message : String(e) })
+    }
+  },
+  async seedPlace(p) {
+    set({ open: true, busy: `Opening ${p.name}…`, error: null })
+    try {
+      const g = await get<Subgraph>('/api/entities/place', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(p) })
+      set((s) => ({ ...merge(s, g), busy: null, status: g.status ?? null }))
+      const main = g.entities.find((e) => e.label === p.name) ?? g.entities[0]
       if (main) void getState().select(main.id)
     } catch (e) {
       set({ busy: null, error: e instanceof Error ? e.message : String(e) })

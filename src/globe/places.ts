@@ -95,7 +95,10 @@ export function attachPlaces(viewer: Viewer): () => void {
       for (const [name, lon, lat, zoom, capital] of cities) {
         const position = Cartesian3.fromDegrees(lon, lat)
         const at = shown(zoom)
+        // Picking id: a click on a city (dot or name) opens the city in the atlas
+        const id = `city:${name}|${lat}|${lon}`
         const dot = dots.add({
+          id,
           position,
           pixelSize: capital ? 10 : 8,
           color: capital ? ink : ink.withAlpha(0.8),
@@ -106,6 +109,7 @@ export function attachPlaces(viewer: Viewer): () => void {
           disableDepthTestDistance: ALWAYS_ON_TOP,
         })
         const label = labels.add({
+          id,
           position,
           text: name,
           font: `${capital ? 600 : 500} 26px ${main}`,

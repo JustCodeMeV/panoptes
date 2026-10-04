@@ -31,12 +31,15 @@ import { search as searchEntities } from './entities/graph.ts'
 import { runTransform } from './entities/transforms.ts'
 import { readEvent } from './entities/llm.ts'
 import { blocProfile, countryProfile, setAtlasLayers } from './atlas/profile.ts'
+import { prewarmRegions, regionsFor } from './atlas/regions.ts'
+import { placeProfile } from './atlas/place.ts'
 import { readPage } from './reader/reader.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
 import { reloadWatches, startWatchEngine } from './watch/engine.ts'
 import { startXEngine } from './x/engine.ts'
 import { centroidOf, geolocate, searchPlaces } from './geo/gazetteer.ts'
 import { locationEntity } from './entities/rules.ts'
+import { neighbourhood, placeEntity } from './entities/adapters.ts'
 import { briefFor } from './llm/analysis.ts'
 import { llmEnabled, llmStatus } from './llm/client.ts'
 
@@ -150,6 +153,27 @@ app.get('/api/atlas/country/:name', async (c) => {
   const p = await countryProfile(decodeURIComponent(c.req.param('name')))
   return p ? c.json(p) : c.json({ error: 'unknown country' }, 404)
 })
+// Regions (states, provinces, oblasts) of a country: thinned once, pre-gzipped, cached by the browser for a week
+app.get('/api/atlas/regions/:name', async (c) => {
+  const r = await regionsFor(decodeURIComponent(c.req.param('name'))).catch(() => null)
+  if (!r) return c.json({ error: 'no subdivisions on record for this country' }, 404)
+  c.header('etag', r.etag)
+  c.header('cache-control', 'public, max-age=604800')
+  if (c.req.header('if-none-match') === r.etag) return c.body(null, 304)
+  c.header('content-type', 'application/json')
+  c.header('content-encoding', 'gzip')
+  c.header('vary', 'accept-encoding')
+  return c.body(new Uint8Array(r.gz))
+})
+app.get('/api/atlas/place', async (c) => {
+  const name = (c.req.query('name') ?? '').slice(0, 120)
+  if (!name) return c.json({ error: 'name required' }, 400)
+  const kind = c.req.query('kind') === 'city' ? 'city' : 'region'
+  const lat = Number(c.req.query('lat'))
+  const lon = Number(c.req.query('lon'))
+  const at = Number.isFinite(lat) && Number.isFinite(lon) && c.req.query('lat') ? { lat, lon } : undefined
+  return c.json(await placeProfile(name, kind, c.req.query('country')?.slice(0, 80), c.req.query('region')?.slice(0, 120), at))
+})
 app.get('/api/atlas/bloc/:id', (c) => {
   const p = blocProfile(c.req.param('id'))
   return p ? c.json(p) : c.json({ error: 'unknown bloc' }, 404)
@@ -165,6 +189,16 @@ app.get('/api/entities/country/:name', (c) => {
   if (!pos) return c.json({ error: 'unknown country' }, 404)
   const id = locationEntity(name, pos.lat, pos.lon, 'country', name, Date.now())
   return c.json(entityWithTransforms(id))
+})
+app.post('/api/entities/place', async (c) => {
+  const b = (await c.req.json().catch(() => ({}))) as Record<string, unknown>
+  const str = (v: unknown, n = 120) => (typeof v === 'string' ? v.slice(0, n) : undefined)
+  const name = str(b.name)
+  const lat = Number(b.lat)
+  const lon = Number(b.lon)
+  if (!name || !Number.isFinite(lat) || !Number.isFinite(lon)) return c.json({ error: 'name, lat, lon required' }, 400)
+  const id = placeEntity({ name, kind: b.kind === 'city' ? 'city' : 'region', lat, lon, country: str(b.country, 80), region: str(b.region) })
+  return c.json({ ...neighbourhood(id), status: `${name} opened` })
 })
 app.get('/api/entities/seed/:featureId', async (c) => {
   const g = await seedFor(c.req.param('featureId'))
@@ -362,6 +396,8 @@ startWatchEngine(LAYERS)
 startXEngine()
 startCii(LAYERS)
 startEntityEngine(LAYERS)
+// Regions of the countries most likely to be opened, fetched once in the background
+prewarmRegions(['Ukraine', 'Russia', 'Israel', 'Iran', 'France', 'United States of America', 'China', 'Dem. Rep. Congo', 'Sudan', 'Syria', 'Lebanon', 'Yemen'])
 setAtlasLayers(LAYERS)
 
 // Production (e.g. Render): one service serves the API and the built frontend.

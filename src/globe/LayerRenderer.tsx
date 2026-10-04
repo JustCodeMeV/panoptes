@@ -29,7 +29,7 @@ import { pinImage } from './pins'
 import { PinLayer, type Pin } from './pinLayer'
 import { useViewer } from './viewerContext'
 import { countryAtPoint } from './countryShapes'
-import { openCountry } from '../core/atlas'
+import { openCity, openCountry, openRegion, regionAt } from '../core/atlas'
 
 /**
  * Adds a DataSource and returns its remover. Cesium adds asynchronously, so a remove that runs
@@ -346,6 +346,26 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
       }
       const raw = defined(picked) ? (picked.id instanceof Entity ? (picked.id.id as string) : typeof picked.id === 'string' ? picked.id : null) : null
       const id = raw?.split('#')[0]
+      const atPoint = () => {
+        const cart = viewer.camera.pickEllipsoid(click.position)
+        const c = cart && Cartographic.fromCartesian(cart)
+        return c ? { lat: CesiumMath.toDegrees(c.latitude), lon: CesiumMath.toDegrees(c.longitude) } : null
+      }
+      if (raw?.startsWith('city:')) {
+        // A city dot or name: open the city
+        const [name, lat, lon] = raw.slice(5).split('|')
+        void openCity(name, Number(lat), Number(lon))
+        return
+      }
+      if (!id || !featureById.current.has(id) || id.startsWith('atlas:') || id.startsWith('atlas-region')) {
+        // Inside the open country, with its regions loaded: open the region under the cursor
+        const pt = atPoint()
+        const hit = pt && regionAt(pt.lat, pt.lon)
+        if (hit && countryAtPoint(pt.lat, pt.lon)?.name === hit.country) {
+          void openRegion(hit.country, hit.region)
+          return
+        }
+      }
       if (id && id.startsWith('atlas-lens:') && featureById.current.has(id)) {
         // A tinted country in a map mode: open that country.
         void openCountry(String(featureById.current.get(id)!.feature.props.country))

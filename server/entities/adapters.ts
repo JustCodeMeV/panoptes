@@ -170,3 +170,18 @@ export function neighbourhood(id: string): { entities: Entity[]; edges: ReturnTy
   const ids = new Set([id, ...es.flatMap((e) => [e.from, e.to])])
   return { entities: [...ids].map((i) => getEntity(i)).filter((e): e is Entity => !!e), edges: es }
 }
+
+/** A region or city as a location entity, part_of its region and country (opened from the atlas). */
+export function placeEntity(p: { name: string; kind: 'region' | 'city'; lat: number; lon: number; country?: string; region?: string }): string {
+  const at = now()
+  const id = `location:${slug(p.kind === 'city' ? `${p.name}-${p.country ?? ''}` : `${p.name}-region`)}`
+  upsertEntity({ id, type: 'location', subtype: p.kind, label: p.name, props: { country: p.country, region: p.region, kind: p.kind }, position: { lat: p.lat, lon: p.lon }, precision: p.kind === 'city' ? 'town' : 'region', firstSeen: at, lastSeen: at, confidence: 0.95 })
+  const c = countryEntity(p.country)
+  if (p.kind === 'city' && p.region) {
+    const rid = `location:${slug(`${p.region}-region`)}`
+    if (!getEntity(rid)) upsertEntity({ id: rid, type: 'location', subtype: 'region', label: p.region, props: { country: p.country, kind: 'region' }, firstSeen: at, lastSeen: at, confidence: 0.9 })
+    link(id, 'part_of', rid, { at, confidence: 0.95, via: 'transform' })
+    if (c) link(rid, 'part_of', c, { at, confidence: 0.95, via: 'transform' })
+  } else if (c) link(id, 'part_of', c, { at, confidence: 0.95, via: 'transform' })
+  return id
+}

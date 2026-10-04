@@ -196,3 +196,18 @@ export function blocProfile(id: string) {
     nuclear: members.filter((m) => NUCLEAR.has(m.name)).map((m) => displayName(m.name)),
   }
 }
+
+/** Live items matching a test (inside a region, near a city), counted per layer, newest first. Never wakes a layer. */
+export async function liveWhere(test: (f: Feature) => boolean) {
+  const ids = ['events', 'acled', 'unrest', 'news', 'telegram', 'warnings', 'humanitarian', 'hazards', 'osint', 'cyber', 'statements', 'ships', 'military-air']
+  // Items only placed at a country's centre (approximate) say nothing about a region or city inside it
+  const all = await Promise.all(ids.map(async (id) => [id, (await features(id)).filter((f) => f.position && f.geoPrecision !== 'approximate' && test(f))] as const))
+  const counts = Object.fromEntries(all.filter(([, fs]) => fs.length).map(([id, fs]) => [id, fs.length]))
+  const top = all
+    .filter(([id]) => !['ships', 'military-air'].includes(id))
+    .flatMap(([, fs]) => fs)
+    .sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt))
+    .slice(0, 10)
+    .map((f) => ({ id: f.id, title: f.title, layerId: f.layerId, at: f.observedAt }))
+  return { counts, top }
+}
