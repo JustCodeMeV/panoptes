@@ -22,6 +22,18 @@ import { events } from './events'
 import { atlas } from './atlas'
 import { finance } from './finance'
 import { cyber } from './cyber'
+import { hazards } from './hazards'
+import { statements } from './statements'
+import { research } from './research'
+import { warnings } from './warnings'
+import { humanitarian } from './humanitarian'
 
 /** CLIENT LAYER REGISTRY. One line per layer. */
-export const LAYERS: LayerDef[] = [atlas, watch, events, cii, campaigns, unrest, news, telegram, cyber, markets, finance, trends, acled, osint, gnss, militaryAir, satellites, ships, frontlines, infrastructure, livestreams, narratives, x]
+export const LAYERS: LayerDef[] = [
+  atlas, watch, events, cii,
+  campaigns, news, telegram, statements, research, narratives, x, trends, livestreams,
+  unrest, acled, frontlines, warnings, militaryAir, ships, satellites, gnss,
+  cyber, osint, infrastructure,
+  hazards, humanitarian,
+  markets, finance,
+]

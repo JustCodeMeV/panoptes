@@ -9,7 +9,7 @@ import { Panel } from '../../gui_elements/Panel'
 import type { Feature } from '../../shared/feature'
 import { srcTag } from '../../shared/lang'
 import { featuresOf, useStore, type LayerState } from '../core/store'
-import type { LayerDef } from '../core/types'
+import { LAYER_GROUPS, type LayerDef } from '../core/types'
 import logo from '../assets/ARGUS_LOGO.png'
 import { LAYERS } from '../layers'
 import { LANDING_HASH } from '../route'
@@ -107,7 +107,8 @@ export function LayerPanel({ box }: { box: PanelBox }) {
   const toggleDarkSide = useGlobeUi((s) => s.toggleDarkSide)
   const { satellite } = useArgusControls()
 
-  const layers: Layer[] = LAYERS.filter((def) => !def.hidden).map((def) => {
+  const visible = LAYERS.filter((def) => !def.hidden)
+  const layers: (Layer & { group: string })[] = visible.map((def) => {
     const st = layerStates[def.id]
     const rank = def.rank ?? ((f: Feature) => Number(f.props.viewers) || 0)
     const features = featuresOf(st)
@@ -115,6 +116,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
       .sort((a, b) => rank(b) - rank(a))
     return {
       id: def.id,
+      group: def.group ?? 'Overview',
       label: def.label,
       count: st.loading && !st.data ? '…' : features.length,
       on: st.enabled,
@@ -182,7 +184,16 @@ export function LayerPanel({ box }: { box: PanelBox }) {
                 </Button>
               </div>
               <Fold title="Layers" aside={<Health />} className="mt-4">
-                <LayerList heading={false} layers={[...layers, darkLayer]} onToggle={(id) => (id === DARK_SIDE ? toggleDarkSide() : toggle(id))} defaultOpen="campaigns" />
+                {/* One fold per group; the first three start open */}
+                {LAYER_GROUPS.map((g, i) => {
+                  const inGroup: Layer[] = [...layers.filter((l) => l.group === g), ...(g === 'Overview' ? [darkLayer] : [])]
+                  if (!inGroup.length) return null
+                  return (
+                    <Fold key={g} title={g} aside={<span className="sub t-caption text-dim">{inGroup.filter((l) => l.on).length}/{inGroup.length} on</span>} defaultOpen={i < 3} className="mt-2.5 border-l border-line/60 pl-2">
+                      <LayerList heading={false} layers={inGroup} onToggle={(id) => (id === DARK_SIDE ? toggleDarkSide() : toggle(id))} defaultOpen={g === 'Information space' ? 'campaigns' : ''} />
+                    </Fold>
+                  )
+                })}
               </Fold>
               <CasePanel />
               <Fold title="Key" className="mt-4 border-t border-line pt-3">

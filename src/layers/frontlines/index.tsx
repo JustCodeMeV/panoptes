@@ -5,6 +5,7 @@ import { occupied } from './props'
 /** Front lines and territorial control. Today: the Russo-Ukrainian front (DeepState, daily); more theatres slot in as providers. */
 export const frontlines: LayerDef = {
   id: 'frontlines',
+  group: 'Conflict & security',
   label: 'Frontlines',
   description: 'Front lines and territorial control. Currently Ukraine: occupied and contested territory from the DeepState map, updated daily.',
   color: '#dc2626',

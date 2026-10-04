@@ -7,6 +7,7 @@ const camp = (f: { props: Record<string, unknown> }) => (f.props.assessment as A
 /** Stories whose spread pattern looks coordinated or anomalous. Derived from the live wire. */
 export const campaigns: LayerDef = {
   id: 'campaigns',
+  group: 'Information space',
   label: 'Campaign Watch',
   description: 'Stories with unusual spread patterns, judged by one rule for every country: a government outlet first, several governments pushing the same story, social surges, contradicted claims.',
   color: '#d946ef',

@@ -11,6 +11,10 @@ export type ControlsProps = {
   select?(id: string): void
 }
 
+/** Layer panel groups, in display order. */
+export const LAYER_GROUPS = ['Overview', 'Information space', 'Conflict & security', 'Cyber & infrastructure', 'Humanitarian & hazards', 'Economy'] as const
+export type LayerGroup = (typeof LAYER_GROUPS)[number]
+
 /** Layer-specific text/colour for a live-wire row. */
 export type TickerView = { badge: string; color: string; detail?: string }
 
@@ -41,6 +45,8 @@ export interface LayerDef {
   /** SSE endpoint: the layer is pushed live instead of polled. */
   stream?: string
   defaultEnabled?: boolean
+  /** Panel group the layer is listed under (see LAYER_GROUPS). */
+  group?: LayerGroup
   /** Not listed in the layer panel (e.g. the atlas, driven by clicking the globe). */
   hidden?: boolean
   pin(feature: Feature): PinStyle

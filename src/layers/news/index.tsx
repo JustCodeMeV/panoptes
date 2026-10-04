@@ -5,6 +5,7 @@ import { VERDICT, assessmentOf } from '../narratives/verdict'
 /** News Wire: stories from continuously polled news feeds, analyzed on arrival. */
 export const news: LayerDef = {
   id: 'news',
+  group: 'Information space',
   label: 'News Wire',
   description:
     'Breaking stories from news feeds and public Telegram/Bluesky, grouped by event and re-analyzed as more outlets pick them up.',

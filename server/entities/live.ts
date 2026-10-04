@@ -253,3 +253,63 @@ export async function socialTransform(e: Entity, network: Network): Promise<Subg
   const r = ingestAll(e.id, reports)
   return out(e.id, r.edges, status)
 }
+
+// ---------- publications, warnings, humanitarian (layers statements / research / warnings / humanitarian) ----------
+
+/** Adapts the matching items of some layers and links each to the entity. */
+async function fromLayers(e: Entity, layers: string[], pick: (f: Feature) => boolean, rel: Edge['rel'], what: string, max = 25): Promise<Subgraph> {
+  const feats = (await Promise.all(layers.map((l) => layerFeatures(l)))).flat().filter(pick)
+  const edges: (Edge | undefined)[] = []
+  for (const f of feats.slice(0, max)) {
+    const id = adapt(f)
+    if (id && id !== e.id) edges.push(link(id, rel, e.id, { at: Date.parse(f.observedAt) || Date.now(), evidence: { featureId: f.id, url: f.source.url }, confidence: 0.7, via: 'transform' }))
+  }
+  const more = feats.length > max ? ` (showing ${max})` : ''
+  return out(e.id, edges, feats.length ? `${feats.length} ${what}${more}` : `no ${what} in the live layers`)
+}
+
+const mentions = (f: Feature, name: string) => f.props.about === name || f.props.country === name || new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(`${f.title} ${String(f.props.summary ?? '')}`)
+const inCountry = (f: Feature, name: string) => f.props.country === name || (!!f.position && countryAt(f.position.lat, f.position.lon) === name) || mentions(f, name)
+
+export async function statementsAbout(e: Entity, layer: 'statements' | 'research'): Promise<Subgraph> {
+  const name = countryName(e) ?? e.label
+  return fromLayers(e, [layer], (f) => mentions(f, name), 'mentions', layer === 'statements' ? `official statements about ${name}` : `analyses about ${name}`)
+}
+
+export async function warningsNear(e: Entity): Promise<Subgraph> {
+  const name = countryName(e)
+  const pos = e.position
+  const near = (f: Feature) => (name ? inCountry(f, name) : !!pos && !!f.position && Math.hypot(f.position.lat - pos.lat, (f.position.lon - pos.lon) * Math.cos((pos.lat * Math.PI) / 180)) < 4)
+  return fromLayers(e, ['warnings'], near, 'near', `maritime and air warnings ${name ? `for ${name}` : 'within ~400 km'}`)
+}
+
+export async function humanitarianIn(e: Entity): Promise<Subgraph> {
+  const name = countryName(e) ?? e.label
+  return fromLayers(e, ['humanitarian'], (f) => inCountry(f, name), 'located_at', `humanitarian and health reports for ${name}`)
+}
+
+/** Official statements and analyses that respond to an event: same country, within 48 h, shared terms. */
+export async function reactions(e: Entity): Promise<Subgraph> {
+  const where = edgesOf(e.id, ['located_at']).map((x) => getEntity(x.to)).find(Boolean)
+  const name = where ? (where.precision === 'country' ? where.label : String(where.props.country ?? where.label)) : undefined
+  if (name) {
+    const feats = [...(await layerFeatures('statements')), ...(await layerFeatures('research'))].filter((f) => mentions(f, name) && Math.abs((Date.parse(f.observedAt) || 0) - e.firstSeen) < 2 * 86_400_000)
+    for (const f of feats.slice(0, 30)) adapt(f) // links `responds_to` when terms overlap
+  }
+  const es = edgesOf(e.id, ['responds_to']).filter((x) => x.to === e.id)
+  return out(e.id, es, es.length ? `${es.length} official reactions and analyses` : `no statement or analysis found that responds to it${name ? ` (searched ${name}, ±48 h)` : ''}`)
+}
+
+/** Everything an issuer (government body, international organisation, think tank) published recently. */
+export async function issuerPublications(e: Entity): Promise<Subgraph> {
+  const sub = await fromLayers(e, ['statements', 'research'], (f) => f.props.issuer === e.label, 'about', `publications by ${e.label}`)
+  // The links above point claim -> issuer as "about"; the true relation is the issuer claiming them.
+  const edges = edgesOf(e.id, ['claims']).filter((x) => x.from === e.id)
+  return { ...out(e.id, edges, sub.status ?? ''), entities: sub.entities }
+}
+
+export function affiliation(e: Entity): Subgraph {
+  const es = edgesOf(e.id, ['affiliated_with', 'located_at']).filter((x) => x.from === e.id)
+  const own = e.props.ownership ? `${String(e.props.ownership)}${e.props.note ? `: ${String(e.props.note)}` : ''}` : 'no ownership on record'
+  return out(e.id, es, own)
+}

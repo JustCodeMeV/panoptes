@@ -5,6 +5,7 @@ import { TYPE_COLOR, str } from './props'
 /** Human-coded conflict events: ACLED when the account has API access, Wikipedia Current Events always. */
 export const acled: LayerDef = {
   id: 'acled',
+  group: 'Conflict & security',
   label: 'Conflict Events',
   description:
     'Human-curated armed clashes, attacks and disasters with sources: Wikipedia Current Events (last 3 days, always on) and ACLED battles/protests with actors and fatalities (when the ACLED account has API access).',

@@ -31,6 +31,11 @@ import { financeProvider } from './providers/finance/yahoo.ts'
 import { ransomwareProvider } from './providers/cyber/ransomware.ts'
 import { feodoProvider } from './providers/cyber/feodo.ts'
 import { kevProvider } from './providers/cyber/kev.ts'
+import { statementsProvider } from './providers/briefs/statements.ts'
+import { researchProvider } from './providers/briefs/research.ts'
+import { noticesProvider } from './providers/warnings/notices.ts'
+import { swpcProvider } from './providers/warnings/swpc.ts'
+import { reliefwebProvider, whoProvider } from './providers/humanitarian/feeds.ts'
 
 /**
  * SERVER LAYER REGISTRY. A layer = an id + the providers that feed it.
@@ -51,7 +56,12 @@ export const LAYERS: Record<string, Provider[]> = {
   cii: [ciiProvider],
   trends: [googleTrendsProvider],
   unrest: [gdeltEventsProvider],
-  osint: [iodaProvider, cloudflareProvider, ooniProvider, gdacsProvider, usgsProvider, eonetProvider, firmsProvider],
+  osint: [iodaProvider, cloudflareProvider, ooniProvider],
+  hazards: [gdacsProvider, usgsProvider, eonetProvider, firmsProvider],
+  statements: [statementsProvider],
+  research: [researchProvider],
+  warnings: [noticesProvider, swpcProvider],
+  humanitarian: [whoProvider, reliefwebProvider],
   gnss: [gpsjamProvider],
   'military-air': [adsblolProvider],
   frontlines: [deepstateProvider],

@@ -6,6 +6,7 @@ import { moveColor, pct } from './props'
 /** World markets: indices, commodities, currencies, crypto, defence stocks, pinned where they trade or are produced. */
 export const finance: LayerDef = {
   id: 'finance',
+  group: 'Economy',
   label: 'World Markets',
   description: 'Stock indices, oil, gas, gold, wheat, uranium, currencies, crypto and defence stocks, live (Yahoo Finance), pinned where they trade or are produced and coloured by today’s move.',
   color: '#4ade80',

@@ -19,7 +19,9 @@ import { adaptFeature, neighbourhood } from './adapters.ts'
  */
 
 const EVERY_MS = 4 * 60_000
-const INPUT_LAYERS = ['news', 'acled', 'unrest', 'telegram', 'cyber', 'osint', 'x']
+const INPUT_LAYERS = ['news', 'acled', 'unrest', 'telegram', 'cyber', 'osint', 'hazards', 'warnings', 'humanitarian', 'x']
+// Publications become claims by their issuer (not events); built in the same pass so they can be searched and transformed.
+const CLAIM_LAYERS = ['statements', 'research']
 const PHYSICAL_LAYERS = ['ships', 'military-air', 'gnss', 'infrastructure']
 
 let layers: Record<string, Provider[]> = {}
@@ -53,6 +55,14 @@ export async function runOnce(): Promise<number> {
   }
   const survivors = resolveEvents(touched)
   for (const id of survivors) checkEvent(id)
+  // After events, so statements can be linked to what they respond to
+  for (const layer of CLAIM_LAYERS)
+    for (const f of await features(layer).catch(() => [] as Feature[])) {
+      if (seen.has(f.id)) continue
+      seen.set(f.id, signature(f))
+      featureById.set(f.id, f)
+      adaptFeature(f)
+    }
   lastRun = Date.now()
   lastMs = lastRun - t0
   return touched.length

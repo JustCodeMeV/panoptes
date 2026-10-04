@@ -6,6 +6,7 @@ import { SwarmControls } from './Swarm'
 /** Public Telegram channels read by the scout swarm (server/telegram). */
 export const telegram: LayerDef = {
   id: 'telegram',
+  group: 'Information space',
   label: 'Telegram Scouts',
   description:
     'Posts from ~70 public Telegram channels from every side (official, newsroom, OSINT, government-funded, partisan), read live by a swarm of scouts. Same text across channels is flagged as coordination; channels others forward are discovered automatically.',

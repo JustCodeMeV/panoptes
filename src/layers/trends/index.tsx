@@ -4,6 +4,7 @@ import { TrendsDetail } from './Detail'
 /** Trending searches per country; pinned where security-related searches surge. */
 export const trends: LayerDef = {
   id: 'trends',
+  group: 'Information space',
   label: 'Search Trends',
   description: 'What people search for right now in 30 countries (Google Trends). Pinned where searches for explosions, protests, curfews or attacks are trending.',
   color: '#f97316',

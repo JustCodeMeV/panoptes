@@ -1,6 +1,6 @@
 import { XMLParser } from 'fast-xml-parser'
 import type { Provider } from '../../core/provider.ts'
-import { LAYER_ID, fetchText, osintFeature, type Severity } from './util.ts'
+import { fetchText, osintFeature, type Severity } from './util.ts'
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' })
 const arr = <T>(v: T | T[] | undefined): T[] => (v === undefined ? [] : Array.isArray(v) ? v : [v])
@@ -10,7 +10,7 @@ const TYPE: Record<string, string> = { EQ: 'earthquake', TC: 'cyclone', FL: 'flo
 /** UN/EC Global Disaster Alert and Coordination System: Orange/Red alerts only (Green is noise). */
 export const gdacsProvider: Provider = {
   id: 'gdacs',
-  layerId: LAYER_ID,
+  layerId: 'hazards',
   ttlMs: 10 * 60_000,
   async fetch() {
     const doc = parser.parse(await fetchText('https://www.gdacs.org/xml/rss.xml'))

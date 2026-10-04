@@ -25,6 +25,7 @@ const COLOR: Record<string, string> = {
 /** Machine-coded protest/clash hotspots from GDELT event data (real coordinates). */
 export const unrest: LayerDef = {
   id: 'unrest',
+  group: 'Conflict & security',
   label: 'Unrest Hotspots',
   description: 'Protests, clashes and violence coded from global news (GDELT), clustered by place over the last 12 h.',
   color: '#ef4444',

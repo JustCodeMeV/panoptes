@@ -1,8 +1,9 @@
 import type { Entity } from '../../shared/entities.ts'
 import type { Feature } from '../../shared/feature.ts'
 import { centroidOf, countryAt, scoreLocations } from '../geo/gazetteer.ts'
-import { edgesOf, getEntity, link, slug, upsertEntity } from './graph.ts'
+import { allEntities, edgesOf, getEntity, link, slug, upsertEntity } from './graph.ts'
 import { checkEvent, resolveEvents } from './resolve.ts'
+import { tokens } from '../truth/text.ts'
 import { actorId, actorsIn, ingestReport, locationEntity, reportOf, sourceEntity } from './rules.ts'
 
 /**
@@ -53,6 +54,50 @@ function statementOf(f: Feature, domain?: string): string {
   return id
 }
 
+const ISSUER_SUBTYPE: Record<string, string> = { government: 'government', 'intl-org': 'intl-org', 'think-tank': 'think-tank' }
+
+/**
+ * An official statement or an analysis: a claim made by its issuer (a government,
+ * an international body or a think tank), located at the issuer's country, linked to
+ * what it mentions and to the events it most likely responds to.
+ */
+export function publicationOf(f: Feature): string {
+  const p = f.props
+  const analysis = p.kind === 'analysis'
+  const id = `claim:pub-${slug(f.id)}`
+  const text = `${f.title}. ${String(p.summary ?? '')}`.slice(0, 700)
+  const at = Date.parse(f.observedAt) || now()
+  upsertEntity({ id, type: 'claim', subtype: analysis ? 'analysis' : 'official-statement', label: f.title, props: { statement: text, url: f.source.url, featureId: f.id, issuer: p.issuer, own: p.own }, ...(f.position ? { position: f.position, precision: 'country' } : {}), firstSeen: at, lastSeen: now(), confidence: 0.8 })
+  const issuer = actorId(String(p.issuer))
+  upsertEntity({ id: issuer, type: 'actor', subtype: ISSUER_SUBTYPE[String(p.issuerKind)] ?? 'org', label: String(p.issuer), props: { country: p.issuerCountry, ownership: p.own, note: p.note, domain: p.domain }, firstSeen: at, lastSeen: now(), confidence: 0.95 })
+  link(issuer, 'claims', id, { role: 'claimant', at, evidence: { featureId: f.id, url: f.source.url }, confidence: 0.95, via: 'transform' })
+  const home = countryEntity(String(p.issuerCountry))
+  if (home) {
+    link(issuer, 'located_at', home, { at, confidence: 0.9, via: 'transform' })
+    // A think tank founded, funded or steered by a government is affiliated with that state
+    if (p.issuerKind === 'think-tank' && p.own === 'state') link(issuer, 'affiliated_with', home, { at, evidence: { featureId: f.id, quote: String(p.note ?? 'state-affiliated') }, confidence: 0.8, via: 'transform' })
+  }
+  mentionsIn(id, text, f)
+  respondsTo(id, text, at, String(p.about ?? ''))
+  return id
+}
+
+/** Links a statement to recent events in the country it is about that share at least two terms with it. */
+function respondsTo(claimId: string, text: string, at: number, country: string) {
+  if (!country) return
+  const mine = new Set(tokens(text))
+  let found = 0
+  for (const e of allEntities()) {
+    if (e.type !== 'event' || Math.abs(e.firstSeen - at) > 2 * 86_400_000) continue
+    const where = edgesOf(e.id, ['located_at']).map((x) => getEntity(x.to)).find(Boolean)
+    if (!where || (where.label !== country && where.props.country !== country)) continue
+    const shared = tokens(e.label).filter((w) => mine.has(w)).length
+    if (shared < 2) continue
+    link(claimId, 'responds_to', e.id, { at, confidence: Math.min(0.8, 0.3 + shared * 0.1), via: 'transform' })
+    if (++found >= 3) return
+  }
+}
+
 /** Creates (or finds) the entities for one feature of any layer and returns the main entity id. */
 export function adaptFeature(f: Feature): string | null {
   // Events: the existing pipeline (rules, resolution, check).
@@ -65,6 +110,7 @@ export function adaptFeature(f: Feature): string | null {
     checkEvent(kept ?? id)
     return kept ?? id
   }
+  if (f.layerId === 'statements' || f.layerId === 'research') return publicationOf(f)
   if (f.layerId === 'atlas' || f.layerId === 'cii') {
     const id = countryEntity(String(f.props.country ?? f.title.split(':')[0]))
     if (id && f.layerId === 'cii') {
