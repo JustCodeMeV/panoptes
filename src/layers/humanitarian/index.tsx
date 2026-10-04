@@ -6,7 +6,7 @@ import { HumanitarianDetail } from './Detail'
 export const humanitarian: LayerDef = {
   id: 'humanitarian',
   label: 'Humanitarian & Health',
-  group: 'Humanitarian & hazards',
+  group: 'Hazards & humanitarian',
   description: 'Disasters tracked by UN OCHA (ReliefWeb) and WHO Disease Outbreak News, by the country they concern.',
   color: '#38bdf8',
   refreshMs: 600_000,

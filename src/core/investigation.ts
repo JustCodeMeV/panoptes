@@ -113,7 +113,7 @@ export const useInvestigation = create<State>((set, getState) => ({
     // Client-side transform: open the country atlas for a country entity.
     if (transform === 'open-atlas') {
       const e = getState().entities[id]
-      if (e) void import('./atlas').then((m) => m.openCountry(e.label))
+      if (e) void import('./atlas').then((m) => m.openCountry(e.label, e.position))
       set({ status: `opened the atlas for ${e?.label ?? 'this country'}` })
       return
     }

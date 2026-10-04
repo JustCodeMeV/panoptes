@@ -48,6 +48,8 @@ type State = {
   /** Pre-fill the wire with the newest backlog stories so it is never empty on load. */
   seedTicker(layerId: string, features: Feature[]): void
   toggle(id: string): void
+  /** Switches several layers on or off at once (the panel's master switch). */
+  setEnabled(ids: string[], on: boolean): void
   pin(feature: Feature): void
   select(id: string | null): void
   openStack(ids: string[]): void
@@ -136,6 +138,8 @@ export const useStore = create<State>((set) => ({
     set((s) => ({
       layers: { ...s.layers, [id]: { ...s.layers[id], enabled: !s.layers[id].enabled } },
     })),
+  setEnabled: (ids, on) =>
+    set((s) => ({ layers: { ...s.layers, ...Object.fromEntries(ids.map((id) => [id, { ...s.layers[id], enabled: on }])) } })),
   pin: (feature) =>
     set((s) => {
       const ls = s.layers[feature.layerId]

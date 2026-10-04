@@ -5,7 +5,7 @@ import { WatchDetail } from './Detail'
 /** Alerts: anything from any layer that lands inside an analyst-defined region. */
 export const watch: LayerDef = {
   id: 'watch',
-  group: 'Overview',
+  group: 'Truth & overview',
   label: 'Region Watch',
   description: 'Draw a circle around a place; new stories, market moves, unrest and outages inside it raise an alert.',
   color: '#14b8a6',

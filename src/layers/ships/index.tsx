@@ -5,7 +5,7 @@ import { SHIP_COLOR } from './props'
 /** Ships at strategic chokepoints from live AIS (AISStream; needs a free key). */
 export const ships: LayerDef = {
   id: 'ships',
-  group: 'Conflict & security',
+  group: 'War & security',
   label: 'Maritime Chokepoints',
   description: 'Live AIS around Hormuz, Bab el-Mandeb, Suez, the Bosporus, Kerch, the Taiwan Strait and the Gulf of Finland. Vessels that stop reporting are flagged as gone dark (AISStream, free key).',
   color: '#38bdf8',

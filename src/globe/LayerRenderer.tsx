@@ -254,6 +254,8 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
         },
       })
       setTimeout(() => {
+        // The app may have left the globe (landing page) meanwhile
+        if (viewer.isDestroyed()) return
         viewer.scene.preRender.removeEventListener(tick)
         ds.entities.remove(e)
       }, LIFE + delay + 100)

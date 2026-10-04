@@ -15,18 +15,22 @@ const KEEP = new Set(['selected', 'region', 'region-selected', 'city'])
 
 const now = () => new Date().toISOString()
 
-/** A map feature for a country outline (layer `atlas`), optionally tinted for a map mode. */
-export function countryFeature(name: string, opts: { id?: string; color?: string; alpha?: number; role?: string } = {}): Feature | null {
+/**
+ * A map feature for a country outline (layer `atlas`), optionally tinted for a map mode. Small
+ * states have no outline at this scale (Bahrain, Malta…): with `at` (e.g. a search result) they
+ * still open, as a point; map modes, which need an outline, skip them.
+ */
+export function countryFeature(name: string, opts: { id?: string; color?: string; alpha?: number; role?: string; at?: { lat: number; lon: number } } = {}): Feature | null {
   const s = shapeOf(name)
-  if (!s) return null
+  if (!s && (opts.role ?? 'selected') !== 'selected') return null
   return {
     id: opts.id ?? `atlas:${name}`,
     layerId: 'atlas',
     title: name,
-    position: centreOf(s),
-    geometry: s.geometry,
-    geoPrecision: 'exact',
-    geoBasis: 'country boundary (Natural Earth 1:110m)',
+    position: s ? centreOf(s) : opts.at,
+    geometry: s?.geometry,
+    geoPrecision: s ? 'exact' : opts.at ? 'approximate' : 'none',
+    geoBasis: s ? 'country boundary (Natural Earth 1:110m)' : 'no outline at this map scale',
     observedAt: now(),
     source: { provider: 'atlas', platform: 'factbook', retrievedAt: now() },
     tags: ['atlas'],
@@ -38,13 +42,15 @@ export function countryFeature(name: string, opts: { id?: string; color?: string
 const store = () => import('./store').then((m) => m.useStore)
 
 /** Opens a country: outline on the globe, profile in the analysis panel, then its regions. */
-export async function openCountry(name: string) {
+export async function openCountry(name: string, at?: { lat: number; lon: number }) {
   const st = (await store()).getState()
-  const old = (st.layers.atlas?.pinned ?? []).map((f) => f.id)
+  const f = countryFeature(name, { at })
+  if (!f) return
+  const old = (st.layers.atlas?.pinned ?? []).map((x) => x.id)
   if (old.length) st.removeFeatures('atlas', old)
-  const f = countryFeature(name)
-  if (f) st.pin(f)
-  void loadRegions(name)
+  st.pin(f)
+  // Regions are a bonus: no network (tests, offline) just means no regions
+  void loadRegions(name).catch(() => useAtlas.setState({ regionsLoading: null }))
 }
 
 const regionFeature = (country: string, r: Region, selected = false): Feature => ({

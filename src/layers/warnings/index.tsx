@@ -6,7 +6,7 @@ import { WarningDetail } from './Detail'
 export const warnings: LayerDef = {
   id: 'warnings',
   label: 'Maritime & Air Warnings',
-  group: 'Conflict & security',
+  group: 'War & security',
   description:
     'Airspace closures and NOTAMs, live-fire drills and naval exercises, maritime security incidents (UKMTO, JMIC), missile and rocket launch notices, GNSS interference, and space weather (NOAA) that degrades GPS and radio worldwide.',
   color: '#f97316',

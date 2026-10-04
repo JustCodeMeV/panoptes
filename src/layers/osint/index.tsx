@@ -8,7 +8,7 @@ const sev = (f: { props: Record<string, unknown> }) => (f.props.severity as Sev)
 export const osint: LayerDef = {
   id: 'osint',
   label: 'Internet Outages & Censorship',
-  group: 'Cyber & infrastructure',
+  group: 'Jamming, outages & cyber',
   description: 'Internet blackouts (IODA, Cloudflare Radar) and measured censorship (OONI): often the first sign of unrest or a crackdown.',
   color: '#eab308',
   refreshMs: 120_000,

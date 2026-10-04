@@ -5,7 +5,7 @@ import { band } from './props'
 /** Country Instability Index: one transparent score per country from every other layer. */
 export const cii: LayerDef = {
   id: 'cii',
-  group: 'Overview',
+  group: 'Truth & overview',
   label: 'Instability Index',
   description:
     'Per-country 0-100 score from live clashes and protests, news and Telegram attention, flagged narratives, internet shutdowns, GNSS jamming, market moves and search trends. Explainable, not a forecast.',

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Edge, Entity } from '../../shared/entities'
 import { flyTo, useInvestigation } from '../core/investigation'
 import { useStore } from '../core/store'
+import { useEscape } from './useEscape'
 
 /**
  * INVESTIGATION CANVAS (Maltego-style). Start from any map item, then expand
@@ -167,6 +168,7 @@ function Inspector() {
 export function Investigation() {
   const { open, entities, edges, selected, busy, error, status, select, close, clear } = useInvestigation()
   const [filter, setFilter] = useState<string | null>(null)
+  useEscape(open, close)
   const nodes = useMemo(() => Object.values(entities), [entities])
   const es = useMemo(() => Object.values(edges).filter((e) => entities[e.from] && entities[e.to]), [edges, entities])
   const pos = useMemo(() => {

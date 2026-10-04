@@ -5,7 +5,7 @@ import { VERDICT, assessmentOf } from './verdict'
 
 export const narratives: LayerDef = {
   id: 'narratives',
-  group: 'Information space',
+  group: 'Truth & overview',
   label: 'Truth Sensor',
   description:
     'Trending narratives and fresh debunks, cross-referenced against fact-check feeds and news coverage.',
