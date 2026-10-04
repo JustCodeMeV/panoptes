@@ -26,6 +26,7 @@ import { wikiCurrentProvider } from './providers/conflict/wikicurrent.ts'
 import { celestrakProvider } from './providers/space/celestrak.ts'
 import { aisstreamProvider } from './providers/maritime/aisstream.ts'
 import { eventsProvider } from './providers/events/entities.ts'
+import { financeProvider } from './providers/finance/yahoo.ts'
 
 /**
  * SERVER LAYER REGISTRY. A layer = an id + the providers that feed it.
@@ -36,10 +37,12 @@ export const LAYERS: Record<string, Provider[]> = {
   livestreams: [youtubeApiProvider, youtubeScrapeProvider, seedProvider],
   narratives: [truthProvider],
   events: [eventsProvider],
+  atlas: [], // client-only: country outlines opened by clicking the globe
   news: [newsProvider],
   telegram: [telegramProvider],
   campaigns: [campaignsProvider],
   markets: [marketsProvider],
+  finance: [financeProvider],
   cii: [ciiProvider],
   trends: [googleTrendsProvider],
   unrest: [gdeltEventsProvider],

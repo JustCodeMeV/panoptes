@@ -29,9 +29,11 @@ import { engineStats, entityWithTransforms, seedFor, startEntityEngine } from '.
 import { search as searchEntities } from './entities/graph.ts'
 import { runTransform } from './entities/transforms.ts'
 import { readEvent } from './entities/llm.ts'
+import { blocProfile, countryProfile, setAtlasLayers } from './atlas/profile.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
 import { reloadWatches, startWatchEngine } from './watch/engine.ts'
-import { geolocate } from './geo/gazetteer.ts'
+import { centroidOf, geolocate } from './geo/gazetteer.ts'
+import { locationEntity } from './entities/rules.ts'
 import { briefFor } from './llm/analysis.ts'
 import { llmEnabled, llmStatus } from './llm/client.ts'
 
@@ -104,9 +106,27 @@ app.post('/api/llm/brief', async (c) => {
 app.get('/api/telegram/swarm', (c) => c.json(swarmStats()))
 app.get('/api/cii', (c) => c.json(snapshotScores()))
 
+// ---- atlas: click a country ----
+app.get('/api/atlas/country/:name', async (c) => {
+  const p = await countryProfile(decodeURIComponent(c.req.param('name')))
+  return p ? c.json(p) : c.json({ error: 'unknown country' }, 404)
+})
+app.get('/api/atlas/bloc/:id', (c) => {
+  const p = blocProfile(c.req.param('id'))
+  return p ? c.json(p) : c.json({ error: 'unknown bloc' }, 404)
+})
+
 // ---- entity graph (Maltego-style investigation) ----
 app.get('/api/entities/stats', (c) => c.json(engineStats()))
 app.get('/api/entities/search', (c) => c.json(searchEntities(c.req.query('q') ?? '')))
+// Start an investigation from a country (atlas click): ensures the country entity exists.
+app.get('/api/entities/country/:name', (c) => {
+  const name = decodeURIComponent(c.req.param('name'))
+  const pos = centroidOf(name)
+  if (!pos) return c.json({ error: 'unknown country' }, 404)
+  const id = locationEntity(name, pos.lat, pos.lon, 'country', name, Date.now())
+  return c.json(entityWithTransforms(id))
+})
 app.get('/api/entities/seed/:featureId', (c) => {
   const g = seedFor(c.req.param('featureId'))
   return g ? c.json(g) : c.json({ error: 'no entities for this item yet (extraction runs every 2 min)' }, 404)
@@ -285,6 +305,7 @@ startTelegramScouts()
 startWatchEngine(LAYERS)
 startCii(LAYERS)
 startEntityEngine(LAYERS)
+setAtlasLayers(LAYERS)
 
 // Production (e.g. Render): one service serves the API and the built frontend.
 // Skipped in dev, where Vite serves the frontend and proxies /api here.

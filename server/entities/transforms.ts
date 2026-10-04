@@ -2,6 +2,7 @@ import type { Edge, Entity, Rel, Subgraph, TransformDef } from '../../shared/ent
 import type { Feature } from '../../shared/feature.ts'
 import { allEntities, edgesOf, getEntity, link, slug, upsertEntity } from './graph.ts'
 import { km } from './resolve.ts'
+import * as live from './live.ts'
 
 /**
  * TRANSFORMS (Maltego-style): each takes one entity and returns the part of
@@ -11,6 +12,19 @@ import { km } from './resolve.ts'
  */
 
 export const TRANSFORMS: TransformDef[] = [
+  // live: these go and fetch
+  { id: 'news-search', label: '⚡ Search news now (3 days)', types: ['event', 'actor', 'location', 'source'] },
+  { id: 'telegram-mentions', label: '⚡ Telegram mentions (12 h)', types: ['event', 'actor', 'location'] },
+  { id: 'country-events', label: '⚡ Events inside this country now', types: ['location'] },
+  { id: 'leaders', label: '⚡ Leaders and government', types: ['location'] },
+  { id: 'alliances', label: '⚡ Alliances and blocs', types: ['location'] },
+  { id: 'neighbours', label: '⚡ Neighbours (land borders)', types: ['location'] },
+  { id: 'trade', label: '⚡ Trade partners', types: ['location'] },
+  { id: 'wikipedia', label: '⚡ Profile (Wikipedia)', types: ['actor', 'location', 'source'] },
+  { id: 'markets', label: '⚡ Prediction markets on it', types: ['actor', 'location', 'event'] },
+  { id: 'fact-checks', label: '⚡ Published fact-checks', types: ['claim', 'event'] },
+  { id: 'source-items', label: '⚡ Recent items from this source', types: ['source'] },
+  // graph: walk what is already known
   { id: 'sources', label: 'Who reported it', types: ['event'] },
   { id: 'actors', label: 'Actors involved', types: ['event'] },
   { id: 'claims', label: 'Claims about it', types: ['event'] },
@@ -81,9 +95,27 @@ async function nearbyAssets(e: Entity): Promise<Subgraph> {
 }
 
 export async function runTransform(id: string, name: string): Promise<Subgraph | null> {
+  const g = await run(id, name)
+  if (!g || g.status) return g
+  const n = g.edges.length
+  return { ...g, status: n ? `${n} relation${n === 1 ? '' : 's'} found` : 'nothing linked yet: try a ⚡ live transform such as "Search news now"' }
+}
+
+async function run(id: string, name: string): Promise<Subgraph | null> {
   const e = getEntity(id)
   if (!e) return null
   switch (name) {
+    case 'news-search': return live.newsSearch(e)
+    case 'telegram-mentions': return live.telegramMentions(e)
+    case 'country-events': return live.countryEvents(e)
+    case 'leaders': return live.leaders(e)
+    case 'alliances': return live.alliances(e)
+    case 'neighbours': return live.neighbours(e)
+    case 'trade': return live.trade(e)
+    case 'wikipedia': return live.wikipediaProfile(e)
+    case 'markets': return live.predictionMarkets(e)
+    case 'fact-checks': return live.factChecks(e)
+    case 'source-items': return live.sourceItems(e)
     case 'sources': return sub(id, out(id, 'reported_by'))
     case 'actors': return sub(id, out(id, 'involves'))
     case 'claims': return sub(id, inc(id, 'about'))
@@ -126,4 +158,7 @@ export async function runTransform(id: string, name: string): Promise<Subgraph |
   return null
 }
 
-export const transformsFor = (e: Entity) => TRANSFORMS.filter((t) => t.types.includes(e.type))
+const COUNTRY_ONLY = new Set(['country-events', 'leaders', 'alliances', 'neighbours', 'trade'])
+const isCountry = (e: Entity) => e.type === 'location' && e.precision === 'country'
+export const transformsFor = (e: Entity) =>
+  TRANSFORMS.filter((t) => t.types.includes(e.type) && (!COUNTRY_ONLY.has(t.id) || isCountry(e)) && !(isCountry(e) && ['nearby-events', 'nearby-assets'].includes(t.id)))

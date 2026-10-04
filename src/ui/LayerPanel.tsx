@@ -107,7 +107,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
   const toggleDarkSide = useGlobeUi((s) => s.toggleDarkSide)
   const { satellite } = useAtlasControls()
 
-  const layers: Layer[] = LAYERS.map((def) => {
+  const layers: Layer[] = LAYERS.filter((def) => !def.hidden).map((def) => {
     const st = layerStates[def.id]
     const rank = def.rank ?? ((f: Feature) => Number(f.props.viewers) || 0)
     const features = featuresOf(st)

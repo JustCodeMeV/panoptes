@@ -37,6 +37,8 @@ export interface LayerDef {
   /** SSE endpoint: the layer is pushed live instead of polled. */
   stream?: string
   defaultEnabled?: boolean
+  /** Not listed in the layer panel (e.g. the atlas, driven by clicking the globe). */
+  hidden?: boolean
   pin(feature: Feature): PinStyle
   /** Style for features carrying `geometry` (polygons/lines), drawn instead of a pin. */
   shape?(feature: Feature): { color?: string; alpha?: number; width?: number }

@@ -35,7 +35,7 @@ export type Entity = {
 
 export type Rel =
   | 'located_at' | 'involves' | 'reported_by' | 'claims' | 'about' | 'supports' | 'contradicts'
-  | 'copies' | 'forwards' | 'near' | 'same_as' | 'mentions'
+  | 'copies' | 'forwards' | 'near' | 'same_as' | 'mentions' | 'leads' | 'member_of' | 'borders' | 'trades_with'
 
 export type Role = 'attacker' | 'target' | 'victim' | 'claimant' | 'mediator' | 'participant'
 
@@ -54,6 +54,7 @@ export type Edge = {
   via: 'rules' | 'llm' | 'resolve' | 'transform'
 }
 
-export type Subgraph = { entities: Entity[]; edges: Edge[] }
+/** `status` says what a transform did ("12 articles found, 4 new events"), so nothing comes back silently empty. */
+export type Subgraph = { entities: Entity[]; edges: Edge[]; status?: string }
 
 export type TransformDef = { id: string; label: string; types: EntityType[] }

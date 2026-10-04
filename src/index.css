@@ -242,3 +242,44 @@ h3.tabs button.on { color: var(--text); border-color: var(--c, var(--color-accen
 .inv-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .inv-summary { margin: 6px 0; padding-left: 8px; border-left: 2px solid var(--color-accent-2); color: var(--color-ink); }
 .investigation header > span { white-space: nowrap; } .investigation header em { flex-basis: 100%; order: 9; }
+.investigation header em.ok { color: var(--color-accent-2); }
+
+/* ---- atlas (country profile, game-style) ---- */
+.atlas-head { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
+.atlas-head img { width: 56px; height: 38px; object-fit: cover; border: 1px solid var(--line); }
+.atlas-head h2 { margin: 0; }
+.atlas-head span { font-size: 11px; color: var(--dim); }
+.atlas-lens { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 10px; }
+.atlas-lens button { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 8px; border: 1px solid var(--line); background: none; color: var(--dim); cursor: pointer; }
+.atlas-lens button.on { color: var(--color-bg, #000); background: var(--color-accent-2); border-color: var(--color-accent-2); }
+.atlas-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 8px; }
+.atlas-card { position: relative; border: 1px solid var(--line); padding: 6px 8px 8px 34px; background: color-mix(in srgb, var(--color-accent-2) 5%, transparent); }
+.atlas-card .ic { position: absolute; left: 8px; top: 8px; font-size: 16px; }
+.atlas-card small { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); }
+.atlas-card b { display: block; font-size: 13px; font-variant-numeric: tabular-nums; }
+.atlas-card em { font-style: normal; font-size: 10px; color: var(--color-accent-2); }
+.atlas-card i { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: color-mix(in srgb, var(--color-ink) 8%, transparent); }
+.atlas-card i s { display: block; height: 100%; background: var(--color-accent-2); }
+.atlas-list { margin: 2px 0 8px; padding-left: 16px; font-size: 12px; }
+.atlas-now { font-size: 12px; color: var(--dim); }
+.atlas-now b { color: var(--color-ink); }
+.atlas-link { background: none; border: 0; padding: 0; color: var(--color-ink); text-align: left; cursor: pointer; font: inherit; }
+.atlas-link:hover { color: var(--color-accent-2); }
+.atlas-dl { display: grid; grid-template-columns: 92px 1fr; gap: 3px 8px; font-size: 12px; margin: 4px 0 8px; }
+.atlas-dl dt { color: var(--dim); }
+.atlas-dl dd { margin: 0; }
+.atlas-chip { display: inline-block; margin: 0 4px 4px 0; padding: 1px 6px; border: 1px solid var(--line); background: none; color: var(--color-ink); font-size: 11px; cursor: pointer; }
+.atlas-chip small { color: var(--dim); }
+.atlas-chip:hover { border-color: var(--color-accent-2); }
+.atlas-comp { display: flex; height: 16px; margin: 4px 0 8px; font-size: 9px; overflow: hidden; }
+.atlas-comp s { text-decoration: none; color: #0b1220; white-space: nowrap; overflow: hidden; padding-left: 3px; line-height: 16px; }
+.atlas-trade { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; }
+.atlas-trade small { text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); }
+.atlas-trade p { margin: 2px 0 4px; }
+.atlas-balance { font-size: 12px; margin: 4px 0; }
+.atlas-balance.pos { color: #22c55e; }
+.atlas-balance.neg { color: #f97316; }
+.atlas-res { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 8px; font-size: 11px; }
+.atlas-res span { border: 1px solid var(--line); padding: 1px 6px; }
+.atlas-blocs { display: flex; flex-wrap: wrap; gap: 4px; }
+.atlas-blocs span { font-size: 10px; padding: 2px 6px; background: color-mix(in srgb, #3b82f6 25%, transparent); border: 1px solid #3b82f6; }

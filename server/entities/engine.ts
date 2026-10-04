@@ -7,6 +7,7 @@ import { allEntities, edgesOf, getEntity, prune, stats } from './graph.ts'
 import { checkEvent, resolveEvents } from './resolve.ts'
 import { ingestReport, reportOf } from './rules.ts'
 import { setPhysicalSource, transformsFor } from './transforms.ts'
+import { setLayerSource } from './live.ts'
 import { extractBudget, readQueue } from './llm.ts'
 
 /**
@@ -104,6 +105,7 @@ export function startEntityEngine(all: Record<string, Provider[]>) {
   if (started) return
   started = true
   layers = all
+  setLayerSource((id) => features(id).catch(() => [] as Feature[]))
   setPhysicalSource(async () => (await Promise.all(PHYSICAL_LAYERS.map((l) => features(l).catch(() => [] as Feature[])))).flat())
   const tick = () =>
     runOnce()

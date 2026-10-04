@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 import {
+  Cartographic,
+  Math as CesiumMath,
   type Billboard,
   BoundingSphere,
   CallbackProperty,
@@ -28,6 +30,8 @@ import { useDesign } from '../../gui_elements/context'
 import { SPIDER_MAX, useGlobeUi } from './globeUi'
 import { clusterImage, pinImage } from './pins'
 import { useViewer } from './viewerContext'
+import { countryAtPoint } from './countryShapes'
+import { openCountry } from '../core/atlas'
 
 /** A cluster takes the colour most of its pins share. */
 function clusterColor(members: Entity[], byId: Map<string, { feature: Feature; def: LayerDef }>): string {
@@ -424,10 +428,18 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
         return
       }
       const id = defined(picked) && picked.id instanceof Entity ? (picked.id.id as string).split('#')[0] : null
-      if (id && featureById.current.has(id)) {
+      if (id && id.startsWith('atlas-lens:') && featureById.current.has(id)) {
+        // A tinted country in a map mode: open that country.
+        void openCountry(String(featureById.current.get(id)!.feature.props.country))
+      } else if (id && featureById.current.has(id)) {
         useStore.getState().select(id)
-      } else if (!defined(picked)) {
-        useStore.getState().select(null)
+      } else if (!defined(picked) || (id && id.startsWith('atlas'))) {
+        // Empty globe (or a country fill): open the country under the cursor in the atlas.
+        const cart = viewer.camera.pickEllipsoid(click.position)
+        const c = cart && Cartographic.fromCartesian(cart)
+        const country = c && countryAtPoint(CesiumMath.toDegrees(c.latitude), CesiumMath.toDegrees(c.longitude))
+        if (country) void openCountry(country.name)
+        else useStore.getState().select(null)
       }
     }, ScreenSpaceEventType.LEFT_CLICK)
     // scene.pick is a GPU readback: throttle it and never run it while dragging/zooming.

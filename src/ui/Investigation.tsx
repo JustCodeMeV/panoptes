@@ -165,7 +165,7 @@ function Inspector() {
 }
 
 export function Investigation() {
-  const { open, entities, edges, selected, busy, error, select, close, clear } = useInvestigation()
+  const { open, entities, edges, selected, busy, error, status, select, close, clear } = useInvestigation()
   const [filter, setFilter] = useState<string | null>(null)
   const nodes = useMemo(() => Object.values(entities), [entities])
   const es = useMemo(() => Object.values(edges).filter((e) => entities[e.from] && entities[e.to]), [edges, entities])
@@ -194,6 +194,7 @@ export function Investigation() {
         </div>
         {busy && <em>{busy}</em>}
         {error && <em className="err">{error}</em>}
+        {!busy && !error && status && <em className="ok">▸ {status}</em>}
         <button onClick={clear}>clear</button>
         <button onClick={close} aria-label="Close investigation">
           ×

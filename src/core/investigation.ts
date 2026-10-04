@@ -11,6 +11,10 @@ type State = {
   inspect: Inspect | null
   busy: string | null
   error: string | null
+  /** What the last transform did. */
+  status: string | null
+  /** Start from a country (atlas). */
+  seedCountry(name: string): Promise<void>
   /** Start (or extend) an investigation from any map item. */
   seed(featureId: string): Promise<void>
   /** Start from an entity id (e.g. an event in the events layer). */
@@ -45,9 +49,21 @@ export const useInvestigation = create<State>((set, getState) => ({
   inspect: null,
   busy: null,
   error: null,
+  status: null,
+  async seedCountry(name) {
+    set({ open: true, busy: `Opening ${name}…`, error: null, status: null })
+    try {
+      const i = await get<Inspect>(`/api/entities/country/${encodeURIComponent(name)}`)
+      set((s) => ({ entities: { ...s.entities, [i.entity.id]: i.entity }, busy: null }))
+      await getState().select(i.entity.id)
+    } catch (e) {
+      set({ busy: null, error: e instanceof Error ? e.message : String(e) })
+    }
+  },
   async seed(rawId) {
     // Region-watch alerts wrap the original item: watch:<watch id>:<original id>.
     const featureId = rawId.replace(/^watch:[^:]+:/, '')
+    if (featureId.startsWith('atlas:')) return getState().seedCountry(featureId.slice(6))
     const entityId = featureId.startsWith('events:') ? featureId.slice(7) : null
     if (entityId) return getState().seedEntity(entityId)
     const layer = featureId.split(':')[0]
@@ -81,7 +97,8 @@ export const useInvestigation = create<State>((set, getState) => ({
     set({ busy: 'Running transform…', error: null })
     try {
       const g = await get<Subgraph>(`/api/entities/${encodeURIComponent(id)}/transform`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: transform }) })
-      set((s) => ({ ...merge(s, g), busy: null, error: g.edges.length ? null : 'Nothing found for this transform' }))
+      set((s) => ({ ...merge(s, g), busy: null, status: g.status ?? (g.edges.length ? `${g.edges.length} relations` : 'nothing found') }))
+      void getState().select(id)
     } catch (e) {
       set({ busy: null, error: e instanceof Error ? e.message : String(e) })
     }
@@ -119,7 +136,7 @@ export const useInvestigation = create<State>((set, getState) => ({
       return { entities, edges, selected: s.selected === id ? null : s.selected, inspect: s.selected === id ? null : s.inspect }
     })
   },
-  clear: () => set({ entities: {}, edges: {}, selected: null, inspect: null, error: null }),
+  clear: () => set({ entities: {}, edges: {}, selected: null, inspect: null, error: null, status: null }),
   close: () => set({ open: false }),
 }))
 
