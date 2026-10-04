@@ -6,6 +6,7 @@ import { IntroZoom } from './IntroZoom'
 import { PinSpider } from './PinSpider'
 import { SelectionFx } from './SelectionFx'
 import { WatchCircles } from './WatchCircles'
+import { Showreel } from './Showreel'
 
 /** Everything that needs Cesium, in one lazily loaded chunk. */
 export default function GlobeView() {
@@ -17,6 +18,7 @@ export default function GlobeView() {
       <SelectionFx />
       <PinSpider />
       <GlobeOverlay />
+      <Showreel />
     </GlobeHost>
   )
 }
