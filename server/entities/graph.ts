@@ -104,6 +104,11 @@ export function mergeInto(from: string, into: string) {
   adj.delete(from)
 }
 
+/** Removes an entity's edges of one relation produced by one extractor (Claude replaces the rules guesses). */
+export function dropEdges(id: string, rel: Rel, via: Edge['via']) {
+  for (const e of edgesOf(id, [rel])) if (e.via === via) deleteEdge(e.id)
+}
+
 function deleteEdge(id: string) {
   const e = edges.get(id)
   if (!e) return

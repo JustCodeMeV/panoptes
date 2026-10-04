@@ -98,7 +98,7 @@ function relayout(prev: Map<string, P>, nodes: Entity[], edges: Edge[]): Map<str
 }
 
 function Inspector() {
-  const { inspect, expand, remove, busy } = useInvestigation()
+  const { inspect, expand, remove, busy, readAI } = useInvestigation()
   const select = useStore((s) => s.select)
   if (!inspect) return <p className="inv-empty">Click an entity to inspect it and run transforms.</p>
   const e = inspect.entity
@@ -142,6 +142,12 @@ function Inspector() {
           open source
         </a>
       )}
+      {e.type === 'event' && (
+        <button className="brief-run" disabled={!!busy} onClick={() => void readAI(e.id)} title="Claude reads the reports: precise place, actors and roles, claims (counts toward the hourly AI budget)">
+          {e.props.read === 'llm' ? '✦ Re-read with AI' : '✦ Read with AI'}
+        </button>
+      )}
+      {typeof e.props.summary === 'string' && <p className="inv-summary">{e.props.summary}</p>}
       <div className="inv-transforms">
         <span>Transforms</span>
         {inspect.transforms.map((x) => (

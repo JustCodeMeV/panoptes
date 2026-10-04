@@ -226,3 +226,4 @@ h3.tabs button.on { color: var(--text); border-color: var(--c, var(--color-accen
 .inv-transforms button:hover { background: color-mix(in srgb, var(--color-accent-2) 18%, transparent); }
 .inv-transforms button:disabled { opacity: 0.5; cursor: progress; }
 .inv-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.inv-summary { margin: 6px 0; padding-left: 8px; border-left: 2px solid var(--color-accent-2); color: var(--color-ink); }

@@ -7,6 +7,7 @@ import { allEntities, edgesOf, getEntity, prune, stats } from './graph.ts'
 import { checkEvent, resolveEvents } from './resolve.ts'
 import { ingestReport, reportOf } from './rules.ts'
 import { setPhysicalSource, transformsFor } from './transforms.ts'
+import { extractBudget, readQueue } from './llm.ts'
 
 /**
  * ENTITY ENGINE. Every 2 minutes, every new or changed entry of the event
@@ -80,7 +81,7 @@ export function eventFeatures(): Feature[] {
   return out.sort((a, b) => Number(b.props.updatedAt) - Number(a.props.updatedAt)).slice(0, 600)
 }
 
-export const engineStats = () => ({ ...stats(), lastRun, lastMs, features: seen.size })
+export const engineStats = () => ({ ...stats(), lastRun, lastMs, features: seen.size, ai: extractBudget() })
 
 /** Entities created from one feature (the canvas seed): its event plus direct neighbours. */
 export function seedFor(featureId: string): Subgraph | null {
@@ -106,7 +107,11 @@ export function startEntityEngine(all: Record<string, Provider[]>) {
   setPhysicalSource(async () => (await Promise.all(PHYSICAL_LAYERS.map((l) => features(l).catch(() => [] as Feature[])))).flat())
   const tick = () =>
     runOnce()
-      .then((n) => n && console.log(`[entities] +${n} reports · ${JSON.stringify(stats())} in ${lastMs} ms`))
+      .then(async (n) => {
+        if (n) console.log(`[entities] +${n} reports · ${JSON.stringify(stats())} in ${lastMs} ms`)
+        const read = await readQueue()
+        if (read) console.log(`[entities] Claude read ${read} event(s) · budget ${JSON.stringify(extractBudget())}`)
+      })
       .catch((e) => console.warn(`[entities] ${e instanceof Error ? e.message : String(e)}`))
   setTimeout(tick, 60_000) // let the feeds prime first
   setInterval(tick, EVERY_MS)

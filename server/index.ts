@@ -27,6 +27,7 @@ import { snapshotScores, startCii } from './cii/engine.ts'
 import { engineStats, entityWithTransforms, seedFor, startEntityEngine } from './entities/engine.ts'
 import { search as searchEntities } from './entities/graph.ts'
 import { runTransform } from './entities/transforms.ts'
+import { readEvent } from './entities/llm.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
 import { reloadWatches, startWatchEngine } from './watch/engine.ts'
 import { geolocate } from './geo/gazetteer.ts'
@@ -111,6 +112,13 @@ app.get('/api/entities/seed/:featureId', (c) => {
 app.get('/api/entities/:id', (c) => {
   const e = entityWithTransforms(c.req.param('id'))
   return e ? c.json(e) : c.json({ error: 'unknown entity' }, 404)
+})
+// Analyst asks Claude to read one event now (rate-limited with the other /api/llm routes).
+app.post('/api/llm/extract/:id', async (c) => {
+  if (!llmEnabled()) return c.json({ error: llmStatus().error }, 503)
+  const x = await readEvent(c.req.param('id'), { force: true })
+  const e = entityWithTransforms(c.req.param('id'))
+  return x && e ? c.json({ extraction: x, entity: e }) : c.json({ error: 'not read: unknown event, budget reached or AI unavailable' }, 503)
 })
 app.post('/api/entities/:id/transform', async (c) => {
   const b = (await c.req.json().catch(() => ({}))) as { name?: unknown }

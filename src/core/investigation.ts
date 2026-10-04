@@ -16,6 +16,8 @@ type State = {
   /** Start from an entity id (e.g. an event in the events layer). */
   seedEntity(id: string): Promise<void>
   expand(id: string, transform: string): Promise<void>
+  /** Ask Claude to read this event now (precise place, actor roles, claims). */
+  readAI(id: string): Promise<void>
   select(id: string | null): Promise<void>
   remove(id: string): void
   clear(): void
@@ -73,6 +75,17 @@ export const useInvestigation = create<State>((set, getState) => ({
     try {
       const g = await get<Subgraph>(`/api/entities/${encodeURIComponent(id)}/transform`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: transform }) })
       set((s) => ({ ...merge(s, g), busy: null, error: g.edges.length ? null : 'Nothing found for this transform' }))
+    } catch (e) {
+      set({ busy: null, error: e instanceof Error ? e.message : String(e) })
+    }
+  },
+  async readAI(id) {
+    set({ busy: 'Claude is reading the reports…', error: null })
+    try {
+      await get(`/api/llm/extract/${encodeURIComponent(id)}`, { method: 'POST' })
+      for (const t of ['actors', 'claims', 'location']) await getState().expand(id, t)
+      set({ busy: null })
+      await getState().select(id)
     } catch (e) {
       set({ busy: null, error: e instanceof Error ? e.message : String(e) })
     }
