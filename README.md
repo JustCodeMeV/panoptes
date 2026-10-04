@@ -37,6 +37,10 @@ Around the layers:
   assets) and expand them with transforms. See below.
 - **Case mode**: a full-screen workbench to work a case: evidence, graph, hypotheses, timeline.
 - **Search** (⌘K): countries, places, items on the map and graph entities in one list.
+- **Timeline** (◷ above the globe controls): scrub or play the map back over the last 3 days to see
+  when things appeared, with an hourly histogram and what appeared in the hour before. A replay of
+  what the live layers hold, not an archive; layers without history (front lines, satellites, ships,
+  jamming, indices) stay as they are.
 - **In-app link viewer**: external links (articles, posts, Telegram, YouTube, TikTok, X) open in a
   floating window instead of a new tab; Telegram videos play.
 - **AI analyst brief** (optional, Claude), **influence network**, **demo replay** (`?demo`) and a

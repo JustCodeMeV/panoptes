@@ -29,6 +29,7 @@ import { pinImage } from './pins'
 import { PinLayer, type Pin } from './pinLayer'
 import { useViewer } from './viewerContext'
 import { countryAtPoint } from './countryShapes'
+import { atTime } from '../core/time'
 import { openCity, openCountry, openRegion, regionAt } from '../core/atlas'
 
 /**
@@ -124,7 +125,7 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
     let lastSelected: string | null = null
     const sync = (): boolean => {
       let changed = false
-      const { layers: state, selectedId } = useStore.getState()
+      const { layers: state, selectedId, timeCursor } = useStore.getState()
       const pinLayer = pins.current
       if (!pinLayer) return false
       const list: Pin[] = []
@@ -138,7 +139,7 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
           ds.show = show
           changed = true
         }
-        const features = featuresOf(ls)
+        const features = atTime(def.id, featuresOf(ls), timeCursor)
         const wantShapes = new Set(features.filter((f) => f.geometry).map((f) => f.id))
         for (const e of [...ds.entities.values])
           if (!wantShapes.has(e.id.split('#')[0])) {
@@ -201,6 +202,7 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
     const unsub = useStore.subscribe((s) => {
       const relevant =
         s.selectedId !== prev.selectedId ||
+        s.timeCursor !== prev.timeCursor ||
         layers.some((d) => {
           const a = s.layers[d.id]
           const b = prev.layers[d.id]

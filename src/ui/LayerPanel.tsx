@@ -23,6 +23,7 @@ import { NetworkView } from './NetworkGraph'
 import { Omnibox } from './Omnibox'
 import { Key } from './Key'
 import { matchesQuery } from '../core/search'
+import { atTime } from '../core/time'
 import { setCaseMode, useShell, type PanelBox } from './shell'
 import { useEscape } from './useEscape'
 import { ago, useNow } from './useNow'
@@ -95,6 +96,7 @@ function LogoLink() {
 /** Left panel: header, search, layers (with their sources, controls and features), live feed, case file, legend. */
 export function LayerPanel({ box }: { box: PanelBox }) {
   const layerStates = useStore((s) => s.layers)
+  const timeCursor = useStore((s) => s.timeCursor)
   const toggle = useStore((s) => s.toggle)
   const setEnabled = useStore((s) => s.setEnabled)
   const selectedId = useStore((s) => s.selectedId)
@@ -116,7 +118,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
   const layers: (Layer & { group: string })[] = visible.map((def) => {
     const st = layerStates[def.id]
     const rank = def.rank ?? ((f: Feature) => Number(f.props.viewers) || 0)
-    const features = featuresOf(st)
+    const features = atTime(def.id, featuresOf(st), timeCursor)
       .filter((f) => matchesQuery(f, q))
       .sort((a, b) => rank(b) - rank(a))
     return {
