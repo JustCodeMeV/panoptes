@@ -5,6 +5,8 @@ import type { NetGraph } from '../../shared/network'
 import type { Assessment, Brief, Campaign, CampaignFlag, FactCheckMatch } from '../../shared/truth'
 import { useCases } from '../core/cases'
 import { useGlobeUi } from '../globe/globeUi'
+import { useInvestigation } from '../core/investigation'
+import type { Edge, Entity } from '../../shared/entities'
 import { useDemo } from '../core/demo'
 import { useStore } from '../core/store'
 import { useWatches, type Watch } from '../layers/watch/state'
@@ -25,7 +27,7 @@ const TG = ['intelslava', 'rybar', 'News_of_Donbass'].map((h) => `telegram:demo-
 const CII = 'cii:demo-iran'
 const WATCH: Watch = { id: -1, name: 'DEMO: Strait of Hormuz', lat: HORMUZ.lat, lon: HORMUZ.lon, radiusKm: 300, layers: [], created: new Date().toISOString() }
 /** Number of narrated steps; the banner shows "step n/STEPS". */
-export const STEPS = 12
+export const STEPS = 13
 
 const sleep = (ms: number, s: AbortSignal) =>
   new Promise<void>((res, rej) => {
@@ -147,6 +149,42 @@ const tgPost = (i: number, at: number): Feature => {
   }
 }
 
+/** The rumour as the entity graph sees it: one event, its sources, actors, claims and the ships nearby. */
+function investigationGraph(at: number): { entities: Record<string, Entity>; edges: Record<string, Edge> } {
+  const E = (id: string, type: Entity['type'], subtype: string, label: string, extra: Partial<Entity> = {}): Entity => ({ id, type, subtype, label, props: {}, firstSeen: at, lastSeen: at, confidence: 0.8, ...extra })
+  const ents: Entity[] = [
+    E('event:demo-hormuz', 'event', 'explosion', 'DEMO: Explosion reported near Strait of Hormuz, tanker said to be hit', {
+      position: HORMUZ, precision: 'town',
+      props: { kind: 'explosion', summary: 'Social accounts and Russian and Iranian government outlets report a tanker hit near the Strait of Hormuz; a fact-check finds the footage is from a 2023 port fire.', read: 'llm' },
+      check: { status: 'debunked', reasons: ['Lead Stories rates the footage false (2023 port fire)', 'carried by 2 government outlets (RU, IR), no independent outlet'], sources: 6, independent: 0, countries: 0 },
+    }),
+    E('location:demo-hormuz', 'location', 'town', 'Strait of Hormuz', { position: HORMUZ, precision: 'town' }),
+    E('source:demo-intelslava', 'source', 'channel', 'Intel Slava Z (@intelslava)', { props: { ownership: 'private', bloc: 'RU' } }),
+    E('source:demo-disclosetv', 'source', 'channel', 'Disclose.tv (@disclosetv)'),
+    E('source:demo-clashreport', 'source', 'channel', 'Clash Report (@ClashReport)'),
+    E('source:demo-bsky', 'source', 'account', '@osintwatcher.bsky.social'),
+    E('source:demo-tass', 'source', 'outlet', 'tass.com', { props: { ownership: 'state', country: 'RU' } }),
+    E('source:demo-presstv', 'source', 'outlet', 'presstv.co.uk', { props: { ownership: 'state', country: 'IR' } }),
+    E('source:demo-leadstories', 'source', 'outlet', 'leadstories.com (fact-check)', { props: { ownership: 'private', country: 'US' } }),
+    E('actor:demo-us', 'actor', 'military', 'US Armed Forces'),
+    E('claim:demo-tass', 'claim', 'assertion', 'TASS: tanker attacked in Hormuz, US blamed', { props: { stance: 'asserts' } }),
+    E('claim:demo-fc', 'claim', 'assertion', 'Lead Stories: the video shows a 2023 port fire', { props: { stance: 'asserts' } }),
+    E('asset:demo-vessel-1', 'asset', 'vessel', 'Tanker (AIS, 11 kn, normal course)', { position: { lat: HORMUZ.lat + 0.12, lon: HORMUZ.lon + 0.2 }, precision: 'exact' }),
+    E('asset:demo-vessel-2', 'asset', 'vessel', 'Cargo ship (AIS, 13 kn, normal course)', { position: { lat: HORMUZ.lat - 0.1, lon: HORMUZ.lon - 0.15 }, precision: 'exact' }),
+  ]
+  const L = (from: string, rel: Edge['rel'], to: string, role?: Edge['role']): Edge => ({ id: `${from}|${rel}${role ? `:${role}` : ''}|${to}`, from, to, rel, role, at, evidence: [], confidence: 0.8, via: 'llm' })
+  const ev = 'event:demo-hormuz'
+  const edges: Edge[] = [
+    L(ev, 'located_at', 'location:demo-hormuz'),
+    ...['intelslava', 'disclosetv', 'clashreport', 'bsky', 'tass', 'presstv'].map((s) => L(ev, 'reported_by', `source:demo-${s}`)),
+    L(ev, 'involves', 'actor:demo-us', 'attacker'),
+    L('claim:demo-tass', 'about', ev), L('source:demo-tass', 'claims', 'claim:demo-tass'),
+    L('claim:demo-fc', 'about', ev), L('source:demo-leadstories', 'claims', 'claim:demo-fc'), L('claim:demo-fc', 'contradicts', 'claim:demo-tass'),
+    L(ev, 'near', 'asset:demo-vessel-1'), L(ev, 'near', 'asset:demo-vessel-2'),
+  ]
+  return { entities: Object.fromEntries(ents.map((e) => [e.id, e])), edges: Object.fromEntries(edges.map((e) => [e.id, e])) }
+}
+
 /** Iran's instability score as the index shows it, rising while the rumour spreads. */
 const ciiIran = (score: number, delta: number): Feature => ({
   id: CII, layerId: 'cii', title: `DEMO: Iran: ${score}`, position: { lat: 32.4, lon: 53.7 }, geoPrecision: 'exact', geoBasis: 'country (demo replay)',
@@ -203,7 +241,7 @@ const NETWORK: NetGraph = {
 }
 
 const BRIEF: Brief = {
-  summary: 'Social accounts claimed a tanker was hit near the Strait of Hormuz; Russian and Iranian state media repeated it within minutes. Lead Stories has since shown the footage is from a 2023 port fire.',
+  summary: 'Social accounts claimed a tanker was hit near the Strait of Hormuz; Russian and Iranian government outlets repeated it within minutes. Lead Stories has since shown the footage is from a 2023 port fire.',
   whyFlagged: [
     'Started on one Telegram channel and spread to three more accounts before any newsroom reported it.',
     'TASS and Press TV ran it before any independent outlet: consistent with aligned amplification, not proof of it.',
@@ -293,33 +331,39 @@ export async function runDemo(signal: AbortSignal) {
     st().applyLive('news', upsert(story({ ...stateItems, verdict: 'debunked', risk: 96, score: 95, fc: [FC], brief: BRIEF, flags: [FLAG.stateFirst, FLAG.bloc, FLAG.surge, FLAG.contradicted, FLAG.market], reasons: ['Lead Stories fact-check rates a matching claim false (82% term match)', 'coverage comes only from government-funded outlets: tass.com (RU), presstv.co.uk (IR)'] }), 'update', 'unverified → debunked · ⚑ Contradicted', 'leadstories.com'))
     await sleep(10000, signal)
 
-    say(8, 'Physical signals: does anything on the ground back it up?', 'Thermal look on. Live layers: GPS jamming from yesterday, military aircraft broadcasting now, outages and censorship. Nothing physical confirms a strike; the market keeps its fear premium')
+    say(8, 'Investigate: the rumour as entities', 'Every report was read and linked: one event, six sources, the claim and the fact-check that contradicts it, and two ships passing normally right where the "hit tanker" should be')
+    useInvestigation.setState({ open: true, ...investigationGraph(at(0)), selected: 'event:demo-hormuz', inspect: null, busy: null, error: null })
+    void useInvestigation.getState().select('event:demo-hormuz')
+    await sleep(11000, signal)
+    useInvestigation.setState({ open: false, entities: {}, edges: {}, selected: null, inspect: null })
+
+    say(9, 'Physical signals: does anything on the ground back it up?', 'Thermal look on. Live layers: GPS jamming from yesterday, military aircraft broadcasting now, outages and censorship. Nothing physical confirms a strike; the market keeps its fear premium')
     for (const id of physical) st().toggle(id)
     useGlobeUi.getState().setSensor('flir')
     st().applyLive('markets', upsert(market(0.27, -0.04), 'update', 'Yes: 31% → 27% (−4.0 pts)', 'polymarket'))
     await sleep(9000, signal)
 
-    say(9, 'Country risk: Iran climbs the instability index', 'One explainable score per country from every layer: attention, flagged narratives, shutdowns, jamming, markets. Iran +9 in the last hour')
+    say(10, 'Country risk: Iran climbs the instability index', 'One explainable score per country from every layer: attention, flagged narratives, shutdowns, jamming, markets. Iran +9 in the last hour')
     useGlobeUi.getState().setSensor('eo')
     if (!st().layers.cii?.enabled) st().toggle('cii')
     st().applyLive('cii', upsert(ciiIran(55, 9), 'new', '▲ 9 in the last hour', 'cii'))
     st().select(CII)
     await sleep(9000, signal)
 
-    say(10, 'Eyes on the region', 'The nearest 24/7 broadcaster plays inside the dashboard. Analysts can watch live coverage without leaving the map')
+    say(11, 'Eyes on the region', 'The nearest 24/7 broadcaster plays inside the dashboard. Analysts can watch live coverage without leaving the map')
     st().pin(stream())
     await sleep(9000, signal)
     st().select(STORY)
 
-    say(11, 'Save the evidence', 'A frozen snapshot with the timeline, network, brief and every source goes into the case file')
+    say(12, 'Save the evidence', 'A frozen snapshot with the timeline, network, brief and every source goes into the case file')
     const saved = st().layers.news.data?.features.find((x) => x.id === STORY)
     try {
       if (saved) await saveEvidence(saved)
     } catch {
-      say(11, 'Save the evidence', 'Case file unavailable: the API server is not running, so this step is skipped')
+      say(12, 'Save the evidence', 'Case file unavailable: the API server is not running, so this step is skipped')
     }
     await sleep(6000, signal)
-    say(12, 'Replay complete', 'Watch → Telegram → money → media → network → verdict → ground truth → country risk → evidence. Demo pins are cleared; the saved case stays in the case file')
+    say(13, 'Replay complete', 'Watch → Telegram → money → media → network → verdict → entities → ground truth → country risk → evidence. Demo pins are cleared; the saved case stays in the case file')
     await sleep(6000, signal)
   } catch {
     /* stopped by the user */
@@ -332,6 +376,7 @@ export async function runDemo(signal: AbortSignal) {
     st().removeFeatures('cii', [CII])
     if (!ciiWasOn && st().layers.cii?.enabled) st().toggle('cii')
     useGlobeUi.getState().setSensor(sensorBefore)
+    if (useInvestigation.getState().entities['event:demo-hormuz']) useInvestigation.setState({ open: false, entities: {}, edges: {}, selected: null, inspect: null })
     useWatches.setState((w) => ({ list: w.list.filter((x) => x.id !== WATCH.id) }))
     for (const id of physical) if (st().layers[id]?.enabled) st().toggle(id)
     if (prevCase && prevCase !== useCases.getState().activeId) void useCases.getState().setActive(prevCase).catch(() => {})

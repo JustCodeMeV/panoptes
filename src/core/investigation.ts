@@ -93,6 +93,9 @@ export const useInvestigation = create<State>((set, getState) => ({
   async select(id) {
     set({ selected: id, inspect: id ? (getState().inspect?.entity.id === id ? getState().inspect : null) : null })
     if (!id) return
+    const local = getState().entities[id]
+    // Demo-replay entities exist only in the browser.
+    if (local && id.includes(':demo-')) return set({ inspect: { entity: local, transforms: [], degree: 0 } })
     try {
       const i = await get<Inspect>(`/api/entities/${encodeURIComponent(id)}`)
       if (getState().selected === id) set({ inspect: i })

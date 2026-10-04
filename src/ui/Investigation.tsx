@@ -103,7 +103,7 @@ function Inspector() {
   if (!inspect) return <p className="inv-empty">Click an entity to inspect it and run transforms.</p>
   const e = inspect.entity
   const t = TYPE[e.type]
-  const props = Object.entries(e.props).filter(([k, v]) => v !== undefined && v !== null && v !== '' && typeof v !== 'object' && !['text', 'url'].includes(k))
+  const props = Object.entries(e.props).filter(([k, v]) => v !== undefined && v !== null && v !== '' && typeof v !== 'object' && !['text', 'url', 'summary', 'read', 'readAt'].includes(k))
   const featureIds = (e.props.featureIds as string[] | undefined) ?? (e.props.featureId ? [String(e.props.featureId)] : [])
   return (
     <div className="inv-inspect">
