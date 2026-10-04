@@ -15,6 +15,7 @@ import { ooniProvider } from './providers/osint/ooni.ts'
 import { gpsjamProvider } from './providers/gnss/gpsjam.ts'
 import { adsblolProvider } from './providers/military/adsblol.ts'
 import { deepstateProvider } from './providers/frontlines/deepstate.ts'
+import { conflictsProvider } from './providers/frontlines/conflicts.ts'
 import { grokProvider } from './providers/x/grok.ts'
 import { cablesProvider } from './providers/infrastructure/cables.ts'
 import { acledProvider } from './providers/acled/acled.ts'
@@ -64,7 +65,7 @@ export const LAYERS: Record<string, Provider[]> = {
   humanitarian: [whoProvider, reliefwebProvider],
   gnss: [gpsjamProvider],
   'military-air': [adsblolProvider],
-  frontlines: [deepstateProvider],
+  frontlines: [deepstateProvider, conflictsProvider],
   acled: [acledProvider, wikiCurrentProvider],
   infrastructure: [cablesProvider],
   satellites: [celestrakProvider],

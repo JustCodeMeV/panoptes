@@ -29,6 +29,21 @@ const gnews = (id: string, q: string, gl = 'US'): NewsFeed => ({
   url: `https://news.google.com/rss/search?q=${encodeURIComponent(q + ' when:2h')}&hl=en-${gl}&gl=${gl}&ceid=${gl}:en`,
 })
 
+/** Google News over several outlet sites whose own RSS refuses us, last day. */
+const sitesFeed = (id: string, domains: string[]): NewsFeed => ({
+  id: `gnews:${id}`,
+  domain: 'news.google.com',
+  everyMs: 5 * 60_000,
+  url: `https://news.google.com/rss/search?q=${encodeURIComponent(`${domains.map((d) => `site:${d}`).join(' OR ')} when:1d`)}&hl=en-US&gl=US&ceid=US:en`,
+})
+/** Google News in another language edition (Spanish for Latin America, Portuguese for Brazil, French for francophone Africa). */
+const gnewsLang = (id: string, q: string, hl: string, gl: string): NewsFeed => ({
+  id: `gnews:${id}`,
+  domain: 'news.google.com',
+  everyMs: 3 * 60_000,
+  url: `https://news.google.com/rss/search?q=${encodeURIComponent(q + ' when:6h')}&hl=${hl}&gl=${gl}&ceid=${gl}:${hl.split('-')[0]}`,
+})
+
 export const NEWS_FEEDS: NewsFeed[] = [
   { id: 'bbc', url: 'https://feeds.bbci.co.uk/news/world/rss.xml', domain: 'bbc.co.uk' },
   { id: 'aljazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', domain: 'aljazeera.com' },
@@ -69,6 +84,35 @@ export const NEWS_FEEDS: NewsFeed[] = [
   { id: 'presstv', url: 'https://www.presstv.ir/rss.xml', domain: 'presstv.ir' },
   { id: 'almanar', url: 'https://english.almanar.com.lb/rss', domain: 'almanar.com.lb' },
   { id: 'cgtn', url: 'https://www.cgtn.com/subscribe/rss/section/world.xml', domain: 'cgtn.com' },
+  // --- Africa ---
+  { id: 'allafrica', url: 'https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf', domain: 'allafrica.com' },
+  { id: 'dabanga', url: 'https://www.dabangasudan.org/en/feed', domain: 'dabangasudan.org' },
+  { id: 'theafricareport', url: 'https://www.theafricareport.com/feed/', domain: 'theafricareport.com' },
+  sitesFeed('africa-press', ['sudantribune.com', 'addisstandard.com', 'garoweonline.com', 'nation.africa', 'theeastafrican.co.ke', 'mg.co.za', 'premiumtimesng.com', 'thecitizen.co.tz', 'monitor.co.ug']),
+  gnews('africa-conflict', 'Sudan OR Sahel OR Mali OR "Burkina Faso" OR Niger OR Somalia OR Congo OR Ethiopia OR Mozambique OR Nigeria attack OR fighting OR clashes', 'NG'),
+  gnews('africa-politics', 'Africa protest OR coup OR election OR crackdown', 'KE'),
+  gnewsLang('afrique', 'attaque OR affrontements OR manifestation Mali OR "Burkina Faso" OR Niger OR Tchad OR Cameroun OR RDC OR Sénégal', 'fr', 'SN'),
+  // --- Latin America and the Caribbean ---
+  { id: 'mercopress', url: 'https://en.mercopress.com/rss', domain: 'mercopress.com' },
+  { id: 'bbcmundo', url: 'https://feeds.bbci.co.uk/mundo/rss.xml', domain: 'bbc.co.uk' },
+  { id: 'infobae', url: 'https://www.infobae.com/arc/outboundfeeds/rss/?outputType=xml', domain: 'infobae.com' },
+  { id: 'insightcrime', url: 'https://insightcrime.org/feed/', domain: 'insightcrime.org' },
+  { id: 'colombiareports', url: 'https://colombiareports.com/feed/', domain: 'colombiareports.com' },
+  { id: 'mexnewsdaily', url: 'https://mexiconewsdaily.com/feed/', domain: 'mexiconewsdaily.com' },
+  { id: 'elpais-america', url: 'https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/america/portada', domain: 'elpais.com' },
+  { id: 'france24-es', url: 'https://www.france24.com/es/rss', domain: 'france24.com' },
+  { id: 'agenciabrasil', url: 'https://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml', domain: 'agenciabrasil.ebc.com.br' },
+  { id: 'prensalatina', url: 'https://www.plenglish.com/feed/', domain: 'plenglish.com' },
+  sitesFeed('latam-press', ['haitiantimes.com', 'riotimesonline.com', 'ticotimes.net', 'peruvianpress.com', 'efectococuyo.com']),
+  gnewsLang('latam', 'protestas OR enfrentamientos OR violencia OR ataque OR golpe México OR Colombia OR Venezuela OR Perú OR Ecuador OR Haití OR Bolivia OR Argentina', 'es-419', 'MX'),
+  gnewsLang('brasil', 'protesto OR violência OR operação OR conflito', 'pt-BR', 'BR'),
+  // --- Asia ---
+  { id: 'irrawaddy', url: 'https://www.irrawaddy.com/feed', domain: 'irrawaddy.com' },
+  { id: 'myanmarnow', url: 'https://myanmar-now.org/en/feed/', domain: 'myanmar-now.org' },
+  { id: 'bangkokpost', url: 'https://www.bangkokpost.com/rss/data/topstories.xml', domain: 'bangkokpost.com' },
+  { id: 'tribune-pk', url: 'https://tribune.com.pk/feed/home', domain: 'tribune.com.pk' },
+  { id: 'kathmandupost', url: 'https://kathmandupost.com/rss', domain: 'kathmandupost.com' },
+  sitesFeed('asia-press', ['rappler.com', 'lorientlejour.com', 'thediplomat.com', 'benarnews.org', 'kabulnow.com']),
   gnews('unrest', 'protest OR riot OR clashes OR unrest OR crackdown', 'IN'),
   gnews('strikes', 'missile OR airstrike OR "drone attack" OR shelling OR explosion'),
   gnews('security', 'ceasefire OR hostage OR troops OR "military buildup" OR sanctions', 'GB'),

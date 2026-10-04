@@ -578,6 +578,26 @@ const NATIVE: [string, ...string[]][] = [
   ['Haifa', `${AR}حيفا`, 'חיפה'],
   ['Saudi Arabia', `${AR}سعودي[ةه]`],
 ]
+// Spanish, Portuguese and French names (Latin American and francophone African press). Places the
+// gazetteer does not know are skipped rather than failing.
+const ROMANCE: [string, ...string[]][] = [
+  ['Mexico', 'méxico', 'méjico'], ['United States', 'estados unidos', 'eeuu', 'ee\\.uu\\.', 'états-unis', 'eua'], ['Brazil', 'brasil', 'brésil'],
+  ['Peru', 'perú', 'pérou'], ['Haiti', 'haití', 'haïti'], ['Panama', 'panamá'], ['Dominican Republic', 'república dominicana', 'république dominicaine'],
+  ['Spain', 'españa', 'espagne', 'espanha'], ['Germany', 'alemania', 'allemagne', 'alemanha'], ['France', 'francia', 'frança'],
+  ['United Kingdom', 'reino unido', 'royaume-uni'], ['Russia', 'rusia', 'russie', 'rússia'], ['China', 'chine'], ['Japan', 'japón', 'japon', 'japão'],
+  ['Chad', 'tchad'], ['Cameroon', 'cameroun', 'camerún'], ['Congo', 'rdc', 'rd congo', 'république démocratique du congo', 'república democrática del congo'],
+  ['Ivory Coast', "côte d['’]ivoire", 'costa de marfil'], ['Algeria', 'algérie', 'argelia', 'argélia'], ['Morocco', 'maroc', 'marruecos', 'marrocos'],
+  ['Tunisia', 'tunisie', 'túnez'], ['Libya', 'libye', 'libia'], ['Egypt', 'égypte', 'egipto', 'egito'], ['Senegal', 'sénégal'], ['Guinea', 'guinée'],
+  ['Niger', 'níger'], ['Mali', 'malí'], ['Ethiopia', 'éthiopie', 'etiopía'], ['Somalia', 'somalie'], ['Sudan', 'soudan', 'sudán'],
+  ['South Sudan', 'soudan du sud', 'sudán del sur'], ['Central African Republic', 'centrafrique', 'république centrafricaine'],
+  ['Mauritania', 'mauritanie'], ['Benin', 'bénin'], ['Togo', 'togo'], ['Gabon', 'gabon'], ['Madagascar', 'madagascar'],
+  ['Iran', 'irán'], ['Iraq', 'irak'], ['Lebanon', 'líbano', 'liban'], ['Syria', 'siria', 'syrie'], ['Israel', 'israël'], ['Ukraine', 'ucrania', 'ucrânia'],
+  ['Turkey', 'turquía', 'turquie', 'turquia'], ['Saudi Arabia', 'arabia saudita', 'arabie saoudite', 'arábia saudita'],
+  ['Port-au-Prince', 'puerto príncipe'], ["N'Djamena", "n['’]djamena"], ['Abidjan', 'abidjan'], ['Bogota', 'bogotá'], ['Brasilia', 'brasília'],
+  ['Sao Paulo', 'são paulo', 'sao paulo'], ['Mexico City', 'ciudad de méxico', 'cdmx'],
+]
+NATIVE.push(...ROMANCE.filter(([name]) => locByName.has(name)))
+const ROMANCE_HINT = new RegExp(`(?<![\\p{L}])(?:${ROMANCE.filter(([n]) => locByName.has(n)).flatMap(([, ...f]) => f).join('|')})(?![\\p{L}])`, 'iu')
 const nativeFrags: { re: RegExp; loc: Entry; frag: string }[] = NATIVE.flatMap(([name, ...frags]) => {
   const loc = locByName.get(name)
   if (!loc) throw new Error(`gazetteer: native alias for unknown place ${name}`)
@@ -592,7 +612,8 @@ function mentions(text: string): Hit[] {
   const hits: Hit[] = []
   for (const r of work.matchAll(FOLDED_RE)) hits.push({ at: r.index, len: r[0].length, m: folded.get(r[0].toLowerCase())! })
   for (const r of work.matchAll(EXACT_RE)) hits.push({ at: r.index, len: r[0].length, m: exact.get(r[0])! })
-  if (/[\u0400-\u04ff\u0590-\u06ff]/.test(work))
+  // Cyrillic, Hebrew or Arabic script, or Latin-script text that names a place in Spanish, Portuguese or French
+  if (/[\u0400-\u04ff\u0590-\u06ff]/.test(work) || ROMANCE_HINT.test(work))
     for (const r of work.matchAll(NATIVE_RE)) {
       const f = nativeFrags.find((x) => x.re.test(r[0]))
       if (f) hits.push({ at: r.index, len: r[0].length, m: { loc: f.loc, weight: 1 } })
