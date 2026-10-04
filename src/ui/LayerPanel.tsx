@@ -8,7 +8,9 @@ import { Panel } from '../../gui_elements/Panel'
 import type { Feature } from '../../shared/feature'
 import { featuresOf, useStore, type LayerState } from '../core/store'
 import type { LayerDef } from '../core/types'
+import logo from '../assets/ATLAS_LOGO.png'
 import { LAYERS } from '../layers'
+import { LANDING_HASH } from '../route'
 import { CasePanel } from './CasePanel'
 import { DemoButton } from './DemoBanner'
 import { Health } from './Health'
@@ -108,7 +110,12 @@ export function LayerPanel({ box }: { box: PanelBox }) {
           <div className="flex h-full flex-col overflow-y-auto pr-1">
             <div data-roll-keep>
               <div className="flex items-start justify-between gap-2">
-                <Header />
+                <div className="flex items-center gap-2.5">
+                  <a href={LANDING_HASH} title="About ATLAS" className="flex-none rounded-[22%] transition-[filter] duration-200 hover:drop-shadow-[0_0_10px_var(--color-accent-2)]">
+                    <img src={logo} alt="ATLAS home" className="block size-[calc(var(--fs-title)*1.3)]" />
+                  </a>
+                  <Header />
+                </div>
                 <IconButton icon={leftMin ? 'expand' : 'collapse'} onClick={() => setShell({ leftMin: !leftMin })} />
               </div>
               <div className="mt-3">

@@ -59,9 +59,10 @@ function addShape(ds: CustomDataSource, f: Feature, def: LayerDef) {
 /**
  * Generic: renders ANY layer's features as clustered pins on its own
  * DataSource. Knows nothing about what a layer means; all styling comes from
- * `LayerDef.pin`. Also owns click-picking for the whole globe.
+ * `LayerDef.pin`. Also owns click-picking for the whole globe, unless `interactive` is off
+ * (the landing page's fixed view: no picking, no camera flights).
  */
-export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
+export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef[]; interactive?: boolean }) {
   const viewer = useViewer()!
   const sources = useRef(new Map<string, CustomDataSource>())
   const featureById = useRef(new Map<string, { feature: Feature; def: LayerDef }>())
@@ -265,6 +266,7 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
 
   // Fly to whatever becomes selected (from globe click OR the list panel).
   useEffect(() => {
+    if (!interactive) return
     let last: string | null = null
     return useStore.subscribe((s) => {
       if (s.selectedId === last) return
@@ -281,10 +283,11 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
         duration: flightSeconds.current,
       })
     })
-  }, [viewer])
+  }, [viewer, interactive])
 
   // Click picking.
   useEffect(() => {
+    if (!interactive) return
     const handler = new ScreenSpaceEventHandler(viewer.scene.canvas)
     handler.setInputAction((click: { position: Cartesian2 }) => {
       const picked = viewer.scene.pick(click.position)
@@ -342,7 +345,7 @@ export function LayerRenderer({ layers }: { layers: LayerDef[] }) {
       viewer.camera.moveEnd.removeEventListener(onEnd)
       handler.destroy()
     }
-  }, [viewer])
+  }, [viewer, interactive])
 
   return null
 }

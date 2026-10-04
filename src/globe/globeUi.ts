@@ -9,8 +9,18 @@ export const SENSORS: { id: Sensor; label: string; title: string }[] = [
 ]
 
 /** Globe view state shared between the control stack and the layer renderer. */
-export const useGlobeUi = create<{ pinsHidden: boolean; togglePins: () => void; sensor: Sensor; setSensor: (s: Sensor) => void }>((set) => ({
+export const useGlobeUi = create<{
+  pinsHidden: boolean
+  togglePins: () => void
+  sensor: Sensor
+  setSensor: (s: Sensor) => void
+  /** Real night sky (stars, sun, moon, planets) behind the globe. Off on every load. */
+  sky: boolean
+  toggleSky: () => void
+}>((set) => ({
   pinsHidden: false,
+  sky: false,
+  toggleSky: () => set((s) => ({ sky: !s.sky })),
   togglePins: () => set((s) => ({ pinsHidden: !s.pinsHidden })),
   sensor: 'eo',
   setSensor: (sensor) => set({ sensor }),
