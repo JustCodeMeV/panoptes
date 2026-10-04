@@ -281,7 +281,7 @@ const ROWS: Row[] = [
   ['Mali', 17.6, -4.0, 'country'],
   ['Niger', 17.6, 8.1, 'country'],
   ['Burkina Faso', 12.2, -1.6, 'country'],
-  ['Congo', -2.9, 23.7, 'country', 'DR Congo', 'DRC'],
+  ['Congo', -2.9, 23.7, 'country', 'DR Congo', 'DRC', 'Democratic Republic of the Congo', 'Democratic Republic of Congo', 'Congo-Kinshasa'],
   ['South Africa', -29.0, 25.0, 'country'],
   ['Morocco', 31.8, -7.1, 'country'],
   ['Tunisia', 34.0, 9.0, 'country'],

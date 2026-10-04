@@ -5,6 +5,7 @@ import { CABLE_GREY } from './props'
 /** Critical infrastructure context: submarine cable routes (TeleGeography). */
 export const infrastructure: LayerDef = {
   id: 'infrastructure',
+  group: 'Cyber & infrastructure',
   label: 'Deep Sea Cables',
   description: 'Undersea internet cable routes (TeleGeography): context for outages and sabotage claims.',
   color: CABLE_GREY,

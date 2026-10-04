@@ -27,6 +27,13 @@ export const TRANSFORMS: TransformDef[] = [
   { id: 'cyber-country', label: '⚡ Cyber incidents in this country', types: ['location'] },
   { id: 'threat-activity', label: '⚡ Victims and servers (cyber feeds)', types: ['actor'] },
   { id: 'related', label: '⚡ Related items in every layer', types: ['event', 'actor', 'location', 'claim', 'asset', 'source'] },
+  { id: 'statements-about', label: '⚡ Official statements about it', types: ['location', 'actor'] },
+  { id: 'analyses-about', label: '⚡ Think-tank analyses about it', types: ['location', 'actor'] },
+  { id: 'warnings-near', label: '⚡ Maritime and air warnings nearby', types: ['location', 'event', 'asset'] },
+  { id: 'humanitarian', label: '⚡ Humanitarian and health reports', types: ['location'] },
+  { id: 'reactions', label: '⚡ Official reactions and analyses', types: ['event'] },
+  { id: 'issuer-publications', label: '⚡ What it published', types: ['actor'] },
+  { id: 'affiliation', label: 'Who funds and controls it', types: ['actor', 'source'] },
   { id: 'country-of', label: 'Located in (country)', types: ['event', 'asset', 'actor', 'source'] },
   { id: 'social-x', label: '💲 X posts (Apify, 15 max)', types: ['event', 'actor', 'location'] },
   { id: 'social-tiktok', label: '💲 TikTok videos (Apify, 15 max)', types: ['event', 'actor', 'location'] },
@@ -137,6 +144,13 @@ async function run(id: string, name: string): Promise<Subgraph | null> {
     case 'threat-activity': return live.threatActorActivity(e)
     case 'related': return live.relatedAcrossLayers(e)
     case 'country-of': return live.countryOfEntity(e)
+    case 'statements-about': return live.statementsAbout(e, 'statements')
+    case 'analyses-about': return live.statementsAbout(e, 'research')
+    case 'warnings-near': return live.warningsNear(e)
+    case 'humanitarian': return live.humanitarianIn(e)
+    case 'reactions': return live.reactions(e)
+    case 'issuer-publications': return live.issuerPublications(e)
+    case 'affiliation': return live.affiliation(e)
     case 'social-x': return live.socialTransform(e, 'x')
     case 'social-tiktok': return live.socialTransform(e, 'tiktok')
     case 'social-instagram': return live.socialTransform(e, 'instagram')
@@ -190,5 +204,7 @@ export const transformsFor = (e: Entity) =>
       t.types.includes(e.type) &&
       (!COUNTRY_ONLY.has(t.id) || isCountry(e)) &&
       !(isCountry(e) && ['nearby-events', 'nearby-assets'].includes(t.id)) &&
-      (t.id !== 'threat-activity' || e.subtype === 'threat-actor'),
+      (t.id !== 'threat-activity' || e.subtype === 'threat-actor') &&
+      (t.id !== 'issuer-publications' || ['government', 'intl-org', 'think-tank'].includes(String(e.subtype))) &&
+      (t.id !== 'humanitarian' || isCountry(e)),
   )

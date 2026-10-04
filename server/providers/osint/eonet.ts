@@ -1,5 +1,5 @@
 import type { Provider } from '../../core/provider.ts'
-import { LAYER_ID, fetchText, osintFeature } from './util.ts'
+import { fetchText, osintFeature } from './util.ts'
 
 type Geo = { date: string; type: string; coordinates: number[] | number[][] | number[][][]; magnitudeValue?: number; magnitudeUnit?: string }
 type Ev = { id: string; title: string; link: string; categories: { id: string; title: string }[]; sources?: { id: string; url: string }[]; geometry: Geo[] }
@@ -19,7 +19,7 @@ function firstPoint(g: Geo): [number, number] | null {
 /** NASA EONET: curated open natural events with the latest known position. */
 export const eonetProvider: Provider = {
   id: 'eonet',
-  layerId: LAYER_ID,
+  layerId: 'hazards',
   ttlMs: 15 * 60_000,
   async fetch() {
     const d = JSON.parse(await fetchText('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=120')) as { events: Ev[] }

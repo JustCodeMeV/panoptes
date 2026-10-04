@@ -1,7 +1,7 @@
 import type { Provider } from '../../core/provider.ts'
 import { TtlCache } from '../../core/cache.ts'
 import type { Feature } from '../../../shared/feature.ts'
-import { LAYER_ID, fetchText, osintFeature } from './util.ts'
+import { fetchText, osintFeature } from './util.ts'
 
 /** Conflict areas only: a global fire map is mostly agriculture. west,south,east,north */
 const AREAS: { name: string; bbox: string }[] = [
@@ -20,7 +20,7 @@ const cache = new TtlCache<Feature[]>(30 * 60_000)
  */
 export const firmsProvider: Provider = {
   id: 'nasa-firms',
-  layerId: LAYER_ID,
+  layerId: 'hazards',
   ttlMs: 30 * 60_000,
   requires: ['FIRMS_MAP_KEY'],
   async fetch() {

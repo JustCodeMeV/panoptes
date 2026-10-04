@@ -70,8 +70,8 @@ async function layer(id: string): Promise<Feature[]> {
 const where = (f: Feature) => (f.position ? countryAt(f.position.lat, f.position.lon) : undefined)
 
 export async function computeScores(): Promise<CountryScore[]> {
-  const [unrest, acled, news, telegram, campaigns, osint, gnss, markets, trends, cyber] = await Promise.all(
-    ['unrest', 'acled', 'news', 'telegram', 'campaigns', 'osint', 'gnss', 'markets', 'trends', 'cyber'].map((id) => layer(id).catch(() => [] as Feature[])),
+  const [unrest, acled, news, telegram, campaigns, outages, gnss, markets, trends, cyber, hazards] = await Promise.all(
+    ['unrest', 'acled', 'news', 'telegram', 'campaigns', 'osint', 'gnss', 'markets', 'trends', 'cyber', 'hazards'].map((id) => layer(id).catch(() => [] as Feature[])),
   )
   const raw = new Map<string, Record<string, number>>()
   const add = (country: string | undefined, comp: string, v: number) => {
@@ -90,6 +90,7 @@ export async function computeScores(): Promise<CountryScore[]> {
   for (const f of telegram) add(where(f), 'attention', 1 / 3)
   for (const f of campaigns) add(where(f), 'disinfo', 1)
   for (const f of news) if (['debunked', 'disputed'].includes(String(f.props.verdict))) add(where(f), 'disinfo', 1)
+  const osint = [...outages, ...hazards]
   for (const f of osint) {
     const cat = String(f.props.category ?? '')
     if (/outage|censorship|block|shutdown/i.test(cat)) add(where(f), 'outage', f.props.severity === 'high' ? 2 : 1)

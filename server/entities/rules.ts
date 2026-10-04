@@ -28,6 +28,8 @@ const KINDS: [EventKind, RegExp][] = [
   ['talks', /\b(talks|negotiat|summit|meets?|met with|visit(?:s|ed)?|phone call)\b/i],
   ['sanction', /\bsanction/i],
   ['cyber', /\b(cyber ?attack|hack(?:ed|ers?)|ddos|ransomware|data breach)/i],
+  ['outbreak', /\b(outbreak|epidemic|cholera|ebola|mpox|dengue|measles|marburg|avian influenza|h5n1)\b/i],
+  ['military-exercise', /\b(military|naval|joint|live-fire) (?:exercise|drills?)|war ?games\b/i],
   ['disaster', /\b(earthquake|flood(?:s|ing)?|wildfire|cyclone|typhoon|hurricane|landslide|tsunami)/i],
 ]
 export const kindOf = (text: string): EventKind => KINDS.find(([, re]) => re.test(text))?.[0] ?? 'other'
@@ -156,7 +158,7 @@ export function reportOf(f: Feature): Report | null {
       ],
     }
   }
-  if (f.layerId === 'osint' || f.layerId === 'x') {
+  if (f.layerId === 'osint' || f.layerId === 'hazards' || f.layerId === 'x') {
     const cat = String(p.category ?? '')
     const kind: EventKind = /outage|censor|block/i.test(cat) ? 'cyber' : /quake|flood|cyclone|volcan|fire|disaster|storm/i.test(`${cat} ${f.title}`) ? 'disaster' : kindOf(f.title)
     let domain = f.source.platform
@@ -165,6 +167,11 @@ export function reportOf(f: Feature): Report | null {
     } catch {
       /* keep platform */
     }
+    return { featureId: f.id, url: f.source.url, title: f.title, text: `${f.title} ${String(p.summary ?? p.text ?? '')}`, at, position: f.position, kindHint: kind, sources: [{ domain, url: f.source.url, title: f.title, at }] }
+  }
+  if (f.layerId === 'warnings' || f.layerId === 'humanitarian') {
+    const kind = (typeof p.kind === 'string' ? p.kind : 'other') as EventKind
+    const domain = String(p.domain ?? f.source.provider)
     return { featureId: f.id, url: f.source.url, title: f.title, text: `${f.title} ${String(p.summary ?? p.text ?? '')}`, at, position: f.position, kindHint: kind, sources: [{ domain, url: f.source.url, title: f.title, at }] }
   }
   if (f.layerId === 'unrest') {

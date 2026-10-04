@@ -5,6 +5,7 @@ import { share, color } from './props'
 /** Electronic-warfare footprint: where GPS is being jammed or spoofed (GPSJam, daily). */
 export const gnss: LayerDef = {
   id: 'gnss',
+  group: 'Conflict & security',
   label: 'GPS Jamming',
   description: 'Where aircraft reported degraded GPS yesterday: jamming and spoofing around conflict zones (GPSJam, ADS-B derived, daily).',
   color: '#f97316',

@@ -1,6 +1,9 @@
 import type { Feature } from '../../../shared/feature.ts'
 
 export const LAYER_ID = 'osint'
+/** Natural hazards live in their own layer; internet outages and censorship stay in `osint`. */
+export const HAZARD_PROVIDERS = new Set(['gdacs', 'usgs', 'eonet', 'firms', 'gvp'])
+const layerOf = (provider: string) => (HAZARD_PROVIDERS.has(provider) ? 'hazards' : LAYER_ID)
 export type Severity = 'low' | 'medium' | 'high'
 
 export type OsintProps = {
@@ -31,8 +34,8 @@ export function osintFeature(a: {
   const now = new Date().toISOString()
   const props: OsintProps = { kind: 'osint', category: a.category, severity: a.severity, summary: a.summary, magnitude: a.magnitude, feed: a.feed }
   return {
-    id: `${LAYER_ID}:${a.provider}:${a.externalId}`,
-    layerId: LAYER_ID,
+    id: `${layerOf(a.provider)}:${a.provider}:${a.externalId}`,
+    layerId: layerOf(a.provider),
     title: a.title,
     position: a.lat !== undefined && a.lon !== undefined ? { lat: a.lat, lon: a.lon } : undefined,
     geoPrecision: a.lat === undefined ? 'none' : a.precision,

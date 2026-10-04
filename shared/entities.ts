@@ -9,7 +9,8 @@ export type EntityType = 'event' | 'location' | 'actor' | 'source' | 'claim' | '
 
 export type EventKind =
   | 'strike' | 'drone-attack' | 'shelling' | 'clash' | 'protest' | 'arrest' | 'explosion' | 'ceasefire'
-  | 'talks' | 'sanction' | 'cyber' | 'disaster' | 'missile-test' | 'other'
+  | 'talks' | 'sanction' | 'cyber' | 'disaster' | 'missile-test' | 'outbreak' | 'navigation-warning'
+  | 'military-exercise' | 'space-weather' | 'humanitarian' | 'other'
 
 export type Precision = 'exact' | 'town' | 'region' | 'country' | 'none'
 
@@ -36,6 +37,7 @@ export type Entity = {
 export type Rel =
   | 'located_at' | 'involves' | 'reported_by' | 'claims' | 'about' | 'supports' | 'contradicts'
   | 'copies' | 'forwards' | 'near' | 'same_as' | 'mentions' | 'leads' | 'member_of' | 'borders' | 'trades_with'
+  | 'issued_by' | 'responds_to' | 'affiliated_with' | 'part_of'
 
 export type Role = 'attacker' | 'target' | 'victim' | 'claimant' | 'mediator' | 'participant'
 

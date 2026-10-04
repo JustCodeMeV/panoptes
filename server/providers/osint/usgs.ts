@@ -1,12 +1,12 @@
 import type { Provider } from '../../core/provider.ts'
-import { LAYER_ID, fetchText, osintFeature } from './util.ts'
+import { fetchText, osintFeature } from './util.ts'
 
 type Quake = { id: string; properties: { mag: number; place: string; time: number; url: string; alert?: string; tsunami?: number; sig?: number }; geometry: { coordinates: [number, number, number] } }
 
 /** USGS earthquakes M4.5+, last 24 h. Seismometer-derived epicentres => exact. */
 export const usgsProvider: Provider = {
   id: 'usgs',
-  layerId: LAYER_ID,
+  layerId: 'hazards',
   ttlMs: 5 * 60_000,
   async fetch() {
     const d = JSON.parse(await fetchText('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson')) as { features: Quake[] }

@@ -6,6 +6,7 @@ import { CYBER_COLOR } from './props'
 /** Cyber threats: ransomware claims, botnet command servers, newly exploited vulnerabilities. */
 export const cyber: LayerDef = {
   id: 'cyber',
+  group: 'Cyber & infrastructure',
   label: 'Cyber Threats',
   description: 'Ransomware victims claimed on leak sites (ransomware.live), botnet command servers (abuse.ch), and vulnerabilities exploited in the wild (CISA). Victims are pinned at their country.',
   color: '#e879f9',
