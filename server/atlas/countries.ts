@@ -84,16 +84,34 @@ const ALIASES: Record<string, string> = {
   // Natural Earth abbreviations (what the client globe sends)
   demrepcongo: 'Democratic Republic of the Congo', centralafricanrep: 'Central African Republic', ssudan: 'South Sudan', bosniaandherz: 'Bosnia and Herzegovina',
   eqguinea: 'Equatorial Guinea', dominicanrep: 'Dominican Republic', solomonis: 'Solomon Islands', wsahara: 'Western Sahara', ncyprus: 'Cyprus',
-  falklandis: 'Falkland Islands (Islas Malvinas)', frsantarcticlands: 'French Southern and Antarctic Lands', eswatini: 'Eswatini',
+  falklandis: 'Falkland Islands (Islas Malvinas)', eswatini: 'Eswatini', faeroeislands: 'Faroe Islands', macao: 'Macau', aland: 'Finland', ashmoreandcartierislands: 'Australia',
+  indianoceanterritory: 'Australia', saintmartin: 'Saint Martin', saintbarthelemy: 'Saint Barthelemy', usvirginislands: 'Virgin Islands', usvirginis: 'Virgin Islands',
+  southgeorgiaandtheislands: 'South Georgia and South Sandwich Islands', wallisandfutunaislands: 'Wallis and Futuna', frsantarcticlands: 'France', heardislandandmcdonaldislands: 'Australia',
 }
 
 const byNorm = new Map(Object.keys(COUNTRIES).map((k) => [norm(k), k]))
 
+// Natural Earth map labels abbreviate: "Turks and Caicos Is.", "St. Vin. and Gren.", "Fr. Polynesia", "Br. Indian Ocean Ter."
+const ABBR: [RegExp, string][] = [
+  [/\bIs\./g, 'Islands'], [/\bI\./g, 'Island'], [/\bSt[.-]\s*/g, 'Saint '], [/\bFr\./g, 'French'], [/\bBr\./g, 'British'], [/\bTer\./g, 'Territory'],
+  [/\bN\./g, 'Northern'], [/\bS\./g, 'South'], [/\bRep\./g, 'Republic'], [/\bVin\./g, 'Vincent'], [/\bGren\./g, 'the Grenadines'], [/\bBarb\./g, 'Barbuda'], [/\bGeo\./g, 'Georgia'],
+]
+const expand = (s: string) => ABBR.reduce((t, [re, w]) => t.replace(re, w), s)
+
 /** Factbook record for any reasonable country name, or undefined. */
 export function findCountry(name: string): CountryRecord | undefined {
-  const n = norm(name)
-  const key = byNorm.get(n) ?? ALIASES[n] ?? byNorm.get(norm(ALIASES[n] ?? ''))
-  return key ? COUNTRIES[key] : undefined
+  const look = (s: string) => {
+    const n = norm(s)
+    const key = byNorm.get(n) ?? byNorm.get(norm(ALIASES[n] ?? ''))
+    return key ? COUNTRIES[key] : undefined
+  }
+  const found = look(name) ?? look(expand(name))
+  if (found) return found
+  // Last resort: a Factbook name that starts with the label ("Saint Helena" -> "Saint Helena, Ascension, and Tristan da Cunha").
+  const n = norm(expand(name))
+  if (n.length < 5) return undefined
+  for (const [k, key] of byNorm) if (k.startsWith(n)) return COUNTRIES[key]
+  return undefined
 }
 
 /** Display name that the gazetteer / map uses for a Factbook name (reverse of the aliases where needed). */

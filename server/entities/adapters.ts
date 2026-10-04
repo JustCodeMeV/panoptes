@@ -3,7 +3,7 @@ import type { Feature } from '../../shared/feature.ts'
 import { centroidOf, countryAt, scoreLocations } from '../geo/gazetteer.ts'
 import { edgesOf, getEntity, link, slug, upsertEntity } from './graph.ts'
 import { checkEvent, resolveEvents } from './resolve.ts'
-import { actorId, actorsIn, ingestReport, locationEntity, reportOf } from './rules.ts'
+import { actorId, actorsIn, ingestReport, locationEntity, reportOf, sourceEntity } from './rules.ts'
 
 /**
  * ANY LAYER -> ENTITIES. Event layers go through the rules extractor; every
@@ -43,6 +43,16 @@ function mentionsIn(id: string, text: string, f: Feature) {
 
 const PHYSICAL: Record<string, string> = { ships: 'vessel', 'military-air': 'aircraft', satellites: 'satellite', gnss: 'jamming-area', infrastructure: 'infrastructure', frontlines: 'front-line' }
 
+/** A post or item that describes no event (e.g. a channel's statement): a claim by its source. */
+function statementOf(f: Feature, domain?: string): string {
+  const id = `claim:post-${slug(f.id)}`
+  const text = String(f.props.text ?? f.title)
+  upsertEntity({ id, type: 'claim', subtype: 'statement', label: f.title, props: { statement: text.slice(0, 600), url: f.source.url, featureId: f.id }, ...(f.position ? { position: f.position, precision: 'town' } : {}), firstSeen: Date.parse(f.observedAt) || now(), lastSeen: now(), confidence: 0.6 })
+  if (domain) link(sourceEntity(domain, now()), 'claims', id, { at: now(), evidence: { featureId: f.id, url: f.source.url }, confidence: 0.9, via: 'transform' })
+  mentionsIn(id, text.slice(0, 600), f)
+  return id
+}
+
 /** Creates (or finds) the entities for one feature of any layer and returns the main entity id. */
 export function adaptFeature(f: Feature): string | null {
   // Events: the existing pipeline (rules, resolution, check).
@@ -50,7 +60,7 @@ export function adaptFeature(f: Feature): string | null {
   const r = reportOf(f)
   if (r) {
     const id = ingestReport(r)
-    if (!id) return null
+    if (!id) return statementOf(f, r.sources[0]?.domain)
     const [kept] = [...resolveEvents([id])]
     checkEvent(kept ?? id)
     return kept ?? id

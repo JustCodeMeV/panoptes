@@ -18,7 +18,7 @@ import { adaptFeature, neighbourhood } from './adapters.ts'
  * checked. The resolved events are served as the `events` layer.
  */
 
-const EVERY_MS = 2 * 60_000
+const EVERY_MS = 4 * 60_000
 const INPUT_LAYERS = ['news', 'acled', 'unrest', 'telegram', 'cyber', 'osint', 'x']
 const PHYSICAL_LAYERS = ['ships', 'military-air', 'gnss', 'infrastructure']
 

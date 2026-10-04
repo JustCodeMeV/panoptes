@@ -99,3 +99,23 @@ export function loadLayer(layerId: string, providers: Provider[]): Promise<Layer
     }
   })
 }
+
+/**
+ * Provider statuses for a layer WITHOUT fetching anything (health chip): providers that have not run
+ * yet (nobody has opened that layer) report as idle-ok instead of being woken up.
+ */
+export function peekLayer(providers: Provider[]): ProviderStatus[] {
+  return providers.map((p) => {
+    const missing = (p.requires ?? []).filter((k) => !process.env[k])
+    if (missing.length) return { id: p.id, ok: false, count: 0, ms: 0, error: `no ${missing.join(' / ')}` }
+    const s = states.get(p.id)
+    if (!s) return { id: p.id, ok: true, count: 0, ms: 0 }
+    const stale = !!s.error && s.okAt > 0
+    return { id: p.id, ok: !s.error || stale, count: s.features.length, ms: s.ms, ...(s.error ? { error: s.error } : {}), ...(stale ? { stale: true } : {}) }
+  })
+}
+
+/** Features a layer already has in memory, without fetching (for summaries that must not wake idle layers). */
+export function peekFeatures(providers: Provider[]): Feature[] {
+  return providers.flatMap((p) => states.get(p.id)?.features ?? [])
+}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '../../gui_elements/Button'
 import { FeedItem, Fold, Header, LayerPanel as LayerList, Legend, type Layer } from '../../gui_elements/Composites'
-import { Check, IconButton, Search } from '../../gui_elements/Controls'
+import { Check, IconButton } from '../../gui_elements/Controls'
 import { RollUp } from '../../gui_elements/Motion'
 import { Scroller } from '../../gui_elements/Scroller'
 import { Panel } from '../../gui_elements/Panel'
@@ -19,12 +19,12 @@ import { CasePanel } from './CasePanel'
 import { DemoButton } from './DemoBanner'
 import { Health } from './Health'
 import { NetworkView } from './NetworkGraph'
+import { Omnibox } from './Omnibox'
+import { matchesQuery } from '../core/search'
 import { useShell, type PanelBox } from './shell'
 import { ago, useNow } from './useNow'
 
 const DARK_SIDE = 'dark-side'
-
-const matches = (f: Feature, q: string) => !q || f.title.toLowerCase().includes(q)
 
 /** Status line under an expanded layer: freshness / live state and per-source health. */
 function SourceStatus({ def, st, live, now }: { def: LayerDef; st: LayerState; live?: { connected: boolean }; now: number }) {
@@ -111,7 +111,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
     const st = layerStates[def.id]
     const rank = def.rank ?? ((f: Feature) => Number(f.props.viewers) || 0)
     const features = featuresOf(st)
-      .filter((f) => matches(f, q))
+      .filter((f) => matchesQuery(f, q))
       .sort((a, b) => rank(b) - rank(a))
     return {
       id: def.id,
@@ -170,7 +170,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
                 </div>
               </div>
               <div className="mt-3">
-                <Search value={query} onChange={setQuery} placeholder="Search" label="Search" />
+                <Omnibox query={query} setQuery={setQuery} />
               </div>
             </div>
             <Scroller className="flex-auto" innerClassName="pr-2.5">

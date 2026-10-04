@@ -87,7 +87,9 @@ for (const region of readdirSync(root)) {
     const M = d['Military and Security'] ?? {}
     const T = d['Transnational Issues'] ?? {}
     const short = sub(G['Country name'], 'conventional short form')
-    const name = short === 'DRC' ? 'Democratic Republic of the Congo' : short
+    const long = sub(G['Country name'], 'conventional long form')
+    // Some countries have no short form ("none": CAR, UAE, Micronesia) or a truncated one ("The Dominican"): use the long form.
+    const name = short === 'DRC' ? 'Democratic Republic of the Congo' : !short || short === 'none' || short === 'The Dominican' ? long?.replace(/^Federated States of /, '') : short
     if (!name || name === 'none') continue
     const exportsUsd = money(text(E.Exports))
     const importsUsd = money(text(E.Imports))

@@ -19,7 +19,7 @@ import { centroidOf, countryAt, countryNameForId } from '../geo/gazetteer.ts'
  */
 
 export const LAYER_ID = 'cii'
-const EVERY_MS = 5 * 60_000
+const EVERY_MS = 10 * 60_000 // country scores move slowly; every 10 min is plenty
 
 export type Component = { id: string; label: string; value: number; points: number; max: number; detail: string }
 export type CountryScore = { country: string; score: number; delta?: number; components: Component[] }

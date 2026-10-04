@@ -3,6 +3,7 @@ process.env.UV_THREADPOOL_SIZE ??= '32'
 
 import { existsSync } from 'node:fs'
 import net from 'node:net'
+import { gzipSync } from 'node:zlib'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
@@ -13,7 +14,7 @@ import { streamSSE } from 'hono/streaming'
 import { FeatureSchema } from '../shared/feature.ts'
 import { rateLimit } from './core/ratelimit.ts'
 import { configuredSecrets, redact } from './core/secrets.ts'
-import { loadLayer } from './core/aggregate.ts'
+import { loadLayer, peekLayer } from './core/aggregate.ts'
 import { localizeAll, localizeEvent, onTranslated } from './core/translate.ts'
 import * as cases from './cases/db.ts'
 import { LAYERS } from './layers.ts'
@@ -34,7 +35,7 @@ import { readPage } from './reader/reader.ts'
 import { checkClaim, engineStatus } from './truth/engine.ts'
 import { reloadWatches, startWatchEngine } from './watch/engine.ts'
 import { startXEngine } from './x/engine.ts'
-import { centroidOf, geolocate } from './geo/gazetteer.ts'
+import { centroidOf, geolocate, searchPlaces } from './geo/gazetteer.ts'
 import { locationEntity } from './entities/rules.ts'
 import { briefFor } from './llm/analysis.ts'
 import { llmEnabled, llmStatus } from './llm/client.ts'
@@ -60,7 +61,6 @@ app.use('/api/*', bodyLimit({ maxSize: 512 * 1024, onError: (c) => c.json({ erro
 app.use('/api/llm/*', rateLimit({ windowMs: 10 * 60_000, max: 20, name: 'AI briefs' }))
 app.use('/api/truth/check', rateLimit({ windowMs: 10 * 60_000, max: 30, name: 'claim checks' }))
 // Layer snapshots can be large (jamming cells, frontline polygons); SSE streams stay uncompressed.
-app.use('/api/layers/*', compress())
 
 app.get('/api/health', (c) => c.json({ ok: true }))
 
@@ -73,11 +73,30 @@ app.get('/api/layers', (c) =>
   ),
 )
 
+// Each layer snapshot is serialised and compressed ONCE per refresh (the merged response is cached for
+// 15 s), then served to every client from memory, with an ETag so unchanged polls cost a 304.
+type Packed = { etag: string; gz: Buffer; json: string }
+const packed = new WeakMap<object, Packed>()
 app.get('/api/layers/:id', async (c) => {
   const providers = LAYERS[c.req.param('id')]
   if (!providers) return c.json({ error: 'unknown layer' }, 404)
   const res = await loadLayer(c.req.param('id'), providers)
-  return c.json({ ...res, features: localizeAll(res.features) })
+  let p = packed.get(res)
+  if (!p) {
+    const json = JSON.stringify({ ...res, features: localizeAll(res.features) })
+    p = { etag: `W/"${c.req.param('id')}-${res.generatedAt}-${json.length}"`, json, gz: gzipSync(json, { level: 6 }) }
+    packed.set(res, p)
+  }
+  c.header('etag', p.etag)
+  c.header('cache-control', 'no-cache')
+  c.header('vary', 'accept-encoding')
+  if (c.req.header('if-none-match') === p.etag) return c.body(null, 304)
+  c.header('content-type', 'application/json; charset=utf-8')
+  if (/\bgzip\b/.test(c.req.header('accept-encoding') ?? '')) {
+    c.header('content-encoding', 'gzip')
+    return c.body(new Uint8Array(p.gz))
+  }
+  return c.body(p.json)
 })
 
 app.get('/api/markets/history', async (c) => {
@@ -118,6 +137,12 @@ app.get('/api/reader', async (c) => {
   } catch (e) {
     return c.json({ url, framable: false, error: redact(e instanceof Error ? e.message : String(e)) }, 200)
   }
+})
+
+// ---- omnibox: places and investigation entities (live items are searched in the browser) ----
+app.get('/api/search', (c) => {
+  const q = (c.req.query('q') ?? '').slice(0, 80)
+  return c.json({ places: searchPlaces(q, 6), entities: searchEntities(q).slice(0, 6).map((e) => ({ id: e.id, type: e.type, subtype: e.subtype, label: e.label })) })
 })
 
 // ---- atlas: click a country ----
@@ -220,7 +245,8 @@ app.get('/api/health/sources', async (c) => {
   const rows: { layer: string; id: string; ok: boolean; error?: string; stale?: boolean }[] = []
   for (const [layer, providers] of Object.entries(LAYERS)) {
     const live = streamSource(layer)
-    const statuses = live ? live.snapshot().providers : (await loadLayer(layer, providers)).providers
+    // Never wakes a provider: the health chip must not make the server fetch layers nobody is viewing.
+    const statuses = live ? live.snapshot().providers : peekLayer(providers)
     for (const p of statuses) rows.push({ layer, id: p.id, ok: p.ok, error: p.error && redact(p.error), stale: p.stale })
   }
   for (const s of engineStatus()) rows.push({ layer: 'truth', id: s.id, ok: s.ok, error: s.error && redact(s.error) })
@@ -262,6 +288,18 @@ app.delete('/api/watches/:id', async (c) => {
 app.get('/api/audit', (c) => c.json(cases.auditLog()))
 
 // Live push: one snapshot on connect, then every story change as it happens.
+// Localised snapshot + per-feature signature, computed once per layer every few seconds and shared by
+// every connected client (it used to be rebuilt per client on every translation batch).
+const localized = new Map<string, { at: number; features: ReturnType<typeof localizeAll>; sig: Map<string, number> }>()
+function localizedSnapshot(layerId: string, source: NonNullable<ReturnType<typeof streamSource>>) {
+  const hit = localized.get(layerId)
+  if (hit && Date.now() - hit.at < 2500) return hit
+  const features = localizeAll(source.snapshot().features)
+  const v = { at: Date.now(), features, sig: new Map(features.filter((f) => f.props.original).map((f) => [f.id, f.title.length + JSON.stringify(f.props).length])) }
+  localized.set(layerId, v)
+  return v
+}
+
 app.get('/api/stream/:id', (c) => {
   const layerId = c.req.param('id')
   const source = streamSource(layerId)
@@ -281,18 +319,18 @@ app.get('/api/stream/:id', (c) => {
       wake?.()
     })
     const snap = source.snapshot()
-    const first = localizeAll(snap.features)
-    push('snapshot', { ...snap, features: first })
+    const first = localizedSnapshot(layerId, source)
+    push('snapshot', { ...snap, features: first.features })
     // Translations that land later are sent as quiet patches (at most every few seconds). A
     // feature is re-sent whenever more of it has been translated since it was last sent.
-    const english = (f: (typeof first)[number]) => f.title + JSON.stringify(f.props).length
-    const sent = new Map(first.filter((f) => f.props.original).map((f) => [f.id, english(f)]))
+    const sent = new Map(first.sig)
     let patchTimer: ReturnType<typeof setTimeout> | undefined
     const offTranslated = onTranslated(() => {
       patchTimer ??= setTimeout(() => {
         patchTimer = undefined
-        const features = localizeAll(source.snapshot().features).filter((f) => f.props.original && sent.get(f.id) !== english(f))
-        for (const f of features) sent.set(f.id, english(f))
+        const cur = localizedSnapshot(layerId, source)
+        const features = cur.features.filter((f) => f.props.original && sent.get(f.id) !== cur.sig.get(f.id))
+        for (const f of features) sent.set(f.id, cur.sig.get(f.id)!)
         if (features.length) push('patch', { type: 'patch', features })
       }, 3000)
     })

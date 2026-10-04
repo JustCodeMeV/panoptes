@@ -2,6 +2,7 @@ import { geoArea, geoBounds, geoCentroid, geoContains, type GeoPermissibleObject
 import { feature } from 'topojson-client'
 import type { GeometryCollection, Topology } from 'topojson-specification'
 import countries50 from 'world-atlas/countries-50m.json' with { type: 'json' }
+import countries110 from 'world-atlas/countries-110m.json' with { type: 'json' }
 
 /**
  * Offline gazetteer: [name, lat, lon, kind, ...aliases], plus every country from Natural Earth.
@@ -668,12 +669,27 @@ export function geolocateAvoiding(avoid: string[], ...texts: (string | undefined
 export const countryOf = (name: string): string | undefined => locByName.get(name)?.country
 
 /** Country (gazetteer name) whose polygon contains a point, if any. */
+// Runtime lookups (every live item, every few minutes) use the 1:110m outlines: ~7x fewer points than
+// the 1:50m ones used once at start-up to assign places, and plenty for "which country is this in".
+const topo110 = countries110 as unknown as Topology<{ countries: GeometryCollection<{ name: string }> }>
+const SHAPES110: Shape[] = feature(topo110, topo110.objects.countries).features.map((f) => {
+  const name = f.properties.name
+  return { id: String(f.id ?? name), name: NE_NAMES[name] ?? name, geo: f as GeoPermissibleObjects, box: geoBounds(f as GeoPermissibleObjects) }
+})
+function shapeAt110(lat: number, lon: number): Shape | undefined {
+  for (const [dx, dy] of [[0, 0], [0.25, 0], [-0.25, 0], [0, 0.25], [0, -0.25]]) {
+    const s = SHAPES110.find((s) => inBox(s, lon + dx, lat + dy) && geoContains(s.geo, [lon + dx, lat + dy]))
+    if (s) return s
+  }
+}
+
 const atCache = new Map<string, string | undefined>()
+/** Country containing a point (cached on a ~1 km grid: ships, aircraft and repeated pins hit the cache). */
 export function countryAt(lat: number, lon: number): string | undefined {
   const k = `${lat.toFixed(2)},${lon.toFixed(2)}`
   if (!atCache.has(k)) {
-    const s = shapeAt(lat, lon)
-    if (atCache.size > 50_000) atCache.clear()
+    const s = shapeAt110(lat, lon)
+    if (atCache.size > 100_000) atCache.clear()
     atCache.set(k, s && (handById.get(s.id) ?? s.name))
   }
   return atCache.get(k)
@@ -686,4 +702,25 @@ export const countryNameForId = (id: string, neName: string): string => handById
 export function centroidOf(name: string): { lat: number; lon: number } | undefined {
   const l = locByName.get(name)
   return l && { lat: l.lat, lon: l.lon }
+}
+
+/** Places and countries whose name or alias matches a query (prefix matches first), for the search box. */
+export function searchPlaces(q: string, limit = 6): { name: string; lat: number; lon: number; kind: Kind; country?: string }[] {
+  const s = q.trim().toLowerCase()
+  if (s.length < 2) return []
+  const seen = new Set<string>()
+  const out: { score: number; e: (typeof LOCS)[number] }[] = []
+  for (const [name, , , , ...aliases] of [...ROWS, ...autoRows]) {
+    const loc = locByName.get(name)
+    if (!loc || seen.has(name)) continue
+    const hit = [name, ...aliases].map((a) => a.toLowerCase()).reduce((best, a) => Math.max(best, a === s ? 3 : a.startsWith(s) ? 2 : a.includes(s) ? 1 : 0), 0)
+    if (hit) {
+      seen.add(name)
+      out.push({ score: hit + (loc.kind === 'country' ? 0.5 : 0), e: loc })
+    }
+  }
+  return out
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ e }) => ({ name: e.name, lat: e.lat, lon: e.lon, kind: e.kind, country: e.country }))
 }

@@ -1,5 +1,5 @@
 import type { Feature } from '../../shared/feature.ts'
-import { loadLayer } from '../core/aggregate.ts'
+import { peekFeatures } from '../core/aggregate.ts'
 import { streamSource } from '../core/hub.ts'
 import type { Provider } from '../core/provider.ts'
 import { snapshotScores } from '../cii/engine.ts'
@@ -16,11 +16,12 @@ import { BLOCS, COUNTRIES, NUCLEAR, SANCTIONED, blocsOf, displayName, findCountr
 let layers: Record<string, Provider[]> = {}
 export const setAtlasLayers = (l: Record<string, Provider[]>) => (layers = l)
 
+/** What a layer already holds; never wakes a layer nobody is viewing (ships, aircraft, markets...). */
 async function features(id: string): Promise<Feature[]> {
   const live = streamSource(id)
   if (live) return live.snapshot().features
   const p = layers[id]
-  return p ? (await loadLayer(id, p).catch(() => ({ features: [] as Feature[] }))).features : []
+  return p ? peekFeatures(p) : []
 }
 
 const cache = new Map<string, { at: number; v: unknown }>()
@@ -41,7 +42,7 @@ const WB = { gdp: 'NY.GDP.MKTP.CD', gdpPc: 'NY.GDP.PCAP.CD', growth: 'NY.GDP.MKT
 /** Latest World Bank values; the Factbook FIPS code is not ISO, so World Bank is queried by country name search once. */
 async function worldBank(name: string) {
   return cached(`wb:${name}`, 24 * 3600_000, async () => {
-    const list = (await (await fetch('https://api.worldbank.org/v2/country?format=json&per_page=400', { signal: AbortSignal.timeout(12_000) })).json()) as [unknown, { id: string; name: string; region: { value: string } }[]]
+    const list = (await cached('wb:list', 7 * 86400_000, async () => (await (await fetch('https://api.worldbank.org/v2/country?format=json&per_page=400', { signal: AbortSignal.timeout(12_000) })).json()) as [unknown, { id: string; name: string; region: { value: string } }[]])) ?? [null, []]
     const n = name.toLowerCase()
     const c = list[1].find((x) => x.name.toLowerCase() === n) ?? list[1].find((x) => x.name.toLowerCase().startsWith(n.split(' ')[0]))
     if (!c) return null
@@ -122,15 +123,19 @@ function relations(c: CountryRecord, conflictHot: Set<string>) {
   return { blocs: [...mine].map((b) => ({ id: b, name: BLOCS[b] })), allies: allies.slice(0, 40), neighbours, dependencies, disputes: c.disputes }
 }
 
+/** Waits at most `ms` for a slow lookup; it keeps running and lands in the cache for the next open. */
+const soon = <T>(p: Promise<T>, ms: number): Promise<T | null> => Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), ms))])
+
 /** Assembles the full country profile. `name` may be a gazetteer, Factbook or shorthand name. */
 export async function countryProfile(name: string) {
   const c = findCountry(name)
   if (!c) return null
   const display = displayName(c.name)
+  // External enrichments never hold the profile up for more than ~1 s.
   const [wb, wiki, fx] = await Promise.all([
-    worldBank(display),
-    wikipedia(c.name === 'West Bank' ? 'State of Palestine' : display),
-    c.currency ? cached('fx', 3600_000, async () => ((await (await fetch('https://open.er-api.com/v6/latest/USD', { signal: AbortSignal.timeout(10_000) })).json()) as { rates: Record<string, number> }).rates) : null,
+    soon(worldBank(display), 1200),
+    soon(wikipedia(c.name === 'West Bank' ? 'State of Palestine' : display), 1200),
+    c.currency ? soon(cached('fx', 3600_000, async () => ((await (await fetch('https://open.er-api.com/v6/latest/USD', { signal: AbortSignal.timeout(10_000) })).json()) as { rates: Record<string, number> }).rates), 1200) : null,
   ])
   const code = c.currency?.match(/\(([A-Z]{3})\)/)?.[1]
   const ciiRow = snapshotScores().countries.find((x) => findCountry(x.country)?.name === c.name)

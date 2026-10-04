@@ -93,7 +93,12 @@ registerStream(LAYER_ID, { snapshot, heartbeat })
 const baselined = new Set<string>()
 
 async function sweep(layers: Record<string, Provider[]>, silent: boolean) {
+  // Only the layers some watch covers, and nothing at all without watches: a sweep must not keep every
+  // data source (satellites, markets, jamming cells...) awake for nobody.
+  if (!watches.length) return
+  const wanted = new Set(watches.flatMap((w) => (w.layers.length ? w.layers : DEFAULT_LAYERS)))
   for (const [id, providers] of Object.entries(layers)) {
+    if (!wanted.has(id)) continue
     const live = streamSource(id)
     const res = live ? live.snapshot() : await loadLayer(id, providers).catch(() => null)
     const features = res?.features ?? []
