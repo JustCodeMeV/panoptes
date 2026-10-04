@@ -19,16 +19,18 @@ export type Network = 'x' | 'tiktok' | 'instagram'
 export type SocialPost = { network: Network; url: string; author: string; text: string; at: number; engagement?: number; media?: string }
 
 // Pay-per-result actors; `estimate` is a conservative per-item price used when the run reports no cost.
-const ACTORS: Record<Network, { id: string; estimate: number; input: (q: string) => Record<string, unknown>; map: (x: Record<string, any>) => SocialPost | null }> = {
+const ACTORS: Record<Network, { id: string; estimate: number; minCap?: number; input: (q: string) => Record<string, unknown>; map: (x: Record<string, any>) => SocialPost | null }> = {
   x: {
     id: 'apidojo~tweet-scraper',
     estimate: 0.0005,
-    input: (q) => ({ searchTerms: [q], maxItems: MAX_ITEMS, sort: 'Latest' }),
+    // Original posts only: replies are mostly noise for an investigation
+    input: (q) => ({ searchTerms: [`${q} -filter:replies`], maxItems: MAX_ITEMS, sort: 'Latest' }),
     map: (t) => (t.url && t.text ? { network: 'x', url: t.url, author: t.author?.userName ?? '?', text: t.text, at: Date.parse(t.createdAt) || Date.now(), engagement: (t.likeCount ?? 0) + (t.retweetCount ?? 0) } : null),
   },
   tiktok: {
     id: 'clockworks~tiktok-scraper',
     estimate: 0.006,
+    minCap: 0.5, // the actor refuses runs whose charge ceiling is under $0.50; maxItems still bounds the real cost (~$0.06)
     input: (q) => ({ searchQueries: [q], resultsPerPage: MAX_ITEMS, searchSection: '/video', shouldDownloadVideos: false, shouldDownloadCovers: false }),
     map: (v) => (v.webVideoUrl ? { network: 'tiktok', url: v.webVideoUrl, author: v.authorMeta?.name ?? '?', text: v.text ?? '', at: Date.parse(v.createTimeISO) || Date.now(), engagement: v.playCount, media: v.videoMeta?.coverUrl } : null),
   },
@@ -52,17 +54,21 @@ export async function socialSearch(network: Network, query: string): Promise<{ p
   const hit = cache.get(key)
   if (hit && Date.now() - hit.at < CACHE_MS) return { posts: hit.posts, status: `${hit.posts.length} ${network} posts (cached, no new spend)` }
   const spent = apifySpent()
-  if (spent + RUN_CAP_USD > BUDGET_USD) return { posts: [], status: `Apify budget reached: $${spent.toFixed(2)} of $${BUDGET_USD.toFixed(2)} spent` }
-  if (apifyRunsSince(new Date(Date.now() - 3600_000).toISOString()) >= RUNS_PER_HOUR) return { posts: [], status: `Apify paused: ${RUNS_PER_HOUR} runs this hour already` }
   const a = ACTORS[network]
+  const cap = Math.max(RUN_CAP_USD, a.minCap ?? 0)
+  if (spent + cap > BUDGET_USD) return { posts: [], status: `Apify budget reached: $${spent.toFixed(2)} of $${BUDGET_USD.toFixed(2)} spent` }
+  if (apifyRunsSince(new Date(Date.now() - 3600_000).toISOString()) >= RUNS_PER_HOUR) return { posts: [], status: `Apify paused: ${RUNS_PER_HOUR} runs this hour already` }
   try {
-    const run = await fetch(`https://api.apify.com/v2/acts/${a.id}/runs?waitForFinish=120&maxItems=${MAX_ITEMS}&maxTotalChargeUsd=${RUN_CAP_USD}`, {
+    const run = await fetch(`https://api.apify.com/v2/acts/${a.id}/runs?waitForFinish=120&maxItems=${MAX_ITEMS}&maxTotalChargeUsd=${cap}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify(a.input(query)),
       signal: AbortSignal.timeout(150_000),
     })
-    if (!run.ok) throw new Error(`HTTP ${run.status} api.apify.com`)
+    if (!run.ok) {
+      const why = ((await run.json().catch(() => ({}))) as { error?: { message?: string } }).error?.message
+      throw new Error(`HTTP ${run.status} api.apify.com${why ? `: ${why.slice(0, 160)}` : ''}`)
+    }
     const r = ((await run.json()) as { data: { defaultDatasetId: string; usageTotalUsd?: number; status: string } }).data
     const items = await fetch(`https://api.apify.com/v2/datasets/${r.defaultDatasetId}/items?clean=1&limit=${MAX_ITEMS}`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) })
     const raw = items.ok ? ((await items.json()) as Record<string, unknown>[]) : []
