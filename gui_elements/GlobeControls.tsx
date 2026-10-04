@@ -125,12 +125,13 @@ export function GlobeControls(p: GlobeControlsProps) {
   return (
     <div className="flex items-center gap-2">
       <Group>
-        <Cell icon="minus" label="Zoom out" onClick={() => p.onZoom(Math.max(min, p.zoom - step))} />
+        {/* Already at an end (the wheel can go past the scale): stay put rather than jump back the other way */}
+        <Cell icon="minus" label="Zoom out" onClick={() => p.zoom > min && p.onZoom(Math.max(min, p.zoom - step))} />
         <ZoomTrack zoom={p.zoom} min={min} max={max} onZoom={p.onZoom} />
         <div className="grid h-10 w-12 flex-none place-items-center border-l border-accent-2/35 font-mono text-[12px] text-accent-2 tabular-nums" title="Zoom: 0% is the whole globe">
           {pct}%
         </div>
-        <Cell icon="plus" label="Zoom in" onClick={() => p.onZoom(Math.min(max, p.zoom + step))} />
+        <Cell icon="plus" label="Zoom in" onClick={() => p.zoom < max && p.onZoom(Math.min(max, p.zoom + step))} />
       </Group>
       <Group>
         <Cell icon="ccw" label="Rotate left" onClick={() => p.onRotate(-1)} />

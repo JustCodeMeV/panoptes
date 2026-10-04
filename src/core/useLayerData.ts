@@ -3,6 +3,10 @@ import { LAYERS } from '../layers'
 import { useStore } from './store'
 import { LIVE_EVENT_TYPES, type LiveEvent } from '../../shared/live'
 import type { LayerResponse } from '../../shared/feature'
+import type { LayerDef } from './types'
+
+/** How often a polled layer refetches, or null for "fetch once" (`refreshMs: 0`, e.g. the client-only atlas). */
+export const pollEvery = (def: Pick<LayerDef, 'refreshMs'>): number | null => (def.refreshMs > 0 ? def.refreshMs : null)
 
 /**
  * Keeps every enabled layer fresh. Polled layers refetch on an interval;
@@ -57,7 +61,9 @@ export function useLayerData() {
         }
       }
       void load()
-      const timer = window.setInterval(load, def.refreshMs)
+      // setInterval(fn, 0) would refetch every few milliseconds, forever
+      const every = pollEvery(def)
+      const timer = every ? window.setInterval(load, every) : 0
       cleanups.push(() => {
         ac.abort()
         clearInterval(timer)

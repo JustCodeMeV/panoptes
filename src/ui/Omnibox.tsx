@@ -58,7 +58,7 @@ export function Omnibox({ query, setQuery }: { query: string; setQuery: (q: stri
           label: p.name,
           sub: country ? 'open the atlas' : [p.kind, p.country].filter(Boolean).join(' · '),
           go: () => {
-            if (country) void import('../core/atlas').then((m) => m.openCountry(p.name))
+            if (country) void import('../core/atlas').then((m) => m.openCountry(p.name, { lat: p.lat, lon: p.lon }))
             else flyTo(p.lat, p.lon)
             done()
           },

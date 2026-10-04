@@ -22,6 +22,7 @@ import { NetworkView } from './NetworkGraph'
 import { Omnibox } from './Omnibox'
 import { matchesQuery } from '../core/search'
 import { useShell, type PanelBox } from './shell'
+import { useEscape } from './useEscape'
 import { ago, useNow } from './useNow'
 
 const DARK_SIDE = 'dark-side'
@@ -102,6 +103,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
   const now = useNow(1000)
   const [query, setQuery] = useState('')
   const [net, setNet] = useState<false | 'flagged' | 'all'>(false)
+  useEscape(!!net, () => setNet(false))
   const q = query.trim().toLowerCase()
   const darkSide = useGlobeUi((s) => s.darkSide)
   const toggleDarkSide = useGlobeUi((s) => s.toggleDarkSide)

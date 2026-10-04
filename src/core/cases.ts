@@ -20,6 +20,12 @@ type S = {
 
 const j = (method: string, body?: unknown): RequestInit => ({ method, headers: { 'content-type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
 
+/** The server's reason for a failed request (its JSON `error`), or the HTTP status. */
+async function failure(r: Response): Promise<Error> {
+  const j = (await r.json().catch(() => null)) as { error?: string } | null
+  return new Error(j?.error ?? `HTTP ${r.status}`)
+}
+
 async function getJson<T>(url: string): Promise<T> {
   const r = await fetch(url)
   if (!r.ok) throw new Error(`HTTP ${r.status}`)
@@ -39,7 +45,9 @@ export const useCases = create<S>((set, get) => ({
     set({ open: activeId ? await getJson<CaseFull>(`/api/cases/${activeId}`).catch(() => null) : null })
   },
   create: async (title) => {
-    const c = (await (await fetch('/api/cases', j('POST', { title }))).json()) as CaseRow
+    const r = await fetch('/api/cases', j('POST', { title }))
+    if (!r.ok) throw await failure(r)
+    const c = (await r.json()) as CaseRow
     localStorage.setItem('panoptes.case', String(c.id))
     set({ activeId: c.id })
     await get().refresh()
@@ -50,13 +58,19 @@ export const useCases = create<S>((set, get) => ({
     await get().refresh()
   },
   add: async (feature) => {
-    let id = get().activeId
-    if (!id) {
-      await get().create('Untitled case')
-      id = get().activeId
+    // The button shows the outcome: never "saved" unless the server stored it
+    try {
+      let id = get().activeId
+      if (!id) {
+        await get().create('Untitled case')
+        id = get().activeId
+      }
+      const r = await fetch(`/api/cases/${id}/items`, j('POST', { feature }))
+      if (!r.ok) throw await failure(r)
+      set({ toast: 'Saved to case' })
+    } catch (e) {
+      set({ toast: `Not saved: ${e instanceof Error && e.message !== 'Failed to fetch' ? e.message : 'server unreachable'}` })
     }
-    await fetch(`/api/cases/${id}/items`, j('POST', { feature }))
-    set({ toast: 'Saved to case' })
     setTimeout(() => set({ toast: undefined }), 2000)
     await get().refresh()
   },

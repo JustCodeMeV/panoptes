@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Button } from '../../gui_elements/Button'
 import { durationMs } from '../../gui_elements/catalog'
 import { Dock, FoldBody, Header } from '../../gui_elements/Composites'
@@ -61,6 +61,20 @@ function XSecondOpinion({ storyId }: { storyId: string }) {
   )
 }
 
+/** A detail view that throws (unexpected live data) shows a note instead of blanking the whole app. */
+class DetailGuard extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  componentDidCatch(error: unknown) {
+    console.error('[argus] detail view failed', error)
+  }
+  render() {
+    return this.state.failed ? <p className="t-caption text-dim">Couldn't display this item.</p> : this.props.children
+  }
+}
+
 /** The open story: its layer's detail view, the stack chooser for co-located items, and "Add to case". */
 function Story() {
   const feature = useSelected()
@@ -106,7 +120,9 @@ function Story() {
           </Button>
         </div>
         <div className="mt-3">
-          <Detail feature={feature} select={select} />
+          <DetailGuard key={feature.id}>
+            <Detail feature={feature} select={select} />
+          </DetailGuard>
         </div>
       </Dock>
     </div>
@@ -125,14 +141,19 @@ export function AnalysisPanel({ box }: { box: PanelBox }) {
   const [feedOpen, setFeedOpen] = useState(true)
   const story = useRef<HTMLDivElement>(null)
   const selectedId = useSelected()?.id
+  // One pending second step at a time: a quick double-click must not leave the panel open with
+  // the globe laid out as if it were closed (or the reverse)
+  const step = useRef(0)
 
   const minimise = () => {
+    clearTimeout(step.current)
     setShell({ rightMin: true })
-    setTimeout(() => setShell({ toolOut: true }), dur)
+    step.current = window.setTimeout(() => setShell({ toolOut: true }), dur)
   }
   const restore = () => {
+    clearTimeout(step.current)
     setShell({ toolOut: false })
-    setTimeout(() => setShell({ rightMin: false }), dur)
+    step.current = window.setTimeout(() => setShell({ rightMin: false }), dur)
   }
 
   // Opening a story brings the panel back if minimised, and scrolls the story into view

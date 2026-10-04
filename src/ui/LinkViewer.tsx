@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { embedFor, useLinkViewer } from '../core/linkViewer'
+import { useEscape } from './useEscape'
 
 type Reader = { url: string; framable: boolean; title?: string; site?: string; image?: string; text?: string; error?: string }
 
@@ -16,6 +17,7 @@ export function LinkViewer() {
   const [pos, setPos] = useState({ x: 0, y: 0 })
   const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null)
   const embed = url ? embedFor(url) : null
+  useEscape(!!url, close)
 
   useEffect(() => {
     if (!url || embed) return
