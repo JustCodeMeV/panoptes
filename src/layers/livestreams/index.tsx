@@ -3,7 +3,7 @@ import { LivestreamDetail } from './Detail'
 
 export const livestreams: LayerDef = {
   id: 'livestreams',
-  label: 'Live streams',
+  label: 'Live Streams',
   description: 'Social-media livestreams tied to unrest, protests and breaking events.',
   color: '#ff3b47',
   refreshMs: 60_000,

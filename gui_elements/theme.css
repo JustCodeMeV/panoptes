@@ -1,9 +1,9 @@
 /*
- * ATLAS design tokens and component styles. Import after Tailwind:
+ * ARGUS design tokens and component styles. Import after Tailwind:
  *   @import "tailwindcss";
  *   @import "../gui_elements/theme.css";
  *
- * The values below are defaults only. <AtlasTheme> sets every token from design.ts at runtime,
+ * The values below are defaults only. <ArgusTheme> sets every token from design.ts at runtime,
  * so change the design in design.ts (or export it from the canvas), not here.
  */
 @import "./styles.css";
@@ -71,7 +71,7 @@
   font-weight: var(--title-weight);
 }
 
-/* The Atlas chamfer: top-left and bottom-right corners cut at 45° */
+/* The Argus chamfer: top-left and bottom-right corners cut at 45° */
 @utility chamfer {
   clip-path: polygon(
     var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)),

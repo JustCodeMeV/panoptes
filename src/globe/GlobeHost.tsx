@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Cartesian3, Color, ImageryLayer, JulianDate, UrlTemplateImageryProvider, Viewer } from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import { COLOURS } from '../../gui_elements/catalog'
-import { useAtlasControls } from '../../gui_elements/context'
+import { useArgusControls } from '../../gui_elements/context'
 import { useGlobeUi } from './globeUi'
 import { attachSky } from './sky'
 import { ViewerContext } from './viewerContext'
@@ -20,7 +20,7 @@ function wireStyle(accent: Color, satellite: boolean): WireStyle {
 
 /**
  * Owns the Cesium Viewer; children (layer renderers, overlays) get it via context.
- * Styled to the ATLAS design: a dark wireframe globe (coastlines, borders, graticule) in the
+ * Styled to the ARGUS design: a dark wireframe globe (coastlines, borders, graticule) in the
  * scheme's accent, with satellite imagery and the night sky switchable from the globe controls.
  * `satellite` / `sky` force a view (the landing page) instead of following the controls.
  */
@@ -30,12 +30,15 @@ export function GlobeHost({
   satellite: forceSatellite,
   sky: forceSky,
   darkSide: forceDarkSide,
+  wireframe = true,
 }: {
   children?: ReactNode
   className?: string
   satellite?: boolean
   sky?: boolean
   darkSide?: boolean
+  /** Borders, coastlines and grid lines (off for the landing page's photographic view). */
+  wireframe?: boolean
 }) {
   const el = useRef<HTMLDivElement>(null)
   const [viewer, setViewer] = useState<Viewer | null>(null)
@@ -43,7 +46,9 @@ export function GlobeHost({
   const viewerRef = useRef<Viewer | null>(null)
   const imagery = useRef<ImageryLayer | null>(null)
   const wire = useRef<Wireframe | null>(null)
-  const controls = useAtlasControls()
+  // Fixed for the viewer's lifetime (read once when it is created)
+  const withWireframe = useRef(wireframe)
+  const controls = useArgusControls()
   const { colour } = controls
   const satellite = forceSatellite ?? controls.satellite
   const skyToggle = useGlobeUi((s) => s.sky)
@@ -92,10 +97,10 @@ export function GlobeHost({
     v.scene.globe.nightFadeInDistance = 1e10
 
     // Wireframe: detail rises as the camera comes down
-    const wf = new Wireframe(v.scene, wireStyle(Color.WHITE, false))
+    const wf = withWireframe.current ? new Wireframe(v.scene, wireStyle(Color.WHITE, false)) : null
     wire.current = wf
-    const lod = () => wf.update(v.camera.positionCartographic.height, v.camera.computeViewRectangle())
-    const offLod = [v.camera.changed.addEventListener(lod), v.camera.moveEnd.addEventListener(lod)]
+    const lod = () => wf?.update(v.camera.positionCartographic.height, v.camera.computeViewRectangle())
+    const offLod = wf ? [v.camera.changed.addEventListener(lod), v.camera.moveEnd.addEventListener(lod)] : []
     lod()
 
     // Clean HUD look: no stars, sun or moon until the sky is switched on
@@ -127,7 +132,7 @@ export function GlobeHost({
       viewerRef.current = null
       setViewer(null)
       offLod.forEach((off) => off())
-      wf.destroy()
+      wf?.destroy()
       wire.current = null
       imagery.current = null
       night.current = null
@@ -141,7 +146,7 @@ export function GlobeHost({
   // Colour scheme and satellite / wireframe view
   useEffect(() => {
     const v = viewerRef.current
-    if (!v || !viewer || !wire.current) return
+    if (!v || !viewer) return
     const c = COLOURS[colour]
     const accent = Color.fromCssColorString(c.accent2)
     const scene = v.scene
@@ -154,7 +159,7 @@ export function GlobeHost({
     scene.backgroundColor = Color.fromCssColorString(c.bg)
     scene.globe.showGroundAtmosphere = satellite
     if (scene.skyAtmosphere) scene.skyAtmosphere.show = satellite
-    wire.current.setStyle(wireStyle(accent, satellite))
+    wire.current?.setStyle(wireStyle(accent, satellite))
     scene.requestRender()
   }, [viewer, colour, satellite])
 

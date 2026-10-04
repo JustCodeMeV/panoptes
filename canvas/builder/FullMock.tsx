@@ -1,4 +1,4 @@
-// Full-screen ATLAS prototype built from one box's design: layout, panels, globe, dock, motion.
+// Full-screen ARGUS prototype built from one box's design: layout, panels, globe, dock, motion.
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useDesign } from '../../gui_elements/context'
 import { MOTIONS } from '../../gui_elements/catalog'

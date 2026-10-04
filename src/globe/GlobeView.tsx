@@ -2,6 +2,7 @@ import { LAYERS } from '../layers'
 import { GlobeHost } from './GlobeHost'
 import { GlobeOverlay } from './GlobeOverlay'
 import { LayerRenderer } from './LayerRenderer'
+import { IntroZoom } from './IntroZoom'
 import { PinSpider } from './PinSpider'
 import { SelectionFx } from './SelectionFx'
 import { WatchCircles } from './WatchCircles'
@@ -12,6 +13,7 @@ export default function GlobeView() {
     <GlobeHost className="app-globe">
       <LayerRenderer layers={LAYERS} />
       <WatchCircles />
+      <IntroZoom />
       <SelectionFx />
       <PinSpider />
       <GlobeOverlay />

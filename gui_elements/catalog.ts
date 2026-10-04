@@ -1,4 +1,4 @@
-// Every design option for ATLAS. A Design picks one index per category; design.ts holds the chosen one.
+// Every design option for ARGUS. A Design picks one index per category; design.ts holds the chosen one.
 import type { CSSProperties } from 'react'
 
 type TitleFont = { name: string; family: string; track: string; weight: number }
@@ -316,7 +316,7 @@ export const CATEGORIES = [
 export type Category = (typeof CATEGORIES)[number]['key']
 export type Design = Record<Category, number>
 
-/** Design → CSS custom properties. AtlasTheme puts these on its wrapper. */
+/** Design → CSS custom properties. ArgusTheme puts these on its wrapper. */
 export function designVars(d: Design): CSSProperties {
   const t = TITLE_FONTS[d.title]
   const sf = SUB_FONTS[d.sub]

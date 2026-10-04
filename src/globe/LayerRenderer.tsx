@@ -10,13 +10,10 @@ import {
   CustomDataSource,
   Entity,
   HeadingPitchRange,
-  HeightReference,
-  NearFarScalar,
   PolygonHierarchy,
   SceneTransforms,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-  VerticalOrigin,
   defined,
   type Viewer,
 } from 'cesium'
@@ -26,23 +23,9 @@ import { featuresOf, useStore } from '../core/store'
 import { FLIGHTS } from '../../gui_elements/flights'
 import { useDesign } from '../../gui_elements/context'
 import { SPIDER_MAX, useGlobeUi } from './globeUi'
-import { clusterImage, pinImage } from './pins'
+import { pinImage } from './pins'
+import { PinLayer, type Pin } from './pinLayer'
 import { useViewer } from './viewerContext'
-
-/** A cluster takes the colour most of its pins share. */
-function clusterColor(members: Entity[], byId: Map<string, { feature: Feature; def: LayerDef }>): string {
-  const votes = new Map<string, number>()
-  for (const e of members) {
-    const hit = byId.get(e.id)
-    if (!hit) continue
-    const c = hit.def.pin(hit.feature).color ?? hit.def.color
-    votes.set(c, (votes.get(c) ?? 0) + 1)
-  }
-  let best = '#7fd1ff'
-  let n = 0
-  for (const [c, v] of votes) if (v > n) [best, n] = [c, v]
-  return best
-}
 
 /**
  * Adds a DataSource and returns its remover. Cesium adds asynchronously, so a remove that runs
@@ -58,19 +41,6 @@ function attachSource(viewer: Viewer, ds: CustomDataSource): () => void {
     live = false
     if (!viewer.isDestroyed() && viewer.dataSources.contains(ds)) viewer.dataSources.remove(ds, true)
   }
-}
-
-// Mean Earth radius: the horizon test below only needs to be right to a few km at the limb
-const EARTH_R = 6_371_000
-
-/**
- * Distance from the camera to its horizon. Everything on the visible side of the Earth is closer
- * than this, everything behind it is farther: pins skip the depth test only within it, so they
- * draw whole on the near side and the globe hides them on the far side.
- */
-function horizonDistance(viewer: Viewer): number {
-  const d = Cartesian3.magnitude(viewer.camera.positionWC)
-  return Math.sqrt(Math.max(0, d * d - EARTH_R * EARTH_R))
 }
 
 const ring = (r: number[][]) => Cartesian3.fromDegreesArray(r.flatMap(([lon, lat]) => [lon, lat]))
@@ -113,8 +83,8 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
   const viewer = useViewer()!
   const sources = useRef(new Map<string, CustomDataSource>())
   const featureById = useRef(new Map<string, { feature: Feature; def: LayerDef }>())
-  // Last applied look+position per pin: live events re-run sync, but only changed pins are touched.
-  const pinSig = useRef(new Map<string, string>())
+  // Last applied look per shape: live events re-run sync, but only changed shapes are rebuilt.
+  const shapeSig = useRef(new Map<string, string>())
   // Camera flight time follows the design's fly-to feel
   const flight = FLIGHTS[useDesign().flyto]
   const flightSeconds = useRef(flight.dur / 1000)
@@ -122,45 +92,14 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
     flightSeconds.current = flight.dur / 1000
   }, [flight])
 
-  // All pins share one clustered DataSource, so pins from different layers on the same spot
-  // merge into one count instead of fighting for the same pixels. Shapes (frontlines,
-  // jamming cells, cables) get a DataSource per layer, unclustered.
-  const pins = useRef<CustomDataSource | null>(null)
+  // Pins and their count tags live in their own engine (see pinLayer.ts): grouped on the globe
+  // so they stay still while it turns. Shapes (frontlines, jamming cells, cables) get a
+  // DataSource per layer.
+  const pins = useRef<PinLayer | null>(null)
   useEffect(() => {
-    const ds = new CustomDataSource('pins')
-    ds.clustering.enabled = true
-    ds.clustering.pixelRange = 30
-    ds.clustering.minimumClusterSize = 2
-    ds.clustering.clusterEvent.addEventListener((members, cluster) => {
-      cluster.label.show = false
-      cluster.billboard.show = true
-      // Cesium leaves this undefined; picking needs it to fan out or zoom into the cluster.
-      cluster.billboard.id = members
-      cluster.billboard.image = clusterImage(clusterColor(members, featureById.current), members.length)
-      cluster.billboard.verticalOrigin = VerticalOrigin.CENTER
-      cluster.billboard.disableDepthTestDistance = horizonDistance(viewer)
-      // Images are drawn at 2× for sharpness
-      cluster.billboard.scale = 0.5
-    })
-    const detach = [attachSource(viewer, ds)]
-    pins.current = ds
-
-    // Cesium regroups clusters (and re-decides which pins are behind the Earth) only on its own
-    // "camera changed" events, which a slow steady turn like auto-rotate barely triggers: pins
-    // coming round from the far side stayed hidden. Regroup whenever the camera has moved, at
-    // most ~6 times a second. (Nudging pixelRange is the public way to mark clustering dirty.)
-    const RANGE = 30
-    let lastAt = 0
-    const lastPos = new Cartesian3()
-    const offRegroup = viewer.scene.postRender.addEventListener(() => {
-      const now = performance.now()
-      const pos = viewer.camera.positionWC
-      if (now - lastAt < 160 || Cartesian3.equalsEpsilon(pos, lastPos, 0, 1)) return
-      lastAt = now
-      Cartesian3.clone(pos, lastPos)
-      ds.clustering.pixelRange = ds.clustering.pixelRange === RANGE ? RANGE + 0.01 : RANGE
-    })
-
+    const layer = new PinLayer(viewer)
+    pins.current = layer
+    const detach: (() => void)[] = []
     for (const def of layers) {
       const shapes = new CustomDataSource(def.id)
       detach.push(attachSource(viewer, shapes))
@@ -168,29 +107,28 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
     }
     const src = sources.current
     return () => {
-      offRegroup()
       detach.forEach((off) => off())
       src.clear()
+      layer.destroy()
       pins.current = null
     }
   }, [viewer, layers])
 
   // Sync entities with store state (diffed by feature id).
   useEffect(() => {
-    // Re-read every frame, so pins pass behind the Earth as the globe turns
-    const horizon = new CallbackProperty(() => horizonDistance(viewer), false)
     /** Returns true when anything on the globe changed (so a render is worth requesting). */
+    let lastSelected: string | null = null
     const sync = (): boolean => {
       let changed = false
       const { layers: state, selectedId } = useStore.getState()
-      const pinDs = pins.current
-      if (!pinDs) return false
-      const wantPins = new Set<string>()
+      const pinLayer = pins.current
+      if (!pinLayer) return false
+      const list: Pin[] = []
       for (const def of layers) {
         const ds = sources.current.get(def.id)
         if (!ds) continue
         const ls = state[def.id]
-        // Each layer's own switch shows or hides its shapes (e.g. submarine cables)
+        // Each layer's own switch shows or hides its shapes (e.g. deep sea cables)
         const show = ls.enabled
         if (ds.show !== show) {
           ds.show = show
@@ -201,7 +139,7 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
         for (const e of [...ds.entities.values])
           if (!wantShapes.has(e.id.split('#')[0])) {
             ds.entities.remove(e)
-            pinSig.current.delete(e.id)
+            shapeSig.current.delete(e.id)
             changed = true
           }
         for (const f of features) {
@@ -209,52 +147,33 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
           // Shapes (frontlines, jamming cells, cables) are drawn as geometry, never as pins.
           if (f.geometry) {
             // Restyle when the layer's look for it changes (e.g. an index score moving up a band).
-            const sig = `shape|${JSON.stringify(def.shape?.(f) ?? {})}`
+            const sig = JSON.stringify(def.shape?.(f) ?? {})
             const had = ds.entities.getById(f.id)
-            if (had && pinSig.current.get(f.id) === sig) continue
+            if (had && shapeSig.current.get(f.id) === sig) continue
             if (had) for (const e of [...ds.entities.values]) if (e.id === f.id || e.id.startsWith(`${f.id}#`)) ds.entities.remove(e)
             addShape(ds, f, def)
-            pinSig.current.set(f.id, sig)
+            shapeSig.current.set(f.id, sig)
             changed = true
             continue
           }
-          if (!f.position) continue
-          // A disabled layer's pins leave the shared source, so they never join a cluster
-          if (!ls.enabled) continue
-          wantPins.add(f.id)
+          if (!f.position || !ls.enabled) continue
           const selected = f.id === selectedId
           const style = def.pin(f)
-          const size = style.size + (selected ? 10 : 0)
-          const sig = `pin|${style.color ?? def.color}|${size}|${f.geoPrecision}|${selected}|${style.glyph}|${f.position.lon}|${f.position.lat}`
-          if (pinSig.current.get(f.id) === sig && pinDs.entities.getById(f.id)) continue
-          pinSig.current.set(f.id, sig)
-          changed = true
-          const position = Cartesian3.fromDegrees(f.position.lon, f.position.lat)
-          const billboard = {
-            image: pinImage(style.color ?? def.color, size, f.geoPrecision, selected, style.glyph),
-            verticalOrigin: VerticalOrigin.CENTER,
-            heightReference: HeightReference.NONE,
-            disableDepthTestDistance: horizon,
-            scaleByDistance: new NearFarScalar(2e5, 1.2, 2e7, 0.75),
-            pixelOffset: new Cartesian2(0, 0),
-            // Images are drawn at 2× for sharpness
-            scale: 0.6,
-          }
-          const existing = pinDs.entities.getById(f.id)
-          if (existing) {
-            existing.position = position as never
-            Object.assign(existing.billboard!, billboard)
-          } else {
-            pinDs.entities.add(new Entity({ id: f.id, position, billboard }))
-          }
+          const color = style.color ?? def.color
+          list.push({
+            id: f.id,
+            lon: f.position.lon,
+            lat: f.position.lat,
+            color,
+            image: pinImage(color, style.size + (selected ? 10 : 0), f.geoPrecision, selected, style.glyph),
+            // The open story always anchors its group, then each layer's own ranking
+            rank: (selected ? 1e9 : 0) + (def.rank?.(f) ?? 0),
+          })
         }
       }
-      for (const e of [...pinDs.entities.values])
-        if (!wantPins.has(e.id)) {
-          pinDs.entities.remove(e)
-          pinSig.current.delete(e.id)
-          changed = true
-        }
+      // A new selection shows at once; data changes regroup after a short pause
+      pinLayer.setPins(list, selectedId !== lastSelected)
+      lastSelected = selectedId
       return changed
     }
     // With render-on-demand, one frame isn't enough after a change: pin images load
@@ -380,9 +299,13 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
   useEffect(() => {
     if (!interactive) return
     const handler = new ScreenSpaceEventHandler(viewer.scene.canvas)
-    /** Fans a small cluster out around its centre. False when it's too big to fan. */
-    const fan = (picked: { id: Entity[]; primitive: Billboard }) => {
-      const ids = picked.id.map((e) => e.id as string).filter((id) => featureById.current.has(id))
+    // Pins pick as their feature id, count tags as the list of ids they hold
+    const idsOf = (picked: unknown): string[] | null => {
+      const id = (picked as { id?: unknown } | undefined)?.id
+      return Array.isArray(id) && id.every((x) => typeof x === 'string') ? (id as string[]).filter((x) => featureById.current.has(x)) : null
+    }
+    /** Fans a small group out around its tag. False when it's too big to fan. */
+    const fan = (picked: { primitive: Billboard }, ids: string[]) => {
       if (ids.length < 2 || ids.length > SPIDER_MAX) return false
       const xy = SceneTransforms.worldToWindowCoordinates(viewer.scene, picked.primitive.position)
       if (!xy) return false
@@ -393,27 +316,20 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
     }
     handler.setInputAction((click: { position: Cartesian2 }) => {
       const picked = viewer.scene.pick(click.position)
-      // Touch has no hover: a tap fans a small cluster out
-      if (defined(picked) && Array.isArray(picked.id) && fan(picked)) return
-      // Cluster billboards pick as an array of the entities they contain: zoom in.
-      if (defined(picked) && Array.isArray(picked.id)) {
-        const pts = (picked.id as Entity[])
-          .map((e) => e.position?.getValue(viewer.clock.currentTime))
-          .filter((p): p is Cartesian3 => !!p)
+      const group = defined(picked) ? idsOf(picked) : null
+      // Touch has no hover: a tap fans a small group out
+      if (group && fan(picked, group)) return
+      // Bigger groups: zoom in, or offer a chooser when they share one spot
+      if (group) {
+        const pts = group.map((id) => featureById.current.get(id)!.feature.position).filter((p) => !!p).map((p) => Cartesian3.fromDegrees(p!.lon, p!.lat))
         if (pts.length) {
           const sphere = BoundingSphere.fromPoints(pts)
-          // Co-located features can never be separated by zooming: offer a chooser instead.
           if (sphere.radius < 500) {
-            const ids = (picked.id as Entity[])
-              .map((e) => e.id as string)
-              .filter((id) => featureById.current.has(id))
-              .sort((a, b) => {
-                const fa = featureById.current.get(a)!
-                const fb = featureById.current.get(b)!
-                const rank = (x: typeof fa) => x.def.rank?.(x.feature) ?? 0
-                return rank(fb) - rank(fa)
-              })
-            useStore.getState().openStack(ids)
+            const rank = (id: string) => {
+              const x = featureById.current.get(id)!
+              return x.def.rank?.(x.feature) ?? 0
+            }
+            useStore.getState().openStack([...group].sort((a, b) => rank(b) - rank(a)))
             return
           }
           viewer.camera.flyToBoundingSphere(sphere, {
@@ -423,7 +339,8 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
         }
         return
       }
-      const id = defined(picked) && picked.id instanceof Entity ? (picked.id.id as string).split('#')[0] : null
+      const raw = defined(picked) ? (picked.id instanceof Entity ? (picked.id.id as string) : typeof picked.id === 'string' ? picked.id : null) : null
+      const id = raw?.split('#')[0]
       if (id && featureById.current.has(id)) {
         useStore.getState().select(id)
       } else if (!defined(picked)) {
@@ -442,9 +359,10 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
       if (moving || now - lastPick < 120) return
       lastPick = now
       const p = viewer.scene.pick(move.endPosition)
-      const cluster = defined(p) && Array.isArray(p.id)
-      if (cluster) fan(p)
-      viewer.scene.canvas.style.cursor = defined(p) && (cluster || p.id instanceof Entity) ? 'pointer' : 'default'
+      const group = defined(p) ? idsOf(p) : null
+      if (group) fan(p, group)
+      const pin = defined(p) && typeof p.id === 'string' && featureById.current.has(p.id)
+      viewer.scene.canvas.style.cursor = defined(p) && (group || pin || p.id instanceof Entity) ? 'pointer' : 'default'
     }, ScreenSpaceEventType.MOUSE_MOVE)
     return () => {
       viewer.camera.moveStart.removeEventListener(onStart)

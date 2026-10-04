@@ -17,7 +17,8 @@ import { cii } from './cii'
 import { trends } from './trends'
 import { satellites } from './satellites'
 import { ships } from './ships'
+import { x } from './x'
 import { events } from './events'
 
 /** CLIENT LAYER REGISTRY. One line per layer. */
-export const LAYERS: LayerDef[] = [watch, events, cii, campaigns, unrest, news, telegram, markets, trends, acled, osint, gnss, militaryAir, satellites, ships, frontlines, infrastructure, livestreams, narratives]
+export const LAYERS: LayerDef[] = [watch, events, cii, campaigns, unrest, news, telegram, markets, trends, acled, osint, gnss, militaryAir, satellites, ships, frontlines, infrastructure, livestreams, narratives, x]

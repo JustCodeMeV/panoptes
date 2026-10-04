@@ -5,6 +5,7 @@ import { Fold } from '../../gui_elements/Composites'
 import { Button } from '../../gui_elements/Button'
 import { IconButton, Select, TextField } from '../../gui_elements/Controls'
 import { useCases } from '../core/cases'
+import { downloadCasePdf } from './casePdf'
 import { useStore } from '../core/store'
 
 /** Case file: frozen evidence snapshots with analyst notes; export as JSON. */
@@ -12,6 +13,7 @@ export function CasePanel() {
   const { cases, activeId, open, refresh, create, setActive, setNote, remove } = useCases()
   const select = useStore((s) => s.select)
   const [title, setTitle] = useState('')
+  const [pdfBusy, setPdfBusy] = useState(false)
   useEffect(() => void refresh(), [refresh])
 
   return (
@@ -30,11 +32,24 @@ export function CasePanel() {
             </Select>
           </div>
           {activeId && (
-            <a className="sub t-label text-accent-2" href={`/api/cases/${activeId}/export`} download>
-              Export
+            <a className="sub t-label text-accent-2" href={`/api/cases/${activeId}/export`} download title="Raw case data as JSON">
+              JSON
             </a>
           )}
         </div>
+        {open && (
+          <Button
+            variant="secondary"
+            className="w-full"
+            loading={pdfBusy}
+            onClick={() => {
+              setPdfBusy(true)
+              void downloadCasePdf(open).finally(() => setPdfBusy(false))
+            }}
+          >
+            Output case to PDF
+          </Button>
+        )}
         <form
           className="flex items-center gap-2"
           onSubmit={(e) => {

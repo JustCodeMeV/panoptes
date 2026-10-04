@@ -19,7 +19,7 @@ const str = (pts: Pt[]) => pts.map(([x, y]) => `${x},${y}`).join(' ')
 export function Panel({
   className = '',
   children,
-  label = 'ATLAS // SYS-01',
+  label = 'ARGUS // SYS-01',
   onMinimize,
   minimized = false,
   ...props

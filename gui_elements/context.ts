@@ -7,7 +7,7 @@ export const DesignContext = createContext<Design>(DESIGN)
 /** The active design; components use it to pick their variant. */
 export const useDesign = () => useContext(DesignContext)
 
-export type AtlasControls = {
+export type ArgusControls = {
   /** Active colour scheme (index into catalog.COLOURS). Users can switch it from inside the app. */
   colour: number
   setColour: (i: number) => void
@@ -16,7 +16,7 @@ export type AtlasControls = {
   setSatellite: (on: boolean) => void
 }
 
-export const ControlsContext = createContext<AtlasControls>({ colour: DESIGN.colour, setColour: () => {}, satellite: false, setSatellite: () => {} })
+export const ControlsContext = createContext<ArgusControls>({ colour: DESIGN.colour, setColour: () => {}, satellite: false, setSatellite: () => {} })
 
 /** Runtime view controls (colour scheme, satellite view) shared by the whole interface. */
-export const useAtlasControls = () => useContext(ControlsContext)
+export const useArgusControls = () => useContext(ControlsContext)

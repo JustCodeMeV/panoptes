@@ -25,7 +25,7 @@ const distanceFor = (zoom: number) => 1.225e8 / 2 ** zoom
 const ALWAYS_ON_TOP = Number.POSITIVE_INFINITY
 
 const cssVar = (name: string, fallback: string) => {
-  const root = document.querySelector('.atlas')
+  const root = document.querySelector('.argus')
   return (root && getComputedStyle(root).getPropertyValue(name).trim()) || fallback
 }
 
@@ -39,6 +39,9 @@ export function attachPlaces(viewer: Viewer): () => void {
   const dots = new PointPrimitiveCollection()
   viewer.scene.primitives.add(dots)
   viewer.scene.primitives.add(labels)
+  // Under everything else, so pins and their count tags always sit on top of place names
+  viewer.scene.primitives.lowerToBottom(labels)
+  viewer.scene.primitives.lowerToBottom(dots)
   const placed: { normal: Cartesian3; items: { show: boolean }[] }[] = []
 
   // A place is on the near side when the camera is above its horizon plane
@@ -76,10 +79,10 @@ export function attachPlaces(viewer: Viewer): () => void {
         const label = labels.add({
           position: Cartesian3.fromDegrees(lon, lat),
           text: tracked(name),
-          font: `600 13px ${sub}`,
+          font: `600 24px ${sub}`,
           fillColor: dim,
           outlineColor: outline,
-          outlineWidth: 3,
+          outlineWidth: 5,
           style: LabelStyle.FILL_AND_OUTLINE,
           horizontalOrigin: HorizontalOrigin.CENTER,
           verticalOrigin: VerticalOrigin.CENTER,
@@ -94,10 +97,10 @@ export function attachPlaces(viewer: Viewer): () => void {
         const at = shown(zoom)
         const dot = dots.add({
           position,
-          pixelSize: capital ? 6 : 4.5,
+          pixelSize: capital ? 10 : 8,
           color: capital ? ink : ink.withAlpha(0.8),
           outlineColor: capital ? outline : Color.TRANSPARENT,
-          outlineWidth: capital ? 1.5 : 0,
+          outlineWidth: capital ? 2 : 0,
           distanceDisplayCondition: at.distanceDisplayCondition,
           translucencyByDistance: at.translucencyByDistance,
           disableDepthTestDistance: ALWAYS_ON_TOP,
@@ -105,21 +108,28 @@ export function attachPlaces(viewer: Viewer): () => void {
         const label = labels.add({
           position,
           text: name,
-          font: `${capital ? 600 : 500} 14px ${main}`,
+          font: `${capital ? 600 : 500} 26px ${main}`,
           fillColor: capital ? ink : ink.withAlpha(0.85),
           outlineColor: outline,
-          outlineWidth: 3,
+          outlineWidth: 5,
           style: LabelStyle.FILL_AND_OUTLINE,
           horizontalOrigin: HorizontalOrigin.LEFT,
           verticalOrigin: VerticalOrigin.CENTER,
-          pixelOffset: new Cartesian2(8, 0),
+          pixelOffset: new Cartesian2(13, 0),
           disableDepthTestDistance: ALWAYS_ON_TOP,
           ...at,
         })
         placed.push({ normal: Cartesian3.normalize(position, new Cartesian3()), items: [label, dot] })
       }
       cull()
-      viewer.scene.requestRender()
+      // Label glyphs are drawn over the next few frames: keep frames coming until they're in
+      const until = performance.now() + 1500
+      const frame = () => {
+        if (cancelled || viewer.isDestroyed()) return
+        viewer.scene.requestRender()
+        if (performance.now() < until) requestAnimationFrame(frame)
+      }
+      frame()
     })
 
   return () => {

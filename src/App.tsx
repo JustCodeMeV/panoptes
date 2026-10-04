@@ -7,6 +7,7 @@ import { AnalysisPanel } from './ui/AnalysisPanel'
 import { Investigation } from './ui/Investigation'
 import { LayerPanel } from './ui/LayerPanel'
 import { shellGeometry, useShell } from './ui/shell'
+import { useGlobeUi } from './globe/globeUi'
 
 // Cesium is ~4 MB: load it after the shell so the panels appear immediately.
 const GlobeView = lazy(() => import('./globe/GlobeView'))
@@ -27,6 +28,14 @@ export default function App() {
   const leftMin = useShell((s) => s.leftMin)
   const toolOut = useShell((s) => s.toolOut)
   const width = useWindowWidth()
+  const ready = useGlobeUi((s) => s.ready)
+  // The loader stays mounted through its fade-out, then goes
+  const [loaderGone, setLoaderGone] = useState(false)
+  useEffect(() => {
+    if (!ready) return
+    const t = setTimeout(() => setLoaderGone(true), 700)
+    return () => clearTimeout(t)
+  }, [ready])
 
   // Free area: the space between the panels, growing as panels minimise.
   const freeL = leftMin ? 0 : geo.freeLeft
@@ -41,14 +50,25 @@ export default function App() {
     // overflow-clip, not hidden: the globe canvas runs past the screen edge, and a hidden-overflow
     // box can still be scrolled sideways (focus, scrollIntoView), shoving the panels off screen
     <div className="relative h-full w-full overflow-clip bg-bg">
+      {/* The globe (and sky) stay dark until everything has loaded, then fade in as it zooms in */}
       <div
-        className="absolute inset-y-0 transition-[left,width] duration-(--dur) ease-(--ease)"
+        className={`absolute inset-y-0 transition-[left,width,opacity] duration-(--dur) ease-(--ease) ${ready ? 'opacity-100' : 'opacity-0'}`}
         style={{ left: centre - half, width: half * 2 }}
       >
-        <Suspense fallback={<div className="grid h-full place-items-center"><BootLoader /></div>}>
+        <Suspense fallback={null}>
           <GlobeView />
         </Suspense>
       </div>
+      {(!ready || !loaderGone) && (
+        <div
+          className={`pointer-events-none absolute inset-y-0 grid place-items-center transition-opacity duration-500 ${ready ? 'opacity-0' : 'opacity-100'}`}
+          style={{ left: freeL, right: freeR }}
+          role="status"
+          aria-label="Loading the globe"
+        >
+          <BootLoader />
+        </div>
+      )}
       <LayerPanel box={geo.left} />
       <AnalysisPanel box={geo.right} />
       <Investigation />

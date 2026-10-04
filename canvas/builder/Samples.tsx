@@ -1,4 +1,4 @@
-// One live sample per design category, rendered inside the box's <AtlasTheme>.
+// One live sample per design category, rendered inside the box's <ArgusTheme>.
 import { useEffect, useState, type ReactNode } from 'react'
 import { Badge } from '../../gui_elements/Badge'
 import { Button } from '../../gui_elements/Button'
@@ -134,7 +134,7 @@ function Sample({ cat }: { cat: Category }) {
 
   switch (cat) {
     case 'title':
-      return <div className="title-weight g-text font-title text-[26px] tracking-(--tracking-title) whitespace-nowrap text-white">ATLAS</div>
+      return <div className="title-weight g-text font-title text-[26px] tracking-(--tracking-title) whitespace-nowrap text-white">ARGUS</div>
     case 'main':
       return <div className="text-[13.5px] leading-snug"><b className="font-semibold">Live streams</b> · Protesters gather outside parliament as police form lines</div>
     case 'sub':
@@ -146,7 +146,7 @@ function Sample({ cat }: { cat: Category }) {
     case 'type':
       return (
         <div className="flex flex-col gap-0.5 leading-tight">
-          <span className="title-weight t-title font-title tracking-(--tracking-title) text-white">ATLAS</span>
+          <span className="title-weight t-title font-title tracking-(--tracking-title) text-white">ARGUS</span>
           <span className="t-h font-semibold">Crowds swell in Tbilisi</span>
           <span className="t-body">Body text for descriptions and lists.</span>
           <span className="sub t-label text-accent">Section label</span>
@@ -170,7 +170,7 @@ function Sample({ cat }: { cat: Category }) {
     case 'glow':
       return (
         <Stage className="flex items-center gap-4">
-          <span className="title-weight g-text font-title text-base tracking-(--tracking-title) text-white">ATLAS</span>
+          <span className="title-weight g-text font-title text-base tracking-(--tracking-title) text-white">ARGUS</span>
           <span className="g-el"><Button>Live</Button></span>
           <Toggle checked={on} onChange={setOn} label="Sample" />
         </Stage>

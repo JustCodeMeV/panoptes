@@ -1,6 +1,6 @@
 import type { GeoPrecision } from '../../shared/feature'
 
-// Pin and cluster billboards drawn to the ATLAS design: square precision markers with a halo
+// Pin and cluster billboards drawn to the ARGUS design: square precision markers with a halo
 // (catalog: Pins "Halo", Precision marker "Square"), crosshair lock when selected, LCD clusters.
 
 const cache = new Map<string, string>()
@@ -8,7 +8,7 @@ const DPR = 2
 
 /** The design's data font, read from the live theme (falls back to a system monospace). */
 function monoFont(): string {
-  const root = document.querySelector('.atlas')
+  const root = document.querySelector('.argus')
   return (root && getComputedStyle(root).getPropertyValue('--font-mono').trim()) || 'ui-monospace, monospace'
 }
 

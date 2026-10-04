@@ -15,6 +15,7 @@ import { ooniProvider } from './providers/osint/ooni.ts'
 import { gpsjamProvider } from './providers/gnss/gpsjam.ts'
 import { adsblolProvider } from './providers/military/adsblol.ts'
 import { deepstateProvider } from './providers/frontlines/deepstate.ts'
+import { grokProvider } from './providers/x/grok.ts'
 import { cablesProvider } from './providers/infrastructure/cables.ts'
 import { acledProvider } from './providers/acled/acled.ts'
 import { firmsProvider } from './providers/osint/firms.ts'
@@ -51,4 +52,5 @@ export const LAYERS: Record<string, Provider[]> = {
   infrastructure: [cablesProvider],
   satellites: [celestrakProvider],
   ships: [aisstreamProvider],
+  x: [grokProvider],
 }

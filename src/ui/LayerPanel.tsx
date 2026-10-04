@@ -10,11 +10,11 @@ import type { Feature } from '../../shared/feature'
 import { srcTag } from '../../shared/lang'
 import { featuresOf, useStore, type LayerState } from '../core/store'
 import type { LayerDef } from '../core/types'
-import logo from '../assets/ATLAS_LOGO.png'
+import logo from '../assets/ARGUS_LOGO.png'
 import { LAYERS } from '../layers'
 import { LANDING_HASH } from '../route'
 import { useGlobeUi } from '../globe/globeUi'
-import { useAtlasControls } from '../../gui_elements/context'
+import { useArgusControls } from '../../gui_elements/context'
 import { CasePanel } from './CasePanel'
 import { DemoButton } from './DemoBanner'
 import { Health } from './Health'
@@ -67,13 +67,13 @@ function LogoLink() {
   return (
     <a
       href={LANDING_HASH}
-      title="About ATLAS"
+      title="About ARGUS"
       className="flex-none"
       onPointerEnter={(e) => setGlow(e.currentTarget.getBoundingClientRect())}
       onPointerLeave={() => setGlow(null)}
       onClick={() => setGlow(null)}
     >
-      <img src={logo} alt="ATLAS home" className="block size-[calc(var(--fs-title)*1.3)]" />
+      <img src={logo} alt="ARGUS home" className="block size-[calc(var(--fs-title)*1.3)]" />
       {glow &&
         createPortal(
           <img
@@ -83,7 +83,7 @@ function LogoLink() {
             className="pointer-events-none fixed z-[100] animate-[fade-in_200ms_ease-out] [filter:drop-shadow(0_0_5px_var(--color-accent-2))_drop-shadow(0_0_14px_var(--color-accent-2))]"
             style={{ left: glow.left, top: glow.top, width: glow.width, height: glow.height }}
           />,
-          document.querySelector('.atlas') ?? document.body,
+          document.querySelector('.argus') ?? document.body,
         )}
     </a>
   )
@@ -105,7 +105,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
   const q = query.trim().toLowerCase()
   const darkSide = useGlobeUi((s) => s.darkSide)
   const toggleDarkSide = useGlobeUi((s) => s.toggleDarkSide)
-  const { satellite } = useAtlasControls()
+  const { satellite } = useArgusControls()
 
   const layers: Layer[] = LAYERS.map((def) => {
     const st = layerStates[def.id]
@@ -145,7 +145,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
   // Not a data layer: the globe's own day/night view, listed with the layers so it's easy to find
   const darkLayer: Layer = {
     id: DARK_SIDE,
-    label: 'Dark Side of the Moon',
+    label: 'Day & Night',
     count: '☾',
     on: darkSide,
     desc: 'Day and night as they are right now: the real sunrise line (following the seasons and the Earth\u2019s tilt), with city lights on the night side (NASA Black Marble).',
@@ -195,7 +195,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
 
       {net &&
         createPortal(
-          // Rendered inside the ATLAS root so it keeps the design tokens
+          // Rendered inside the ARGUS root so it keeps the design tokens
           <div className="fixed top-1/2 left-1/2 z-30 w-[min(720px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2">
             <Panel>
               <Scroller innerClassName="max-h-[calc(100vh-64px)] pr-2">
@@ -212,7 +212,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
               </Scroller>
             </Panel>
           </div>,
-          document.querySelector('.atlas') ?? document.body,
+          document.querySelector('.argus') ?? document.body,
         )}
     </div>
   )

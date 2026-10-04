@@ -1,4 +1,4 @@
-/* ATLAS component variants. Each component picks its variant from the design (see catalog.ts). */
+/* ARGUS component variants. Each component picks its variant from the design (see catalog.ts). */
 
 /* ---------- Glow hooks ---------- */
 .g-text { text-shadow: var(--glow-text); animation: var(--glow-anim); }

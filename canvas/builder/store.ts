@@ -31,7 +31,7 @@ export const useEditor = create<State>()(
       setPage: (page) => set({ page: (page + PAGES) % PAGES }),
     }),
     {
-      name: 'atlas-design-editor',
+      name: 'argus-design-editor',
       partialize: ({ base, design, page }) => ({ base, design, page }),
       merge: (saved, current) => {
         const s = saved as { base?: string; design?: Partial<Design>; page?: number } | undefined

@@ -5,13 +5,12 @@ import { useDesign } from '../../gui_elements/context'
 import { FLIGHTS } from '../../gui_elements/flights'
 import { GlobeControls } from '../../gui_elements/GlobeControls'
 import { useNow } from '../ui/useNow'
-import { useGlobeUi } from './globeUi'
+import { HOME, useGlobeUi } from './globeUi'
 import { useViewer } from './viewerContext'
 import { shellGeometry } from '../ui/shell'
 import { attachPlaces } from './places'
 import { attachWheelZoom } from './wheelZoom'
 
-const HOME = { lon: 15, lat: 30, height: 20_000_000 }
 // Zoom as a percentage on a log scale: 0% = the whole globe (home view), 100% = 1 km up
 const CLOSEST = 1_000
 const span = Math.log(CLOSEST / HOME.height)
@@ -69,6 +68,19 @@ export function GlobeOverlay() {
     window.addEventListener('panoptes:flyto', on)
     return () => window.removeEventListener('panoptes:flyto', on)
   }, [viewer, flight])
+
+  // Space bar starts and pauses auto-rotate (not while typing in a field)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
+      e.preventDefault()
+      setSpin((on) => !on)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   // Auto-rotate
   useEffect(() => {

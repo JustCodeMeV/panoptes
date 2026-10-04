@@ -5,7 +5,7 @@ import { CHECK, type CheckProp } from './props'
 /** Resolved, checked events from the entity graph: one pin per real-world event, however many reports. */
 export const events: LayerDef = {
   id: 'events',
-  label: 'Events (checked)',
+  label: 'Events (Checked)',
   description:
     'Every report of the same event (news, Telegram, conflict log, GDELT) merged into one event, located as precisely as the reports allow and checked: confirmed, corroborated, single source, government outlets only, contested or debunked.',
   color: '#ef4444',

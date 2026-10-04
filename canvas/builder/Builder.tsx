@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AtlasTheme } from '../../gui_elements/AtlasTheme'
+import { ArgusTheme } from '../../gui_elements/ArgusTheme'
 import { CATEGORIES, type Category } from '../../gui_elements/catalog'
 import { exportFiles } from './exportDesign'
 import { FullMock } from './FullMock'
@@ -94,9 +94,9 @@ export function Builder() {
             {status === 'done' ? '✓ Exported' : status === 'error' ? 'Export failed' : 'Export to gui_elements'}
           </button>
         </div>
-        <AtlasTheme design={design} className="min-h-0 flex-1 overflow-y-auto bg-bg">
+        <ArgusTheme design={design} className="min-h-0 flex-1 overflow-y-auto bg-bg">
           {cats.map((c) => <Row key={c.key} cat={c} />)}
-        </AtlasTheme>
+        </ArgusTheme>
         <div className="flex items-center gap-2 border-t border-white/[0.06] px-3 py-2.5">
           <button type="button" className={chrome.btn} onClick={() => setPage(page - 1)}>‹ Prev 6</button>
           <span className="flex-1 truncate text-center text-[11px] text-[#c9cfdb]">
@@ -116,9 +116,9 @@ export function Builder() {
         >
           {editorOpen ? '‹ hide editor' : 'editor ›'}
         </button>
-        <AtlasTheme design={design} className="h-full">
+        <ArgusTheme design={design} className="h-full">
           <FullMock />
-        </AtlasTheme>
+        </ArgusTheme>
       </main>
     </div>
   )

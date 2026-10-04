@@ -7,7 +7,7 @@ const sev = (f: { props: Record<string, unknown> }) => (f.props.severity as Sev)
 /** Physical-world signals that often precede or accompany unrest: disasters, quakes, internet blackouts. */
 export const osint: LayerDef = {
   id: 'osint',
-  label: 'OSINT signals',
+  label: 'OSINT Signals',
   description: 'Internet blackouts (IODA), UN disaster alerts (GDACS), earthquakes (USGS) and NASA natural events.',
   color: '#eab308',
   refreshMs: 120_000,
