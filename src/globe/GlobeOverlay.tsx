@@ -59,7 +59,8 @@ export function GlobeOverlay() {
   const sky = useGlobeUi((s) => s.sky)
   const toggleSky = useGlobeUi((s) => s.toggleSky)
   const [cam, setCam] = useState({ lat: HOME.lat, lon: HOME.lon, height: HOME.height, tilted: false })
-  const [spin, setSpin] = useState(false)
+  const spin = useGlobeUi((s) => s.spin)
+  const setSpin = useGlobeUi((s) => s.setSpin)
   const strip = useRef<HTMLDivElement>(null)
   const [fit, setFit] = useState(1)
 
@@ -105,11 +106,14 @@ export function GlobeOverlay() {
       const t = e.target as HTMLElement | null
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
       e.preventDefault()
-      setSpin((on) => !on)
+      useGlobeUi.getState().setSpin(!useGlobeUi.getState().spin)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // A fresh globe (e.g. back from the landing page) starts still
+  useEffect(() => () => useGlobeUi.getState().setSpin(false), [])
 
   // Auto-rotate
   useEffect(() => {

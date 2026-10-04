@@ -21,11 +21,16 @@ export const useGlobeUi = create<{
   /** Day/night terminator and city lights in satellite view. On by default. */
   darkSide: boolean
   toggleDarkSide: () => void
+  /** Auto-rotate (Space, the play button, the showreel's ending). */
+  spin: boolean
+  setSpin: (on: boolean) => void
   /** A hovered pin cluster fanned out around its centre (canvas pixels), or null. */
   spider: Spider | null
   setSpider: (s: Spider | null) => void
 }>((set) => ({
   spider: null,
+  spin: false,
+  setSpin: (spin) => set({ spin }),
   setSpider: (spider) => set({ spider }),
   sky: false,
   places: false,
