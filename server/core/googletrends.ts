@@ -18,7 +18,7 @@ const PAUSE_MS = 15 * 60_000
 
 const RELAY_URL = process.env.TRENDS_RELAY_URL || 'https://raw.githubusercontent.com/JustCodeMeV/panoptes/data/trends.json'
 const RELAY_EVERY_MS = 10 * 60_000
-const RELAY_STALE_MS = 3 * 3600_000
+const RELAY_STALE_MS = 12 * 3600_000 // GitHub often skips scheduled runs for hours: an older relay copy beats an empty layer
 
 const cache = new Map<string, { xml: string; at: number; via: 'relay' | 'direct' }>()
 let relayAt = 0 // when the relay file was last published (fetchedAt)
