@@ -13,6 +13,8 @@ type Shell = {
   rightMin: boolean
   /** Globe area reaches the right edge: the ANALYSIS panel is minimised. */
   toolOut: boolean
+  /** Full-screen case workbench instead of the globe (#case). */
+  caseMode: boolean
   set: (patch: Partial<Omit<Shell, 'set'>>) => void
 }
 
@@ -20,6 +22,7 @@ export const useShell = create<Shell>((set) => ({
   leftMin: false,
   rightMin: false,
   toolOut: false,
+  caseMode: typeof window !== 'undefined' && window.location.hash === '#case',
   set: (patch) => set(patch),
 }))
 
@@ -43,4 +46,10 @@ export function shellGeometry(d: Design) {
   // "Docked beside globe" keeps the globe in the space between the panels; otherwise it runs under them
   const docked = d.zorder === 1
   return { left, right, freeLeft: docked ? left.inset + left.width : 0, freeRight: docked ? right.inset + right.width : 0 }
+}
+
+/** Enters or leaves case mode, keeping #case in the address bar so a reload stays in it. */
+export function setCaseMode(on: boolean) {
+  useShell.getState().set({ caseMode: on })
+  history.replaceState(null, '', window.location.pathname + window.location.search + (on ? '#case' : ''))
 }

@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import type { Edge, Entity } from '../../shared/entities'
 import { flyTo, useInvestigation } from '../core/investigation'
 import { useStore } from '../core/store'
+import { placed, type P } from './graphPositions'
 import { useEscape } from './useEscape'
 
 /**
@@ -35,10 +36,6 @@ const REL: Record<string, string> = {
   contradicts: 'contradicts', copies: 'copies', forwards: 'forwards', near: 'near', same_as: 'same gov.', mentions: 'mentions',
 }
 
-type P = { x: number; y: number }
-
-/** Node positions survive re-renders and transforms (module scope: layout state, not render state). */
-const placed = new Map<string, P>()
 
 /** Incremental force layout: existing nodes move little, new ones settle around their neighbours. */
 function relayout(prev: Map<string, P>, nodes: Entity[], edges: Edge[]): Map<string, P> {
@@ -165,10 +162,11 @@ function Inspector() {
   )
 }
 
-export function Investigation() {
+/** The canvas: a floating window over the globe, or `embedded` in the case workbench (with extra panels under the inspector). */
+export function Investigation({ embedded = false, aside }: { embedded?: boolean; aside?: ReactNode } = {}) {
   const { open, entities, edges, selected, busy, error, status, select, close, clear } = useInvestigation()
   const [filter, setFilter] = useState<string | null>(null)
-  useEscape(open, close)
+  useEscape(open && !embedded, close)
   const nodes = useMemo(() => Object.values(entities), [entities])
   const es = useMemo(() => Object.values(edges).filter((e) => entities[e.from] && entities[e.to]), [edges, entities])
   const pos = useMemo(() => {
@@ -177,11 +175,11 @@ export function Investigation() {
     for (const [k, v] of next) placed.set(k, v)
     return next
   }, [nodes, es])
-  if (!open) return null
+  if (!open && !embedded) return null
   const shown = (n: Entity) => !filter || n.type === filter
   const hotCount = selected ? es.filter((e) => e.from === selected || e.to === selected).length : 0
   return (
-    <section className="investigation" aria-label="Investigation canvas">
+    <section className={`investigation ${embedded ? 'embedded' : ''}`} aria-label="Investigation canvas">
       <header>
         <b>Investigation</b>
         <span>
@@ -198,9 +196,11 @@ export function Investigation() {
         {error && <em className="err">{error}</em>}
         {!busy && !error && status && <em className="ok">▸ {status}</em>}
         <button onClick={clear}>clear</button>
-        <button onClick={close} aria-label="Close investigation">
-          ×
-        </button>
+        {!embedded && (
+          <button onClick={close} aria-label="Close investigation">
+            ×
+          </button>
+        )}
       </header>
       <div className="inv-body">
         <svg viewBox={`0 0 ${W} ${H}`} onClick={() => void select(null)}>
@@ -250,6 +250,7 @@ export function Investigation() {
         </svg>
         <aside>
           <Inspector />
+          {aside}
         </aside>
       </div>
     </section>

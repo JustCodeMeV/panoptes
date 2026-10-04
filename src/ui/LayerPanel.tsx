@@ -22,7 +22,7 @@ import { Health } from './Health'
 import { NetworkView } from './NetworkGraph'
 import { Omnibox } from './Omnibox'
 import { matchesQuery } from '../core/search'
-import { useShell, type PanelBox } from './shell'
+import { setCaseMode, useShell, type PanelBox } from './shell'
 import { useEscape } from './useEscape'
 import { ago, useNow } from './useNow'
 
@@ -221,6 +221,9 @@ export function LayerPanel({ box }: { box: PanelBox }) {
                   )
                 })}
               </Fold>
+              <Button variant="secondary" className="mt-3 w-full whitespace-nowrap" onClick={() => setCaseMode(true)} title="Full-screen workbench: evidence, graph, hypotheses, timeline">
+                Case mode
+              </Button>
               <CasePanel />
               <Fold title="Key" className="mt-4 border-t border-line pt-3">
                 <Legend heading={false} layers={layers.filter((l) => l.on)} />

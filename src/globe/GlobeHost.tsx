@@ -1,3 +1,4 @@
+import { useShell } from '../ui/shell'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Cartesian3, Color, EllipsoidTerrainProvider, ImageryLayer, Ion, JulianDate, Terrain, UrlTemplateImageryProvider, Viewer } from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
@@ -153,6 +154,13 @@ export function GlobeHost({
       setTimeout(() => v.destroy())
     }
   }, [])
+
+  // Case mode hides the globe: stop rendering it until the analyst comes back
+  const caseMode = useShell((s) => s.caseMode)
+  useEffect(() => {
+    const v = viewerRef.current
+    if (v && !v.isDestroyed()) v.useDefaultRenderLoop = !caseMode
+  }, [viewer, caseMode])
 
   // Terrain follows the satellite view in the app (the landing page keeps the light ellipsoid).
   useEffect(() => {

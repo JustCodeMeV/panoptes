@@ -5,6 +5,7 @@ import { useLayerData } from './core/useLayerData'
 import { DemoBanner } from './ui/DemoBanner'
 import { AnalysisPanel } from './ui/AnalysisPanel'
 import { Investigation } from './ui/Investigation'
+import { Workbench } from './ui/Workbench'
 import { LinkViewer } from './ui/LinkViewer'
 import { useLinkCapture } from './core/linkViewer'
 import { LayerPanel } from './ui/LayerPanel'
@@ -32,6 +33,7 @@ export default function App() {
   const toolOut = useShell((s) => s.toolOut)
   const width = useWindowWidth()
   const ready = useGlobeUi((s) => s.ready)
+  const caseMode = useShell((s) => s.caseMode)
   // The loader stays mounted through its fade-out, then goes
   const [loaderGone, setLoaderGone] = useState(false)
   useEffect(() => {
@@ -74,7 +76,7 @@ export default function App() {
       )}
       <LayerPanel box={geo.left} />
       <AnalysisPanel box={geo.right} />
-      <Investigation />
+      {caseMode ? <Workbench /> : <Investigation />}
       <LinkViewer />
       <DemoBanner />
     </div>

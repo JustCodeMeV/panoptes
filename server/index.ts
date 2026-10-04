@@ -11,7 +11,7 @@ import { bodyLimit } from 'hono/body-limit'
 import { compress } from 'hono/compress'
 import { secureHeaders } from 'hono/secure-headers'
 import { streamSSE } from 'hono/streaming'
-import { FeatureSchema } from '../shared/feature.ts'
+import { FeatureSchema, type Feature } from '../shared/feature.ts'
 import { rateLimit } from './core/ratelimit.ts'
 import { configuredSecrets, redact } from './core/secrets.ts'
 import { loadLayer, peekLayer } from './core/aggregate.ts'
@@ -39,7 +39,7 @@ import { reloadWatches, startWatchEngine } from './watch/engine.ts'
 import { startXEngine } from './x/engine.ts'
 import { centroidOf, geolocate, searchPlaces } from './geo/gazetteer.ts'
 import { locationEntity } from './entities/rules.ts'
-import { neighbourhood, placeEntity } from './entities/adapters.ts'
+import { adaptFeature, neighbourhood, placeEntity } from './entities/adapters.ts'
 import { briefFor } from './llm/analysis.ts'
 import { llmEnabled, llmStatus } from './llm/client.ts'
 
@@ -59,7 +59,10 @@ const app = new Hono()
 // HSTS, nosniff, frame and opener isolation. Referrer kept as origin-only: YouTube embeds need it.
 app.use('*', secureHeaders({ referrerPolicy: 'strict-origin-when-cross-origin' }))
 // Feature snapshots (cases, briefs) are a few KB; nothing legitimate is near this.
-app.use('/api/*', bodyLimit({ maxSize: 512 * 1024, onError: (c) => c.json({ error: 'request body too large' }, 413) }))
+// Case workspaces (graph snapshots) and case imports may be larger than other requests
+const smallBody = bodyLimit({ maxSize: 512 * 1024, onError: (c) => c.json({ error: 'request body too large' }, 413) })
+const caseBody = bodyLimit({ maxSize: 2 * 1024 * 1024, onError: (c) => c.json({ error: 'case too large' }, 413) })
+app.use('/api/*', (c, next) => (/\/workspace$|^\/api\/cases\/import$/.test(c.req.path) ? caseBody(c, next) : smallBody(c, next)))
 // Endpoints that spend money (Claude) or rate-limited upstream quota (GDELT), per client IP.
 app.use('/api/llm/*', rateLimit({ windowMs: 10 * 60_000, max: 20, name: 'AI briefs' }))
 app.use('/api/truth/check', rateLimit({ windowMs: 10 * 60_000, max: 30, name: 'claim checks' }))
@@ -268,6 +271,31 @@ app.patch('/api/items/:id', async (c) => {
   return c.json({ ok: true })
 })
 app.delete('/api/items/:id', (c) => (cases.removeItem(Number(c.req.param('id'))), c.json({ ok: true })))
+app.get('/api/cases/:id/workspace', (c) => c.json(cases.getWorkspace(Number(c.req.param('id'))) ?? {}))
+app.put('/api/cases/:id/workspace', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!cases.getCase(id)) return c.json({ error: 'unknown case' }, 404)
+  try {
+    cases.setWorkspace(id, await c.req.json())
+    return c.json({ ok: true })
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : 'invalid workspace' }, 400)
+  }
+})
+app.post('/api/cases/import', async (c) => {
+  const b = (await c.req.json().catch(() => ({}))) as { title?: unknown; items?: unknown; workspace?: unknown }
+  if (typeof b.title !== 'string' || !Array.isArray(b.items)) return c.json({ error: 'title and items required' }, 400)
+  const items = b.items.filter((i): i is { feature: Feature; note?: string } => !!i && typeof i === 'object' && FeatureSchema.safeParse((i as { feature?: unknown }).feature).success)
+  return c.json({ id: cases.importCase(b.title.slice(0, 120), items, b.workspace ?? null) })
+})
+// A frozen evidence snapshot (no longer live) opened as entities
+app.post('/api/entities/adapt', async (c) => {
+  const b = (await c.req.json().catch(() => ({}))) as { feature?: unknown }
+  const f = FeatureSchema.safeParse(b.feature)
+  if (!f.success) return c.json({ error: 'feature required' }, 400)
+  const id = adaptFeature(f.data)
+  return id ? c.json({ ...neighbourhood(id), status: 'evidence opened as entities' }) : c.json({ error: 'nothing to open' }, 404)
+})
 app.get('/api/cases/:id/export', (c) => {
   const r = cases.exportCase(Number(c.req.param('id')))
   if (!r) return c.json({ error: 'not found' }, 404)

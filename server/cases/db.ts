@@ -137,3 +137,23 @@ export function logApifySpend(actor: string, query: string, items: number, usd: 
 }
 export const apifySpent = (): number => (db.prepare('SELECT COALESCE(SUM(usd), 0) AS s FROM apify_spend').get() as { s: number }).s
 export const apifyRunsSince = (sinceIso: string): number => (db.prepare('SELECT COUNT(*) AS n FROM apify_spend WHERE ts >= ?').get(sinceIso) as { n: number }).n
+
+// Workbench state per case: status, notes, hypotheses, evidence tags and the investigation graph (JSON).
+db.exec(`CREATE TABLE IF NOT EXISTS case_workspace (case_id INTEGER PRIMARY KEY REFERENCES cases(id) ON DELETE CASCADE, data TEXT NOT NULL, updated TEXT NOT NULL)`)
+export function getWorkspace(caseId: number): unknown {
+  const r = db.prepare('SELECT data FROM case_workspace WHERE case_id = ?').get(caseId) as { data: string } | undefined
+  return r ? JSON.parse(r.data) : null
+}
+export function setWorkspace(caseId: number, data: unknown) {
+  const json = JSON.stringify(data)
+  if (json.length > 2_000_000) throw new Error('workspace too large')
+  db.prepare('INSERT INTO case_workspace (case_id, data, updated) VALUES (?, ?, ?) ON CONFLICT (case_id) DO UPDATE SET data = excluded.data, updated = excluded.updated').run(caseId, json, now())
+}
+/** Re-creates a case from the browser's copy (the host's disk is wiped on restart). */
+export function importCase(title: string, items: { feature: Feature; note?: string }[], workspace: unknown): number {
+  const c = createCase(title)
+  for (const i of items.slice(0, 500)) addItem(c.id, i.feature, i.note ?? '')
+  if (workspace) setWorkspace(c.id, workspace)
+  log('case.import', `#${c.id} ${title} (${items.length} items)`)
+  return c.id
+}

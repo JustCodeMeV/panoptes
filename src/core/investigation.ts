@@ -19,6 +19,10 @@ type State = {
   seed(featureId: string): Promise<void>
   /** Start from an entity id (e.g. an event in the events layer). */
   seedEntity(id: string): Promise<void>
+  /** A frozen evidence snapshot (case item), opened as entities even if it is no longer live. */
+  seedFeature(feature: import('../../shared/feature').Feature): Promise<void>
+  /** Replaces the canvas with a saved graph (case workbench). */
+  load(g: { entities: Record<string, Entity>; edges: Record<string, Edge> }): void
   /** A region or city opened in the atlas. */
   seedPlace(p: { name: string; kind: 'region' | 'city'; lat: number; lon: number; country?: string; region?: string }): Promise<void>
   expand(id: string, transform: string): Promise<void>
@@ -86,6 +90,18 @@ export const useInvestigation = create<State>((set, getState) => ({
       set({ busy: null, error: e instanceof Error ? e.message : String(e) })
     }
   },
+  async seedFeature(feature) {
+    set({ open: true, busy: 'Reading the evidence…', error: null })
+    try {
+      const g = await get<Subgraph>('/api/entities/adapt', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ feature }) })
+      set((s) => ({ ...merge(s, g), busy: null, status: g.status ?? null }))
+      const main = g.entities.find((e) => e.props.featureId === feature.id || ((e.props.featureIds as string[] | undefined) ?? []).includes(feature.id)) ?? g.entities[0]
+      if (main) void getState().select(main.id)
+    } catch (e) {
+      set({ busy: null, error: e instanceof Error ? e.message : String(e) })
+    }
+  },
+  load: (g) => set({ entities: g.entities, edges: g.edges, selected: null, inspect: null, status: null, error: null }),
   async seedPlace(p) {
     set({ open: true, busy: `Opening ${p.name}…`, error: null })
     try {
