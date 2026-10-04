@@ -1,6 +1,22 @@
 import { useShell } from '../ui/shell'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Cartesian3, Color, EllipsoidTerrainProvider, ImageryLayer, Ion, JulianDate, Terrain, UrlTemplateImageryProvider, Viewer } from 'cesium'
+import {
+  Cartesian3,
+  Color,
+  Ellipsoid,
+  EllipsoidGeometry,
+  EllipsoidTerrainProvider,
+  GeometryInstance,
+  ImageryLayer,
+  Ion,
+  JulianDate,
+  Material,
+  MaterialAppearance,
+  Primitive,
+  Terrain,
+  UrlTemplateImageryProvider,
+  Viewer,
+} from 'cesium'
 import 'cesium/Build/Cesium/Widgets/widgets.css'
 import { COLOURS } from '../../gui_elements/catalog'
 import { useArgusControls } from '../../gui_elements/context'
@@ -18,6 +34,38 @@ function applyTerrain(v: Viewer, on: boolean) {
   if (on) v.scene.setTerrain(Terrain.fromWorldTerrain({ requestVertexNormals: true }))
   else v.terrainProvider = new EllipsoidTerrainProvider()
   v.scene.requestRender()
+}
+
+/**
+ * Calls `done` once the globe has every tile the current view needs (or after `maxMs`), drawing
+ * frames meanwhile (render-on-demand would otherwise pause the loading). Returns a canceller.
+ */
+function whenTilesLoaded(v: Viewer, done: () => void, maxMs = 8000): () => void {
+  const t0 = performance.now()
+  let frames = 0
+  let raf = 0
+  const frame = () => {
+    if (v.isDestroyed()) return
+    v.scene.requestRender()
+    // A few frames first: right after a change the globe still reports the old tiles as loaded
+    if ((++frames > 4 && v.scene.globe.tilesLoaded) || performance.now() - t0 > maxMs) return done()
+    raf = requestAnimationFrame(frame)
+  }
+  raf = requestAnimationFrame(frame)
+  return () => cancelAnimationFrame(raf)
+}
+
+/** A plain sphere just under the surface: covers the stars while the globe's tiles reload. */
+function backingSphere(color: Color): Primitive {
+  const r = Ellipsoid.WGS84.radii
+  return new Primitive({
+    geometryInstances: new GeometryInstance({
+      geometry: new EllipsoidGeometry({ radii: new Cartesian3(r.x - 25_000, r.y - 25_000, r.z - 25_000), vertexFormat: MaterialAppearance.MaterialSupport.BASIC.vertexFormat }),
+    }),
+    appearance: new MaterialAppearance({ material: Material.fromType('Color', { color }), materialSupport: MaterialAppearance.MaterialSupport.BASIC, flat: true, faceForward: true }),
+    asynchronous: false,
+    show: false,
+  })
 }
 
 const WATER = Color.fromCssColorString('#4fa8ff')
@@ -68,6 +116,15 @@ export function GlobeHost({
   const darkToggle = useGlobeUi((s) => s.darkSide)
   const darkSide = forceDarkSide ?? darkToggle
   const night = useRef<ImageryLayer | null>(null)
+  const backing = useRef<Primitive | null>(null)
+  // What the globe shows. Switching to satellite, it keeps the wireframe look until the satellite
+  // imagery has loaded, then swaps in one frame; switching back is immediate.
+  const [look, setLook] = useState(satellite)
+  const [asked, setAsked] = useState(satellite)
+  if (satellite !== asked) {
+    setAsked(satellite)
+    if (!satellite) setLook(false)
+  }
 
   useEffect(() => {
     if (!el.current) return
@@ -107,6 +164,8 @@ export function GlobeHost({
     v.scene.globe.lightingFadeInDistance = 1e10
     v.scene.globe.nightFadeOutDistance = 9e9
     v.scene.globe.nightFadeInDistance = 1e10
+    // Coloured to the scheme by the styling effect below
+    backing.current = v.scene.primitives.add(backingSphere(Color.BLACK))
 
     // Wireframe: detail rises as the camera comes down
     const wf = withWireframe.current ? new Wireframe(v.scene, wireStyle(Color.WHITE, false)) : null
@@ -148,6 +207,7 @@ export function GlobeHost({
       wire.current = null
       imagery.current = null
       night.current = null
+      backing.current = null
       // React unmounts parents before children: let the layer renderers and overlays
       // release their Cesium objects first, then tear the viewer down.
       v.useDefaultRenderLoop = false
@@ -163,9 +223,35 @@ export function GlobeHost({
   }, [viewer, caseMode])
 
   // Terrain follows the satellite view in the app (the landing page keeps the light ellipsoid).
+  // A terrain change drops every globe tile: the backing sphere stands in until they're back, so
+  // the stars never show through. On the way to satellite the imagery loads unseen behind the
+  // wireframe meanwhile, and takes over only once the new terrain and imagery are both in.
   useEffect(() => {
     if (!viewer || forceSatellite !== undefined) return
+    const globe = viewer.scene.globe
+    if (backing.current) backing.current.show = true
+    let cancel = () => {}
+    let started = false
+    const settle = (force = false) => {
+      // setTerrain first installs an empty placeholder (no surface at all): wait for the real one
+      if (started || (!force && !globe.terrainProvider)) return
+      started = true
+      offChanged()
+      cancel = whenTilesLoaded(viewer, () => {
+        if (backing.current) backing.current.show = false
+        if (satellite) setLook(true)
+        viewer.scene.requestRender()
+      })
+    }
+    // World Terrain arrives asynchronously: count tiles only once it has replaced the old terrain
+    const offChanged = globe.terrainProviderChanged.addEventListener(() => settle())
+    const giveUp = setTimeout(() => settle(true), 8000)
     applyTerrain(viewer, satellite)
+    return () => {
+      offChanged()
+      clearTimeout(giveUp)
+      cancel()
+    }
   }, [viewer, satellite, forceSatellite])
 
   // Colour scheme and satellite / wireframe view
@@ -175,29 +261,34 @@ export function GlobeHost({
     const c = COLOURS[colour]
     const accent = Color.fromCssColorString(c.accent2)
     const scene = v.scene
+    // Requested but not yet shown: the imagery loads at zero opacity
     imagery.current!.show = satellite
+    imagery.current!.alpha = look ? 1 : 0
+    if (backing.current) (backing.current.appearance as MaterialAppearance).material.uniforms.color = Color.fromCssColorString(c.bg)
     // Imagery at full detail in satellite view (twice as sharp, incl. city lights); the wireframe
     // globe has no imagery, so it keeps the cheaper level of detail
-    scene.globe.maximumScreenSpaceError = satellite ? 2 : 4
-    scene.globe.tileCacheSize = satellite ? 400 : 200
+    scene.globe.maximumScreenSpaceError = look ? 2 : 4
+    scene.globe.tileCacheSize = look ? 400 : 200
     scene.globe.baseColor = Color.fromCssColorString(c.bg)
     scene.backgroundColor = Color.fromCssColorString(c.bg)
-    scene.globe.showGroundAtmosphere = satellite
-    if (scene.skyAtmosphere) scene.skyAtmosphere.show = satellite
-    wire.current?.setStyle(wireStyle(accent, satellite))
+    scene.globe.showGroundAtmosphere = look
+    if (scene.skyAtmosphere) scene.skyAtmosphere.show = look
+    wire.current?.setStyle(wireStyle(accent, look))
     scene.requestRender()
-  }, [viewer, colour, satellite])
+  }, [viewer, colour, satellite, look])
 
   // Dark side: the real day/night terminator for this moment (sun position follows the date,
   // so seasons and the Earth's tilt come for free), city lights on the night side.
   useEffect(() => {
     const v = viewerRef.current
     if (!v || !viewer || !imagery.current || !night.current) return
-    const on = satellite && darkSide
+    const on = look && darkSide
     const scene = v.scene
     scene.globe.enableLighting = on
     scene.globe.dynamicAtmosphereLighting = on
-    night.current.show = on
+    // City lights load with the day imagery (unseen) so the night side is ready at the swap
+    night.current.show = satellite && darkSide
+    night.current.alpha = on ? 1 : 0
     // Day imagery disappears where it's night; Black Marble shows there instead
     imagery.current.nightAlpha = on ? 0 : 1
     // Real time, redrawn once a minute so the terminator creeps across like the real one
@@ -206,7 +297,7 @@ export function GlobeHost({
     v.clock.shouldAnimate = on
     scene.maximumRenderTimeChange = on ? 60 : Infinity
     scene.requestRender()
-  }, [viewer, satellite, darkSide])
+  }, [viewer, satellite, look, darkSide])
 
   // Night sky: built when switched on, freed when switched off
   useEffect(() => {
