@@ -26,6 +26,7 @@ export const news: LayerDef = {
     return { badge: v.label, color: v.color, detail: e.change ?? e.source }
   },
   rank: (f) => Number(f.props.updatedAt) || 0,
+  legend: Object.values(VERDICT).map((v) => [v.label, v.color]),
   subtitle: (f) => {
     const a = assessmentOf(f)
     const soc = Number(f.props.social) ? ` + ${f.props.social} social` : ''

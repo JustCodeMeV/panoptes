@@ -11,6 +11,7 @@ export const statements: LayerDef = {
   color: '#fb923c',
   refreshMs: 300_000,
   pin: () => ({ size: 20, glyph: 'news' }),
+  legend: [['government or intergovernmental statement', '#fb923c']],
   subtitle: (f) => `${String(f.props.issuer)} · ${String(f.props.issuerCountry)}`,
   Detail: PublicationDetail,
 }

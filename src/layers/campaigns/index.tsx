@@ -18,6 +18,7 @@ export const campaigns: LayerDef = {
     return { size: Math.round(24 + (s / 100) * 14), color: s >= 60 ? '#ef4444' : s >= 40 ? '#d946ef' : '#a855f7', glyph: 'alert' }
   },
   rank: (f) => camp(f)?.score ?? 0,
+  legend: [['strong campaign signals (60+)', '#ef4444'], ['several signals (40+)', '#d946ef'], ['weak signals', '#a855f7']],
   subtitle: (f) => {
     const c = camp(f)
     return `${c?.score ?? 0}/100 · ${c?.flags.map((x) => x.label).join(', ')}`

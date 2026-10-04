@@ -14,6 +14,7 @@ export const frontlines: LayerDef = {
   pin: () => ({ size: 0 }),
   shape: (f) => (isZone(f) ? { color: ZONE_COLOR[String(f.props.intensity)], alpha: 0.16, width: 1.5 } : occupied(f) ? { color: '#dc2626', alpha: 0.28, width: 1.5 } : { color: '#a8a29e', alpha: 0.35 }),
   rank: (f) => (isZone(f) ? 2 + Number(f.props.reports) : occupied(f) ? 1 : 0),
+  legend: [['Ukraine: occupied (DeepState)', '#dc2626'], ['Ukraine: contested', '#a8a29e'], ...Object.entries(ZONE_COLOR).map(([k, c]): [string, string] => [`conflict zone, ${k} activity`, c])],
   subtitle: (f) => (isZone(f) ? `${String(f.props.intensity)} activity · ${String(f.props.reports)} live reports` : occupied(f) ? 'occupied' : 'contested / unknown status'),
   Detail: FrontlinesDetail,
 }

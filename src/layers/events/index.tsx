@@ -17,6 +17,7 @@ export const events: LayerDef = {
     return { size: Math.round(14 + Math.min(14, c.sources * 1.5)), color: CHECK[c.status]?.color, glyph: c.status === 'contested' || c.status === 'debunked' ? 'alert' : 'pulse' }
   },
   rank: (f) => (f.props.check as CheckProp).sources * 1e12 + Number(f.props.updatedAt),
+  legend: Object.values(CHECK).map((c) => [c.label, c.color]),
   subtitle: (f) => {
     const c = f.props.check as CheckProp
     return `${String(f.props.kind).replace('-', ' ')} · ${CHECK[c.status]?.label ?? c.status} · ${c.sources} report${c.sources === 1 ? '' : 's'}`

@@ -56,6 +56,8 @@ export interface LayerDef {
   ticker?(feature: Feature, e: { kind: 'new' | 'update'; change?: string; source?: string }): TickerView
   /** Which features pre-fill the live wire on load (default: 8 newest). */
   seed?(features: Feature[]): Feature[]
+  /** What the pin colours mean, when they vary by item (shown in the Key). Default: the layer colour. */
+  legend?: [label: string, color: string][]
   /** Higher = listed first in the panel. */
   rank?(feature: Feature): number
   /** Extra controls rendered inside the layer's panel section. */

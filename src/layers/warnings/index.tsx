@@ -14,6 +14,7 @@ export const warnings: LayerDef = {
   pin: (f) => ({ size: f.props.military ? 24 : 20, color: COLOR[String(f.props.category)], glyph: 'alert' }),
   shape: (f) => ({ color: COLOR[String(f.props.category)], alpha: 0.18, width: 2 }),
   rank: (f) => (f.props.military ? 1e13 : 0) + Date.parse(f.observedAt),
+  legend: Object.entries(COLOR),
   subtitle: (f) => `${String(f.props.category)} · ${f.source.platform}`,
   Detail: WarningDetail,
 }

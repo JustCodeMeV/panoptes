@@ -20,11 +20,12 @@ const NAV = [
 ]
 
 const SOURCES: { group: string; items: string[] }[] = [
-  { group: 'News & narrative', items: ['22 global news wires', 'GDELT', 'Telegram channels', 'Google Trends', 'Fact-check feeds', 'Wikipedia conflict events'] },
-  { group: 'Prediction markets', items: ['Polymarket', 'Kalshi', 'Manifold'] },
-  { group: 'Physical signals', items: ['IODA blackouts', 'Cloudflare Radar', 'OONI censorship', 'GDACS disasters', 'USGS earthquakes', 'NASA EONET & FIRMS'] },
-  { group: 'Air, sea & space', items: ['adsb.lol military aircraft', 'GPSJam', 'AISStream ships', 'CelesTrak satellites'] },
-  { group: 'Conflict & infrastructure', items: ['ACLED', 'DeepState frontline', 'TeleGeography cables'] },
+  { group: 'News & narrative', items: ['72 news feeds from every region', 'Telegram channels', 'GDELT', 'Google Trends', 'Fact-check feeds', 'Wikipedia conflict events'] },
+  { group: 'Statements & research', items: ['Ministries of 19 governments', 'UN, EU, NATO', 'Think tanks of every bloc', 'WHO outbreak news', 'ReliefWeb'] },
+  { group: 'Prediction & world markets', items: ['Polymarket', 'Kalshi', 'Manifold', 'Indices, commodities, currencies'] },
+  { group: 'Physical signals', items: ['IODA blackouts', 'Cloudflare Radar', 'OONI censorship', 'GDACS disasters', 'USGS earthquakes', 'NASA EONET & FIRMS', 'NOAA space weather'] },
+  { group: 'Air, sea & space', items: ['adsb.lol military aircraft', 'GPSJam', 'AISStream ships', 'CelesTrak satellites', 'Maritime & air warnings'] },
+  { group: 'Conflict, cyber & places', items: ['ACLED', 'DeepState frontline', '25 conflict zones', 'ransomware.live, abuse.ch, CISA KEV', 'TeleGeography cables', 'CIA Factbook, World Bank, geoBoundaries'] },
 ]
 
 const STEPS = [
@@ -34,9 +35,9 @@ const STEPS = [
 ]
 
 const PRECISION: { p: 'exact' | 'approximate' | 'inferred'; label: string; text: string }[] = [
-  { p: 'exact', label: 'Exact', text: 'Platform-reported coordinates' },
-  { p: 'approximate', label: 'Approximate', text: 'Broadcaster base or a coarsened location' },
-  { p: 'inferred', label: 'Inferred', text: 'Guessed from the text, and labelled as such' },
+  { p: 'exact', label: 'Exact', text: 'Coordinates given by the source' },
+  { p: 'approximate', label: 'Approximate', text: 'An area or country centre, stated as such' },
+  { p: 'inferred', label: 'Inferred', text: 'Place read from the text, and labelled as such' },
 ]
 
 /** Fades a block up into place the first time it scrolls into view. */

@@ -27,6 +27,7 @@ export const markets: LayerDef = {
     const m = marketOf(f)
     return m.trust + Math.abs(m.change24h ?? 0) * 200 + (m.playMoney ? -50 : 0)
   },
+  legend: [['big recent move', '#f59e0b'], ['market', BASE], ['play-money market', '#64748b']],
   subtitle: (f) => {
     const m = marketOf(f)
     const ch = m.change24h ? ` · ${pts(m.change24h)}/24h` : ''

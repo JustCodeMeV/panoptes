@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '../../gui_elements/Button'
-import { FeedItem, Fold, Header, LayerPanel as LayerList, Legend, type Layer } from '../../gui_elements/Composites'
+import { FeedItem, Fold, Header, LayerPanel as LayerList, type Layer } from '../../gui_elements/Composites'
 import { Check, IconButton } from '../../gui_elements/Controls'
 import { Toggle } from '../../gui_elements/Toggle'
 import { RollUp } from '../../gui_elements/Motion'
@@ -21,6 +21,7 @@ import { DemoButton } from './DemoBanner'
 import { Health } from './Health'
 import { NetworkView } from './NetworkGraph'
 import { Omnibox } from './Omnibox'
+import { Key } from './Key'
 import { matchesQuery } from '../core/search'
 import { setCaseMode, useShell, type PanelBox } from './shell'
 import { useEscape } from './useEscape'
@@ -250,7 +251,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
               </Button>
               <CasePanel />
               <Fold title="Key" className="mt-4 border-t border-line pt-3">
-                <Legend heading={false} layers={layers.filter((l) => l.on)} />
+                <Key layers={visible.filter((def) => layerStates[def.id]?.enabled)} />
               </Fold>
             </Scroller>
           </div>

@@ -20,6 +20,7 @@ export const x: LayerDef = {
   pin: (f) => ({ size: 20, color: VERDICT_COLOR[checkOf(f).verdict], glyph: 'pulse' }),
   ticker: (f) => ({ badge: `𝕏 ${checkOf(f).verdict.toUpperCase()}`, color: VERDICT_COLOR[checkOf(f).verdict], detail: checkOf(f).storyTitle }),
   rank: (f) => Date.parse(checkOf(f).checkedAt) || 0,
+  legend: Object.entries(VERDICT_COLOR),
   subtitle: (f) => `${VERDICT_LABEL[checkOf(f).verdict]} · ${checkOf(f).confidence}% · ${checkOf(f).posts.length} posts`,
   Detail: XDetail,
 }

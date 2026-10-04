@@ -17,6 +17,7 @@ export const narratives: LayerDef = {
     return { size: Math.round(22 + (a.risk / 100) * 14), color: VERDICT[a.verdict].color, glyph: 'alert' }
   },
   rank: (f) => assessmentOf(f).risk,
+  legend: Object.values(VERDICT).map((v) => [v.label, v.color]),
   subtitle: (f) => {
     const a = assessmentOf(f)
     return `${VERDICT[a.verdict].label.toLowerCase()} · risk ${a.risk} · ${f.source.platform}`

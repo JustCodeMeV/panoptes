@@ -1,20 +1,8 @@
-# Panoptes
+# ARGUS (repo: panoptes)
 
-Open-source map of unrest and influence activity on a 3D globe (CesiumJS), built for defense analysts.
-
-- **News Wire**: news feeds polled every 30-40 s, grouped into stories (never across countries) and re-analyzed as more outlets pick them up, pushed to the browser over SSE.
-- **Telegram scouts**: a swarm reading ~70 public channels (official, newsroom, OSINT, state-affiliated, partisan) through the keyless web preview; same text on several channels is flagged as a coordinated copy, channels others keep forwarding are discovered automatically, posts can be translated on demand.
-- **Instability index**: one explainable 0-100 score per country from every other layer (clashes, attention, flagged narratives, shutdowns, jamming, markets, search trends), shaded on the globe.
-- **Markets**: Polymarket, Kalshi and Manifold odds on conflict and security, with live probability moves, price history, and links to the news stories they relate to.
-- **OSINT signals**: internet blackouts (IODA), UN disaster alerts (GDACS), earthquakes (USGS), NASA natural events.
-- **Live streams**: social-media livestreams, playable in-place from the pin.
-- **Truth sensor**: trending narratives and fresh debunks cross-referenced against fact-check feeds and news coverage, plus an ad-hoc claim checker.
-- **Campaign watch + influence network**: stories whose spread looks coordinated, and a graph of which sources co-amplify them and who usually goes first (recurring pairs highlighted).
-- **AI analyst brief** (optional, Claude): a sourced summary of why a story is flagged, how each bloc frames it and what to check next; also semantic fact-check matching for the claim checker.
-- **Twitter/X (Grok second opinion)**: when a story is spreading but still unverified, Argus briefs Grok (xAI) with what it already knows; Grok's `x_search` reads public X posts in real time and returns a verdict, what X shows, conflicts and the posts themselves, placed on the map and shown on the story. Optional `XAI_API_KEY`; runs only while the switch is on, capped at `XAI_MAX_PER_HOUR` (default 20).
-- **Region watch**: draw a circle around a place; anything new from any layer inside it raises an alert in the live wire.
-- **Physical layers**: GPS jamming (GPSJam), military aircraft (adsb.lol), satellites overhead (CelesTrak, SGP4), Ukraine frontline (DeepState), web censorship (OONI), submarine cables; ships at chokepoints (AISStream), ACLED, NASA FIRMS and Cloudflare Radar when keys are set.
-- **Conflict events and search trends**: Wikipedia Current Events (cited, last 3 days) beside ACLED; Google Trends per country with security terms in 12 languages, relayed every 30 min by a GitHub Actions job (`trends-relay`) because Google rate-limits cloud IPs.
+Open-source intelligence on a 3D globe (CesiumJS), built for defense analysts: unrest, conflict,
+disinformation, influence, official statements, cyber threats and physical signals, every item
+checked, placed with a stated precision, and linkable into a Maltego-style investigation graph.
 
 ```
 npm install
@@ -23,24 +11,65 @@ npm run dev              # web :5173 + api :8787
 ```
 
 No keys required. Keyed sources (Claude, ACLED, FIRMS, Cloudflare Radar, AISStream, YouTube API,
-Google Fact Check) are listed in `.env.example`; until set they show as *off* in the
-health chip and everything else works.
+Google Fact Check, xAI, Apify, Cesium ion terrain) are listed in `.env.example`; until set they show
+as *off* in the health chip and everything else works.
+
+## What is on the map
+
+Layers are grouped in the left panel; each group has its own switch.
+
+| Group | Layers |
+|---|---|
+| **Truth & overview** | Region Watch (alerts inside drawn circles) · Events (checked: every report resolved into events and checked) · Instability Index (0-100 per country, explainable) · Campaign Watch (stories whose spread looks coordinated) · Truth Sensor (trending narratives vs fact-checks) |
+| **News & social media** | News Wire (72 feeds and searches from every region, grouped into stories) · Telegram Scouts (67 channels, keyless) · Official Statements (ministries and presidencies of 19 governments, UN, EU, NATO) · Research & Analysis (think tanks of every bloc, with who funds them) · Twitter/X (Grok second opinion) · Search Trends (Google Trends) · Live Streams |
+| **War & security** | Frontlines & Conflict Zones (Ukraine front line + 25 active wars) · Conflict Events (Wikipedia Current Events, ACLED with keys) · Unrest Hotspots (GDELT) · Maritime & Air Warnings · Military Aircraft · Maritime Chokepoints (ships) |
+| **Jamming, outages & cyber** | Cyber Threats (ransomware victims, botnet servers, exploited vulnerabilities) · Internet Outages & Censorship (IODA, OONI, Cloudflare Radar) · GPS Jamming |
+| **Hazards & humanitarian** | Natural Hazards (GDACS, USGS, EONET, FIRMS) · Humanitarian & Health (WHO outbreak news, ReliefWeb) |
+| **Space & infrastructure** | Low Orbit Satellites (CelesTrak, SGP4) · Deep Sea Cables |
+| **Markets & economy** | Prediction Markets (Polymarket, Kalshi, Manifold) · World Markets (indices, commodities, currencies) |
+
+Around the layers:
+
+- **Country atlas, regions and cities**: click a country for a game-style profile (people, economy,
+  trade, strategic assets, relations, what is happening there now) with diplomacy and trade map
+  modes; click inside it for a region (state, province, oblast), or on a city.
+- **Investigation graph**: open any item as entities (events, places, actors, sources, claims,
+  assets) and expand them with transforms. See below.
+- **Case mode**: a full-screen workbench to work a case: evidence, graph, hypotheses, timeline.
+- **Search** (⌘K): countries, places, items on the map and graph entities in one list.
+- **In-app link viewer**: external links (articles, posts, Telegram, YouTube, TikTok, X) open in a
+  floating window instead of a new tab; Telegram videos play.
+- **AI analyst brief** (optional, Claude), **influence network**, **demo replay** (`?demo`) and a
+  ~40 s **showreel** of the interface (`?showreel`).
 
 ## Architecture
 
 ```
 shared/feature.ts            Feature schema (zod): the one contract for ALL layers
+shared/entities.ts           Entity graph types: entities, relations, checks, transforms
 server/
-  core/                      Provider interface, aggregator (parallel, fault-isolated, deduped), TTL cache
+  core/                      Provider interface, aggregator (parallel, fault-isolated, deduped, TTL,
+                             backoff, stale-on-error), pre-gzipped layer responses with ETag, SSE hub
   providers/<layer>/*.ts     One file per data source -> normalized Feature[]
   layers.ts                  SERVER registry: layer id -> providers
-  geo/gazetteer.ts           Offline text -> coordinates (cities, countries, ~45 protest/flashpoint sites)
-  truth/                     Truth-sensor engine (see below)
+  geo/gazetteer.ts           Offline text -> place: countries, cities, flashpoints; Latin, Cyrillic,
+                             Arabic, Hebrew script; Spanish, Portuguese and French names
+  news/, telegram/, markets/ Real-time engines (polling, clustering, analysis, pub/sub)
+  truth/                     Truth sensor; outlet registry (domains.ts); issuer registry (issuers.ts)
+  entities/                  Entity graph: rules extractor, resolution, checks, adapters (any layer
+                             -> entities), transforms, budgeted Claude extraction
+  atlas/                     Country profiles (Factbook + World Bank + Wikipedia), regions
+                             (geoBoundaries), region and city profiles (Wikipedia + Wikidata)
+  cii/                       Instability index
+  cases/db.ts                SQLite: cases, evidence snapshots, workspaces, watches, audit, Apify ledger
+  social/apify.ts            X / TikTok / Instagram searches on demand, hard budget
+  reader/reader.ts           SSRF-safe article reader for the link viewer
 src/
-  core/                      LayerDef contract, zustand store, polling hook
-  globe/                     GlobeHost (viewer, wireframe/satellite), LayerRenderer (pins/clusters/picking/fly-to),
-                             GlobeOverlay (position readout + globe controls)
-  ui/                        LayerPanel (search, layers, case file, key), AnalysisPanel (news feed, open story), shell (minimise state)
+  core/                      LayerDef contract, zustand stores (layers, investigation, cases, atlas)
+  globe/                     GlobeHost (viewer, terrain, imagery), LayerRenderer (pins, shapes,
+                             clusters, picking), places, overlays, showreel
+  ui/                        LayerPanel (search, grouped layers, key, case file), AnalysisPanel,
+                             Investigation (graph canvas), Workbench (case mode), LinkViewer
   layers/<id>/               CLIENT layer: LayerDef + Detail component
   layers/index.ts            CLIENT registry
 gui_elements/                ARGUS UI kit: design.ts (chosen design), components, tokens
@@ -49,8 +78,8 @@ canvas/                      Design editor: npm run canvas (port 5174), exports 
 
 Every `Feature` carries provenance: `source`, `geoPrecision` (`exact` |
 `approximate` | `inferred`) and `geoBasis` (why we put it there). The UI shows
-precision on pins (solid / framed / corner-ticked squares) and in the ANALYSIS panel. Don't drop these
-fields: later modules (cases, correlation, disinformation scoring) rely on them.
+precision on pins (solid / framed / corner-ticked squares), in the map **Key** and in the ANALYSIS
+panel. Don't drop these fields: the entity graph, cases and checks rely on them.
 
 ### Add a layer
 
@@ -58,8 +87,10 @@ fields: later modules (cases, correlation, disinformation scoring) rely on them.
    `Provider` (`fetch()` returns `Feature[]` with `layerId: '<layer>'`), then list it in
    `server/layers.ts`. Order = dedupe priority.
 2. **Client**: add `src/layers/<layer>/index.tsx` exporting a `LayerDef`
-   (colour, refresh interval, pin size, list subtitle, `Detail` component), then
-   add it to `src/layers/index.ts`.
+   (colour, panel `group`, refresh interval, pin style, `legend` for per-item colours, list
+   subtitle, `Detail` component), then add it to `src/layers/index.ts`.
+3. **Entity graph** (optional): event-like layers go through `reportOf` in `server/entities/rules.ts`;
+   anything else gets a mapping in `server/entities/adapters.ts` (a generic asset otherwise).
 
 The globe, panel, polling, clustering, picking and dock need no changes.
 
@@ -94,9 +125,17 @@ One rule for every country, applied in code rather than by taste:
 - **Campaign flags are symmetric**: "government outlet first" and "several governments push it" fire for
   any bloc. Official government and military Telegram channels of every side share one type ("official,
   party to events") and one neutral colour.
-- **Sources span regions and blocs**: Pakistani, Indian, Singaporean, Korean, South African, Nigerian,
-  Saudi, Argentine and exiled Russian newsrooms alongside Western ones; government-funded outlets of the
-  US, Russia, China, Iran, Qatar, Turkey and Ukraine. Google News queries rotate regional editions.
+- **Sources span regions and blocs**: African (allAfrica, Radio Dabanga, The Africa Report, Premium Times,
+  Daily Maverick...), Latin American (Infobae, El País América, BBC Mundo, MercoPress, InSight Crime,
+  Agência Brasil, Prensa Latina...), Asian (The Irrawaddy, Myanmar Now, Dawn, Express Tribune, The Hindu,
+  Kathmandu Post, Bangkok Post...), Middle Eastern and exiled Russian newsrooms alongside Western ones;
+  government-funded outlets of the US, Russia, China, Iran, Qatar, Turkey, Ukraine, Cuba and Brazil.
+  Google News queries rotate regional editions and Spanish, Portuguese and French editions.
+- **Governments and think tanks get the same rule** (`server/truth/issuers.ts`): every official statement
+  is a claim by its issuer, not a fact, whichever government; every think tank carries who funds and
+  steers it (RAND: US government contracts; RUSI: part UK government; Valdai: close to the Kremlin;
+  CIIS: Chinese foreign ministry; ORF: Reliance; SETA: close to Turkey's governing party...).
+- **Conflict parties are listed neutrally**, in no order of legitimacy.
 - **The AI brief is told to apply the same scrutiny to every government**, attribute every claim and
   describe all parties' actions in parallel terms.
 
@@ -120,14 +159,17 @@ POST /api/llm/translate       on-demand translation of one post (Claude, rate-li
 ## News Wire (`news` layer, real-time)
 
 ```
-server/news/sources.ts   feeds (BBC, Al Jazeera, DW, France 24, Guardian, Euronews, Sky, NPR, SCMP,
-                         Ukrinform, Defense News, TWZ; state media TASS, RT, Press TV, Al-Manar, CGTN;
-                         6 keyword-filtered Google News queries). Add a row to add a feed.
+server/news/sources.ts   72 feeds: international (BBC, Al Jazeera, DW, France 24, Guardian, NPR, SCMP...),
+                         regional (Africa, Latin America, Asia, Middle East), state media of every bloc,
+                         grouped Google News searches over outlets that refuse RSS, Spanish/Portuguese/
+                         French editions, Bluesky searches. Add a row to add a feed.
 server/news/ingest.ts    conditional-GET polling (ETag), RSS/Atom/RDF parsing
 server/news/engine.ts    topic gate -> story clustering -> analysis -> pub/sub
 GET /api/stream/news     SSE: `snapshot` on connect, then `news` (new|update), `remove`, `status`
 ```
 
+- **Topic gate** (`server/truth/topics.ts`): security, conflict, unrest, politics and disinformation, in
+  English, Spanish, Portuguese and French, including gangs, cartels, militias and juntas.
 - **Analysis on arrival**: each story is geolocated (gazetteer), matched against the fact-check
   corpus, and scored from its own outlet mix: established vs state-affiliated outlets, number of
   distinct outlets. No GDELT round-trip, so verdicts are instant.
@@ -166,19 +208,113 @@ GET /api/markets/history  7-day price series (Polymarket CLOB / Kalshi candlesti
   and publishes `upsert/remove/status`; the client hook and live wire pick it up via `LayerDef.stream`
   and `LayerDef.ticker`.
 
-## OSINT signals (`osint` layer)
+## Internet outages & censorship (`osint`) and natural hazards (`hazards`)
 
-| Provider | Source | Notes |
+| Layer | Provider | Source | Notes |
+|---|---|---|---|
+| `osint` | `ioda` | Georgia Tech IODA | country-level internet outages (BGP / active probing); placed at the country centre |
+| `osint` | `ooni` | OONI | per-country confirmed blocks and anomalies (24 h) |
+| `osint` | `cloudflare-radar` | Cloudflare Radar (`CLOUDFLARE_RADAR_TOKEN`) | curated outages with cause |
+| `hazards` | `gdacs` | UN/EC GDACS RSS | orange/red disaster alerts only, exact event centre |
+| `hazards` | `usgs` | USGS | M4.5+ last 24 h, exact epicentre |
+| `hazards` | `eonet` | NASA EONET | volcanoes, storms, floods with a position <3 days old |
+| `hazards` | `nasa-firms` | NASA FIRMS (`FIRMS_MAP_KEY`) | high-power thermal anomalies in conflict areas |
+
+## Official statements, research, warnings, humanitarian
+
+| Layer | Sources | Placement |
 |---|---|---|
-| `ioda` | Georgia Tech IODA | country-level internet outages (BGP / active probing); critical alert or 2 sources; placed at country centroid (inferred) |
-| `gdacs` | UN/EC GDACS RSS | Orange/Red disaster alerts only, exact event centre |
-| `usgs` | USGS | M4.5+ last 24 h, exact epicentre |
-| `eonet` | NASA EONET | volcanoes, storms, floods with a position <3 days old (wildfires omitted as noise) |
+| `statements` | Direct RSS where it exists (US State Department and DoD, Kremlin, UK FCDO and MoD, Council of the EU, UN News), else grouped Google News `site:` searches over the ministries of Russia, China, Ukraine, India, Turkey, Iran, France, Israel, Saudi Arabia, UAE, Japan, South Korea, Germany, South Africa, Mexico, Pakistan, plus EEAS and NATO | where the statement is about, else the issuer's country (stated) |
+| `research` | Crisis Group, Bellingcat, War on the Rocks, Al Jazeera Centre (RSS); ISW, CSIS, RUSI, Carnegie, Chatham House, IISS, SIPRI, ECFR, MERICS, RAND, Brookings, CFR, Valdai, RIAC, CIIS, CICIR, ORF, MP-IDSA, SETA, ISS Africa (searches) | where the analysis is about, else unpinned |
+| `warnings` | Airspace closures and NOTAMs, live-fire drills and naval exercises, maritime security incidents (UKMTO, JMIC), launch notices, GNSS interference, as reported; NOAA SWPC space weather (Kp, alerts) | where the notice is, located by the gazetteer; space weather is global |
+| `humanitarian` | WHO Disease Outbreak News; ReliefWeb (UN OCHA) reports and disasters | the country concerned (stated) |
 
-Also added: Bellingcat to the live wire. `osint.places` was unreachable (no DNS record) when this
-was built, so feeds were chosen from well-known public sources and verified individually. Metaculus
-needs an API login and is not included; PolitiFact, AFP, Reuters, AP, Liveuamap and the State
-Department block anonymous requests.
+The official NGA broadcast-warning API stopped updating in 2024, so warnings come from the coverage
+of the notices. ReliefWeb's edge refuses some cloud hosts; WHO still feeds the layer there.
+
+## Frontlines & conflict zones (`frontlines`)
+
+- **Ukraine**: DeepState's occupied and contested polygons, updated daily (a Ukrainian OSINT group;
+  partisan, well regarded; editorial claims such as Karelia are skipped).
+- **Every other active war** (`server/providers/frontlines/conflicts.ts`): Sudan, Gaza, Lebanon, West Bank,
+  Syria, Yemen, Myanmar, eastern DR Congo, the Sahel, Lake Chad and Nigeria, Somalia, Ethiopia, South
+  Sudan, Cabo Delgado, Cameroon, Central African Republic, Haiti, Colombia, Mexico, Ecuador, Pakistan,
+  Kashmir, Iraq, Afghanistan. No open territorial-control feed exists for them, so each is drawn as the
+  regions where it is fought (a curated baseline on real geoBoundaries outlines, not a line of control)
+  and shaded by what the live layers report there over the last 3 days (high / elevated / low / quiet).
+  Edit the list to add a conflict or a region.
+
+## Cyber threats (`cyber`) and world markets (`finance`)
+
+- `cyber`: ransomware.live recent victims (at the victim's country), abuse.ch Feodo Tracker botnet C2
+  servers grouped per country and malware family, CISA Known Exploited Vulnerabilities of the last 14 days
+  (listed). Victims, groups and malware families become entities.
+- `finance`: 40+ instruments from Yahoo's chart API (major indices, oil, gas, gold, wheat, currencies),
+  with day and month moves; a board in the panel. Indices and currencies link to their country.
+
+## Entity graph and investigation canvas
+
+Every report is read, checked and turned into entities with relations (`server/entities/`):
+
+- **Entities**: events, locations (country, region, city, place), actors (governments, armed groups,
+  threat actors, organisations, think tanks), sources, claims, assets (vessels, aircraft, satellites,
+  jamming areas, cables, markets, instruments).
+- **Relations**: located_at, involves (with role), reported_by, claims, about, supports, contradicts,
+  copies, forwards, near, mentions, leads, member_of, borders, trades_with, issued_by, responds_to,
+  affiliated_with, part_of.
+- **Pipeline**: rules extractor (places, actors, event kind, casualties) -> resolution (same event from
+  several reports) -> check (confirmed / corroborated / single-source / government-only / contested /
+  debunked, with reasons). Claude refines places, actors and claims for a budgeted number of events per
+  hour (`PANOPTES_EXTRACT_PER_HOUR`, default 25), and on demand ("✦ Read with AI").
+- **Any layer** becomes entities on demand (`adapters.ts`): open any item with **Investigate**.
+- **Transforms** (Maltego-style, `transforms.ts`, `live.ts`): walk the graph (who reported it, actors,
+  claims, nearby events and assets) or fetch now (⚡ news and Telegram search, events in a country,
+  leaders, alliances, neighbours, trade partners, Wikipedia, prediction markets, fact-checks, cyber
+  incidents, official statements and analyses about it, warnings nearby, humanitarian reports, official
+  reactions to an event, what an issuer published, who funds and controls it, related items in every
+  layer) and 💲 X / TikTok / Instagram posts via Apify (below).
+
+## Country atlas, regions and cities
+
+- **Country**: CIA World Factbook data (`server/data/countries.json`, built by
+  `scripts/build-countries.mjs`), World Bank indicators, Wikipedia, exchange rate; cards for people,
+  economy, energy, military, stability, trade; diplomacy and trade map modes with partner arcs.
+- **Regions**: opening a country draws its first-level subdivisions from geoBoundaries (open licence);
+  each country is thinned once (~2 km), cached on disk and served pre-gzipped. A click inside the
+  country opens the region under the cursor; a click on a city dot or name opens the city.
+- **Region and city profiles**: Wikipedia summary, population, area and capital (Wikidata), main cities
+  of a region, live items inside the region or within 30 km of the city. Breadcrumb
+  Country › Region › City. Regions and cities can be investigated (`part_of` their region and country).
+
+## Case mode (workbench)
+
+**Case mode** in the left panel (or `#case` in the address) swaps the globe for a workbench:
+
+- Left: case picker and status (open / monitoring / closed), evidence (frozen snapshots saved with
+  **Add to case**) tagged supports / refutes / context with notes, hypotheses with confidence and
+  evidence counts, case notes, PDF export.
+- Centre: the investigation graph full size, its inspector and transforms, and a mini map.
+- Bottom: a timeline of evidence and of the events on the graph.
+
+Evidence opens on the graph even when the item is no longer live. Everything autosaves to the server
+(SQLite) and to the browser; a case the server lost (a free host wipes its disk on restart) is
+re-created from the browser's copy. The globe stops rendering while case mode is open.
+
+## Socials via Apify (X, TikTok, Instagram)
+
+With `APIFY_TOKEN`, the 💲 transforms search X, TikTok and Instagram for an entity. They run only when
+an analyst clicks: 15 results per run, at most 6 runs an hour, cached 6 h, per-run charge ceiling
+$0.10 (or the actor's own minimum), and a spend ledger in SQLite stops every run once
+`APIFY_BUDGET_USD` (default 2.5) is spent. The canvas shows what has been spent.
+
+## Search and link viewer
+
+- **Search** (⌘K / Ctrl+K): one list with countries (open the atlas), places (fly there), items on the
+  map across loaded layers (select) and graph entities (open the canvas). Items are searched in the
+  browser; `/api/search` serves places and entities only.
+- **Link viewer**: external links open in a floating window. Telegram, YouTube, TikTok, Instagram and X
+  use their official embeds; other pages are framed when they allow it, else shown in a reader view
+  (`/api/reader`: http(s) only, public hosts only after DNS lookup, 1.5 MB cap, rate-limited).
 
 ## Truth sensor (`narratives` layer)
 
@@ -215,7 +351,7 @@ verdict   debunked | disputed | unverified | corroborated | insufficient
 two sources are linked when both carried a story within 6 h; the arrow points from the
 one that was usually first, with the median lead in minutes. A pair that recurs on 3+
 flagged stories is drawn red. `?story=<id>` restricts it to one story's sources while
-keeping each pair's history across all stories. Open it from **⌘ Network** in the panel or
+keeping each pair's history across all stories. Open it from **Network** in the left panel or
 the **Network** tab next to a story's timeline. Leads for an analyst, not attribution.
 
 ## AI analyst brief (optional)
@@ -243,12 +379,10 @@ Livestreams and frontline polygons are excluded by default.
 |---|---|---|---|
 | `gnss` | GPSJam daily H3 cells | none | aircraft reporting degraded GPS; cells with >10% affected, yesterday |
 | `military-air` | adsb.lol `/v2/mil` | none | only aircraft broadcasting ADS-B; many fly dark |
-| `frontlines` | DeepState | none | occupied + contested polygons; editorial claims skipped |
+| `ships` | AISStream | `AISSTREAM_API_KEY` | vessels at the main chokepoints (live websocket) |
+| `satellites` | CelesTrak | none | low-orbit satellites propagated with SGP4 (snapshot fallback) |
 | `infrastructure` | TeleGeography | none | submarine cable routes (schematic) |
-| `osint` + | OONI | none | per-country confirmed blocks / anomalies (24 h) |
-| `osint` + | NASA FIRMS | `FIRMS_MAP_KEY` | high-power thermal anomalies in conflict areas only |
-| `osint` + | Cloudflare Radar | `CLOUDFLARE_RADAR_TOKEN` | curated outages with cause |
-| `acled` | ACLED | `ACLED_EMAIL`/`ACLED_PASSWORD` | human-coded events, actors, fatalities, 14 days |
+| `acled` | Wikipedia Current Events; ACLED | none; `ACLED_EMAIL`/`ACLED_PASSWORD` | cited events of the last 3 days; human-coded events, 14 days |
 
 Features may carry a GeoJSON `geometry` (polygon/line); the globe draws it instead of a pin.
 
@@ -264,10 +398,20 @@ the built frontend; `render.yaml` describes it.
 2. Optional keys: see `.env.example`. Every source works without them or shows why it is idle.
 3. Free plan sleeps after ~15 min idle (about a minute to wake, a few more for feeds
    to fill). Use **Starter** or open the site ~10 min before a demo.
-4. Cases live on the instance disk and are wiped on redeploy. To keep them, attach
-   a disk and set `PANOPTES_DB=/var/data/panoptes.db`.
+4. Cases live on the instance disk, which the free plan wipes on restart and redeploy; the case
+   workbench re-creates them from the browser's copy. To keep them server-side, attach a disk and
+   set `PANOPTES_DB=/var/data/panoptes.db`.
+5. `npm run build` pre-compresses the built files (brotli + gzip, `scripts/precompress.mjs`); the
+   server sends them as is with long cache headers. Layer responses are serialised and gzipped once
+   per update with an ETag, so repeat polls cost a 304.
+6. Memory on the free plan (512 MB) is the tight resource: region boundaries are cached on disk and
+   at most 8 countries in memory; the largest (Russia, US) load on demand only.
 
 Locally, `npm run build && npm start` runs the same production setup on :8787.
+
+Google Trends is relayed by a GitHub Actions job (`.github/workflows/trends-relay.yml`, every 30 min)
+that writes `trends.json` to the `data` branch, because Google rate-limits cloud IPs; set
+`TRENDS_RELAY_URL` to its raw URL. `secret-scan.yml` runs gitleaks on every push; see `SECURITY.md`.
 
 ## Demo replay (presenter walk-through)
 
@@ -299,3 +443,6 @@ Notes for presenting:
 ## Notes
 
 - Inferred locations can be wrong. Treat as leads.
+- Conflict zones outside Ukraine are a curated baseline of where each war is fought, not lines of
+  control; only their shading is live.
+- Official statements and think-tank analyses are claims by their issuers, shown with who they are.

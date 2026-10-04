@@ -13,6 +13,7 @@ export const research: LayerDef = {
   color: '#a78bfa',
   refreshMs: 600_000,
   pin: (f) => ({ size: 20, color: OWN_COLOR[String(f.props.own)], glyph: 'news' }),
+  legend: [['state-run or state-steered', OWN_COLOR.state], ['publicly funded, independent', OWN_COLOR.public], ['independent', OWN_COLOR.private]],
   subtitle: (f) => `${String(f.props.issuer)} · ${String(f.props.issuerCountry)}`,
   Detail: PublicationDetail,
 }

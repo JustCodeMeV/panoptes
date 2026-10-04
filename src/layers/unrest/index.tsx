@@ -36,6 +36,7 @@ export const unrest: LayerDef = {
     return { size: Math.round(20 + Math.min(16, Math.log2(u.sources + 1) * 3)), color: COLOR[u.dominant] ?? '#ef4444', glyph: 'alert' }
   },
   rank: (f) => unrestOf(f).sources + Math.max(0, unrestOf(f).trend) * 3,
+  legend: Object.entries(COLOR),
   subtitle: (f) => {
     const u = unrestOf(f)
     return `${u.dominant} · ${u.sources} articles${u.trend > 3 ? ' · rising' : ''}`

@@ -14,6 +14,7 @@ export const hazards: LayerDef = {
   refreshMs: 120_000,
   pin: (f) => ({ size: sev(f) === 'high' ? 30 : sev(f) === 'medium' ? 26 : 22, color: SEVERITY[sev(f)], glyph: 'pulse' }),
   rank: (f) => ({ high: 3, medium: 2, low: 1 })[sev(f)] * 1e13 + Date.parse(f.observedAt),
+  legend: Object.entries(SEVERITY).map(([k, c]) => [`${k} severity`, c]),
   subtitle: (f) => `${f.props.category} · ${f.props.feed}${f.props.magnitude ? ` · ${f.props.magnitude}` : ''}`,
   Detail: OsintDetail,
 }

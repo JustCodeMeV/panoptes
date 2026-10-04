@@ -11,6 +11,7 @@ export const humanitarian: LayerDef = {
   color: '#38bdf8',
   refreshMs: 600_000,
   pin: (f) => ({ size: f.props.kind === 'outbreak' ? 24 : 21, color: COLOR[String(f.props.kind)], glyph: 'pulse' }),
+  legend: Object.entries(COLOR),
   subtitle: (f) => `${String(f.props.kind)} · ${String(f.props.country ?? '')} · ${f.source.platform}`,
   Detail: HumanitarianDetail,
 }
