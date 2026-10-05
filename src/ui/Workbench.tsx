@@ -97,7 +97,7 @@ function MiniMap({ entities, selected, onPick }: { entities: Entity[]; selected:
 }
 
 // ---------- timeline ----------
-function Timeline({ items, events, onItem, onEvent }: { items: { id: number; at: number; title: string; tag?: Tag }[]; events: Entity[]; onItem: (id: number) => void; onEvent: (id: string) => void }) {
+function Timeline({ items, events, selected, onItem, onEvent }: { items: { id: number; at: number; title: string; tag?: Tag }[]; events: Entity[]; selected: string | null; onItem: (id: number) => void; onEvent: (id: string) => void }) {
   const pts = [...items.map((i) => i.at), ...events.map((e) => e.firstSeen)].filter(Number.isFinite)
   if (!pts.length) return <div className="wb-timeline empty">The timeline fills as you add evidence and grow the graph.</div>
   const lo = Math.min(...pts)
@@ -109,7 +109,7 @@ function Timeline({ items, events, onItem, onEvent }: { items: { id: number; at:
       <svg viewBox="0 0 1000 64" preserveAspectRatio="none">
         <line x1="20" x2="980" y1="40" y2="40" className="axis" />
         {events.map((e) => (
-          <circle key={e.id} cx={x(e.firstSeen)} cy={40} r={3.5} className="ev" onClick={() => onEvent(e.id)}>
+          <circle key={e.id} cx={x(e.firstSeen)} cy={40} r={selected === e.id ? 6 : 3.5} className={`ev ${selected === e.id ? 'sel' : ''}`} onClick={() => onEvent(e.id)}>
             <title>{`${day(e.firstSeen)} · ${e.label}`}</title>
           </circle>
         ))}
@@ -336,6 +336,7 @@ export function Workbench() {
         <Timeline
           items={items.map((i) => ({ id: i.id, at: Date.parse(i.feature.observedAt), title: i.feature.title, tag: ws.tags[i.id] }))}
           events={events}
+          selected={inv.selected}
           onItem={(id) => {
             const it = items.find((x) => x.id === id)
             if (it) void inv.seedFeature(it.feature)

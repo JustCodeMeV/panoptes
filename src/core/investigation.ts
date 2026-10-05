@@ -6,6 +6,12 @@ type Inspect = { entity: Entity; transforms: TransformDef[]; degree: number }
 type State = {
   /** An entity to open once the case workbench has loaded its case (set by the Brief). */
   pending: string | null
+  /** The event opened from a briefing or an item: re-checked every 30 s, new nodes pulse. */
+  liveId: string | null
+  /** entity id -> when it appeared through a live re-check */
+  fresh: Record<string, number>
+  /** Re-runs the live event's expansion and marks what is new. */
+  refreshLive(): Promise<void>
   open: boolean
   entities: Record<string, Entity>
   edges: Record<string, Edge>
@@ -41,6 +47,24 @@ const merge = (s: State, g: Subgraph) => ({
   edges: { ...s.edges, ...Object.fromEntries(g.edges.map((e) => [e.id, e])) },
 })
 
+const post = (id: string, name: string) =>
+  get<Subgraph>(`/api/entities/${encodeURIComponent(id)}/transform`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) })
+
+/** An event's graph, built from what ARGUS already knows: who reported it, actors, place, claims. No outside lookups. */
+async function expandEvent(id: string): Promise<Subgraph> {
+  const parts = await Promise.all(['sources', 'actors', 'location', 'claims'].map((n) => post(id, n).catch(() => ({ entities: [], edges: [] }) as Subgraph)))
+  return { entities: parts.flatMap((p) => p.entities), edges: parts.flatMap((p) => p.edges) }
+}
+
+/** "Built automatically from 21 reports in 1.2 s · 11 independent · 2 contradict" */
+function builtLine(id: string, g: Subgraph, ms: number): string {
+  const ev = g.entities.find((e) => e.id === id)
+  const c = ev?.check
+  const contra = g.edges.filter((e) => e.rel === 'contradicts').length
+  const reports = c?.sources ?? g.entities.filter((e) => e.type === 'source').length
+  return `Built automatically from ${reports} report${reports === 1 ? '' : 's'} in ${ms < 1000 ? `${Math.max(1, Math.round(ms))} ms` : `${(ms / 1000).toFixed(1)} s`}${c ? ` · ${c.independent} independent · ${c.countries} countr${c.countries === 1 ? 'y' : 'ies'}` : ''}${contra ? ` · ${contra} contradict` : ''}`
+}
+
 async function get<T>(url: string, init?: RequestInit): Promise<T> {
   const r = await fetch(url, init)
   const j = await r.json()
@@ -52,6 +76,8 @@ async function get<T>(url: string, init?: RequestInit): Promise<T> {
 export const useInvestigation = create<State>((set, getState) => ({
   open: false,
   pending: null,
+  liveId: null,
+  fresh: {},
   entities: {},
   edges: {},
   selected: null,
@@ -117,17 +143,31 @@ export const useInvestigation = create<State>((set, getState) => ({
     }
   },
   async seedEntity(id) {
-    set({ open: true, busy: 'Loading…', error: null })
+    set({ open: true, busy: 'Building the graph…', error: null })
+    const t0 = performance.now()
     try {
-      const g = await get<Subgraph>(`/api/entities/${encodeURIComponent(id)}/transform`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'sources' }) })
-      const more = await get<Subgraph>(`/api/entities/${encodeURIComponent(id)}/transform`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'actors' }) })
-      const loc = await get<Subgraph>(`/api/entities/${encodeURIComponent(id)}/transform`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'location' }) }).catch(() => ({ entities: [], edges: [] }))
-      set((s) => ({ ...merge(merge(merge(s, g) as State, more) as State, loc), busy: null }))
+      const g = await expandEvent(id)
+      set((s) => ({ ...merge(s, g), busy: null, liveId: id, fresh: {}, status: builtLine(id, g, performance.now() - t0) }))
       void getState().select(id)
     } catch (e) {
       set({ busy: null, error: e instanceof Error ? e.message : String(e) })
     }
   },
+  async refreshLive() {
+    const id = getState().liveId
+    if (!id || getState().busy) return
+    const g = await expandEvent(id).catch(() => null)
+    if (!g) return
+    const known = getState().entities
+    const added = g.entities.filter((e) => !known[e.id])
+    const now = Date.now()
+    set((s) => ({
+      ...merge(s, g),
+      fresh: { ...Object.fromEntries(Object.entries(s.fresh).filter(([, t]) => now - t < 120_000)), ...Object.fromEntries(added.map((e) => [e.id, now])) },
+      ...(added.length ? { status: `+${added.length} since you opened it: ${added.slice(0, 3).map((e) => e.label).join(', ')}${added.length > 3 ? '…' : ''}` } : {}),
+    }))
+  },
+
   async expand(id, transform) {
     // Client-side transform: open the country atlas for a country entity.
     if (transform === 'open-atlas') {
@@ -178,7 +218,7 @@ export const useInvestigation = create<State>((set, getState) => ({
       return { entities, edges, selected: s.selected === id ? null : s.selected, inspect: s.selected === id ? null : s.inspect }
     })
   },
-  clear: () => set({ entities: {}, edges: {}, selected: null, inspect: null, error: null, status: null }),
+  clear: () => set({ entities: {}, edges: {}, selected: null, inspect: null, error: null, status: null, liveId: null, fresh: {} }),
   close: () => set({ open: false }),
 }))
 

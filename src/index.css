@@ -413,3 +413,8 @@ h3.tabs button.on { color: var(--text); border-color: var(--c, var(--color-accen
 .item-why:hover { background: color-mix(in srgb, var(--color-accent-2) 15%, transparent); }
 .item-why-list { margin: 8px 0 0; padding-left: 16px; }
 .item-why-none { margin: 8px 0 0; color: var(--dim); }
+.inv-node.fresh circle { animation: inv-pulse 1.4s ease-out infinite; }
+@keyframes inv-pulse { 0% { stroke-width: 2; filter: drop-shadow(0 0 0 #facc15); } 50% { stroke-width: 5; filter: drop-shadow(0 0 8px #facc15); } 100% { stroke-width: 2; filter: drop-shadow(0 0 0 #facc15); } }
+.inv-live { color: #22c55e; font-size: 11px; }
+.inv-rings { color: var(--dim); font-size: 11px; cursor: help; border-bottom: 1px dotted var(--dim); }
+.wb-timeline .ev.sel { fill: #facc15; stroke: #fff; stroke-width: 1.5; }

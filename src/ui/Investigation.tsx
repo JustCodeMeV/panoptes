@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Edge, Entity } from '../../shared/entities'
 import { flyTo, useInvestigation } from '../core/investigation'
 import { useStore } from '../core/store'
@@ -31,6 +31,8 @@ const CHECK_COLOR: Record<string, string> = {
   contested: '#e879f9',
   debunked: '#ef4444',
 }
+/** Source ring colours: who owns and controls the outlet or channel. */
+const OWN_COLOR: Record<string, string> = { state: '#f97316', public: '#38bdf8', private: '#22c55e' }
 const REL: Record<string, string> = {
   located_at: 'at', involves: 'involves', reported_by: 'reported by', claims: 'claims', about: 'about', supports: 'supports',
   contradicts: 'contradicts', copies: 'copies', forwards: 'forwards', near: 'near', same_as: 'same gov.', mentions: 'mentions',
@@ -164,9 +166,15 @@ function Inspector() {
 
 /** The canvas: a floating window over the globe, or `embedded` in the case workbench (with extra panels under the inspector). */
 export function Investigation({ embedded = false, aside }: { embedded?: boolean; aside?: ReactNode } = {}) {
-  const { open, entities, edges, selected, busy, error, status, select, close, clear } = useInvestigation()
+  const { open, entities, edges, selected, busy, error, status, select, close, clear, liveId, fresh, refreshLive } = useInvestigation()
   const [filter, setFilter] = useState<string | null>(null)
   useEscape(open && !embedded, close)
+  // Live: the opened event is re-checked every 30 s; what arrives pulses on the graph
+  useEffect(() => {
+    if (!liveId || (!open && !embedded)) return
+    const t = setInterval(() => void refreshLive(), 30_000)
+    return () => clearInterval(t)
+  }, [liveId, open, embedded, refreshLive])
   const nodes = useMemo(() => Object.values(entities), [entities])
   const es = useMemo(() => Object.values(edges).filter((e) => entities[e.from] && entities[e.to]), [edges, entities])
   const pos = useMemo(() => {
@@ -184,6 +192,10 @@ export function Investigation({ embedded = false, aside }: { embedded?: boolean;
         <b>Investigation</b>
         <span>
           {nodes.length} entities · {es.length} relations
+        </span>
+        {liveId && <span className="inv-live" title="The opened event is re-checked every 30 s; new nodes pulse">● live</span>}
+        <span className="inv-rings" title="Event rings: green confirmed, yellow single source, orange government only, pink contested, red debunked. Source rings: orange state-run, blue public, green independent.">
+          rings = check / ownership
         </span>
         <div className="inv-legend">
           {Object.entries(TYPE).map(([k, t]) => (
@@ -226,11 +238,12 @@ export function Investigation({ embedded = false, aside }: { embedded?: boolean;
             const p = pos.get(n.id)
             if (!p) return null
             const t = TYPE[n.type]
-            const ring = n.check ? CHECK_COLOR[n.check.status] : t.color
+            // Rings: events by check status, sources by who owns them (state / public / independent)
+            const ring = n.check ? CHECK_COLOR[n.check.status] : n.type === 'source' && OWN_COLOR[String(n.props.ownership)] ? OWN_COLOR[String(n.props.ownership)] : t.color
             return (
               <g
                 key={n.id}
-                className={`inv-node ${selected === n.id ? 'sel' : ''} ${shown(n) ? '' : 'dim'}`}
+                className={`inv-node ${selected === n.id ? 'sel' : ''} ${shown(n) ? '' : 'dim'} ${fresh[n.id] ? 'fresh' : ''}`}
                 transform={`translate(${p.x},${p.y})`}
                 onClick={(ev) => {
                   ev.stopPropagation()
