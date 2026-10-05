@@ -78,7 +78,8 @@ const LAND = topoFeature(topo, topo.objects.countries)
 const PROJ = geoEqualEarth().fitSize([280, 150], LAND)
 const LAND_PATH = geoPath(PROJ)(LAND) ?? ''
 
-function MiniMap({ entities, selected, onPick }: { entities: Entity[]; selected: string | null; onPick: (e: Entity) => void }) {
+function MiniMap({ entities, selected, onPick, onGlobe }: { entities: Entity[]; selected: string | null; onPick: (e: Entity) => void; onGlobe: (e: Entity) => void }) {
+  const sel = entities.find((e) => e.id === selected && e.position)
   return (
     <div className="wb-map">
       <span className="wb-h">Map</span>
@@ -91,13 +92,19 @@ function MiniMap({ entities, selected, onPick }: { entities: Entity[]; selected:
             return xy ? <circle key={e.id} cx={xy[0]} cy={xy[1]} r={selected === e.id ? 4 : 2.5} className={selected === e.id ? 'sel' : ''} onClick={() => onPick(e)}><title>{e.label}</title></circle> : null
           })}
       </svg>
-      <small>Click a dot to see it on the globe.</small>
+      {sel ? (
+        <button type="button" className="wb-globe" onClick={() => onGlobe(sel)}>
+          Show {sel.label.length > 30 ? `${sel.label.slice(0, 28)}…` : sel.label} on the globe
+        </button>
+      ) : (
+        <small>Click a dot to select it on the graph.</small>
+      )}
     </div>
   )
 }
 
 // ---------- timeline ----------
-function Timeline({ items, events, selected, onItem, onEvent }: { items: { id: number; at: number; title: string; tag?: Tag }[]; events: Entity[]; selected: string | null; onItem: (id: number) => void; onEvent: (id: string) => void }) {
+function Timeline({ items, events, selected, until, onUntil, onItem, onEvent }: { items: { id: number; at: number; title: string; tag?: Tag }[]; events: Entity[]; selected: string | null; until: number | null; onUntil: (t: number | null) => void; onItem: (id: number) => void; onEvent: (id: string) => void }) {
   const pts = [...items.map((i) => i.at), ...events.map((e) => e.firstSeen)].filter(Number.isFinite)
   if (!pts.length) return <div className="wb-timeline empty">The timeline fills as you add evidence and grow the graph.</div>
   const lo = Math.min(...pts)
@@ -108,6 +115,7 @@ function Timeline({ items, events, selected, onItem, onEvent }: { items: { id: n
     <div className="wb-timeline">
       <svg viewBox="0 0 1000 64" preserveAspectRatio="none">
         <line x1="20" x2="980" y1="40" y2="40" className="axis" />
+        {until !== null && <rect x={x(until)} y={0} width={980 - x(until)} height={64} className="later" />}
         {events.map((e) => (
           <circle key={e.id} cx={x(e.firstSeen)} cy={40} r={selected === e.id ? 6 : 3.5} className={`ev ${selected === e.id ? 'sel' : ''}`} onClick={() => onEvent(e.id)}>
             <title>{`${day(e.firstSeen)} · ${e.label}`}</title>
@@ -119,9 +127,21 @@ function Timeline({ items, events, selected, onItem, onEvent }: { items: { id: n
           </rect>
         ))}
       </svg>
+      <input
+        type="range"
+        min={lo}
+        max={hi}
+        step={60_000}
+        value={until ?? hi}
+        aria-label="Replay the graph up to this moment"
+        onChange={(e) => {
+          const v = Number(e.target.value)
+          onUntil(v >= hi - 60_000 ? null : v)
+        }}
+      />
       <div className="wb-axis">
         <span>{day(lo)}</span>
-        <span>▮ evidence · ● events in the graph</span>
+        <span>{until === null ? '▮ evidence · ● events in the graph · drag to replay the graph' : `graph as of ${day(until)}`}</span>
         <span>{day(hi)}</span>
       </div>
     </div>
@@ -201,6 +221,7 @@ export function Workbench() {
   const items = open?.items ?? []
   const patch = (p: Partial<Workspace>) => setWs((w) => ({ ...w, ...p }))
 
+  const [until, setUntil] = useState<number | null>(null)
   const pickOnGlobe = (e: Entity) => {
     setCaseMode(false)
     if (e.position) setTimeout(() => flyTo(e.position!.lat, e.position!.lon), 300)
@@ -329,7 +350,7 @@ export function Workbench() {
       </aside>
 
       <div className="wb-centre">
-        <Investigation embedded aside={<MiniMap entities={entities} selected={inv.selected} onPick={pickOnGlobe} />} />
+        <Investigation embedded until={until} aside={<MiniMap entities={entities} selected={inv.selected} onPick={(e) => void inv.select(e.id)} onGlobe={pickOnGlobe} />} />
       </div>
 
       <footer className="wb-bottom">
@@ -337,6 +358,8 @@ export function Workbench() {
           items={items.map((i) => ({ id: i.id, at: Date.parse(i.feature.observedAt), title: i.feature.title, tag: ws.tags[i.id] }))}
           events={events}
           selected={inv.selected}
+          until={until}
+          onUntil={setUntil}
           onItem={(id) => {
             const it = items.find((x) => x.id === id)
             if (it) void inv.seedFeature(it.feature)

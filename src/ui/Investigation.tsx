@@ -165,7 +165,8 @@ function Inspector() {
 }
 
 /** The canvas: a floating window over the globe, or `embedded` in the case workbench (with extra panels under the inspector). */
-export function Investigation({ embedded = false, aside }: { embedded?: boolean; aside?: ReactNode } = {}) {
+/** `until`: replay the graph as it stood at that moment (entities and relations first seen later are hidden; layout stays put). */
+export function Investigation({ embedded = false, aside, until = null }: { embedded?: boolean; aside?: ReactNode; until?: number | null } = {}) {
   const { open, entities, edges, selected, busy, error, status, select, close, clear, liveId, fresh, refreshLive } = useInvestigation()
   const [filter, setFilter] = useState<string | null>(null)
   useEscape(open && !embedded, close)
@@ -184,6 +185,7 @@ export function Investigation({ embedded = false, aside }: { embedded?: boolean;
     return next
   }, [nodes, es])
   if (!open && !embedded) return null
+  const existed = (n: Entity | undefined) => !!n && (until === null || n.firstSeen <= until)
   const shown = (n: Entity) => !filter || n.type === filter
   const hotCount = selected ? es.filter((e) => e.from === selected || e.to === selected).length : 0
   return (
@@ -219,7 +221,7 @@ export function Investigation({ embedded = false, aside }: { embedded?: boolean;
           {es.map((e) => {
             const a = pos.get(e.from)
             const b = pos.get(e.to)
-            if (!a || !b) return null
+            if (!a || !b || !existed(entities[e.from]) || !existed(entities[e.to])) return null
             const hot = selected === e.from || selected === e.to
             // Label relations only when it stays readable: roles always, other relations for small fan-outs.
             const label = hot && (e.role ? e.role !== 'participant' : hotCount <= 10)
@@ -236,7 +238,7 @@ export function Investigation({ embedded = false, aside }: { embedded?: boolean;
           })}
           {nodes.map((n) => {
             const p = pos.get(n.id)
-            if (!p) return null
+            if (!p || !existed(n)) return null
             const t = TYPE[n.type]
             // Rings: events by check status, sources by who owns them (state / public / independent)
             const ring = n.check ? CHECK_COLOR[n.check.status] : n.type === 'source' && OWN_COLOR[String(n.props.ownership)] ? OWN_COLOR[String(n.props.ownership)] : t.color
@@ -262,8 +264,9 @@ export function Investigation({ embedded = false, aside }: { embedded?: boolean;
           })}
         </svg>
         <aside>
-          <Inspector />
+          {/* Extra panels (the workbench's mini map) sit above the inspector, where they stay in view */}
           {aside}
+          <Inspector />
         </aside>
       </div>
     </section>

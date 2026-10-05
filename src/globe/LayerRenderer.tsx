@@ -314,20 +314,28 @@ export function LayerRenderer({ layers, interactive = true }: { layers: LayerDef
       return Array.isArray(id) && id.every((x) => typeof x === 'string') ? (id as string[]).filter((x) => featureById.current.has(x)) : null
     }
     /** Fans a small group out around its tag. False when it's too big to fan. */
-    const fan = (picked: { primitive: Billboard }, ids: string[]) => {
-      if (ids.length < 2 || ids.length > SPIDER_MAX) return false
+    const fan = (picked: { primitive: Billboard }, ids: string[], sticky = false) => {
+      if (ids.length < 2) return false
       const xy = SceneTransforms.worldToWindowCoordinates(viewer.scene, picked.primitive.position)
       if (!xy) return false
       const key = [...ids].sort().join('|')
       const ui = useGlobeUi.getState()
-      if (ui.spider?.key !== key) ui.setSpider({ key, x: xy.x, y: xy.y, ids })
+      // Hover never replaces a fan opened by a click; a click pins the hovered fan open
+      if (ui.spider?.sticky && !sticky) return true
+      if (ui.spider?.key !== key || (sticky && !ui.spider.sticky)) ui.setSpider({ key, x: xy.x, y: xy.y, ids, sticky })
       return true
     }
     handler.setInputAction((click: { position: Cartesian2 }) => {
       const picked = viewer.scene.pick(click.position)
       const group = defined(picked) ? idsOf(picked) : null
-      // Touch has no hover: a tap fans a small group out
-      if (group && fan(picked, group)) return
+      // A click on a tag pins its fan open (touch has no hover), except a big cluster spread over an
+      // area, which zooms in instead; a click anywhere else closes a fan
+      const spread = (ids: string[]) => {
+        const pts = ids.map((id) => featureById.current.get(id)!.feature.position).filter((p) => !!p).map((p) => Cartesian3.fromDegrees(p!.lon, p!.lat))
+        return pts.length > 1 && BoundingSphere.fromPoints(pts).radius >= 500
+      }
+      if (group && !(group.length > SPIDER_MAX && spread(group)) && fan(picked, group, true)) return
+      if (useGlobeUi.getState().spider) useGlobeUi.getState().setSpider(null)
       // Bigger groups: zoom in, or offer a chooser when they share one spot
       if (group) {
         const pts = group.map((id) => featureById.current.get(id)!.feature.position).filter((p) => !!p).map((p) => Cartesian3.fromDegrees(p!.lon, p!.lat))

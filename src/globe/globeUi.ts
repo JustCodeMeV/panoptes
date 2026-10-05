@@ -3,9 +3,10 @@ import { create } from 'zustand'
 /** The home view: whole globe, centred on Europe/Africa/Middle East. */
 export const HOME = { lon: 15, lat: 30, height: 20_000_000 }
 
-/** Clusters up to this size fan out on hover; bigger ones zoom in on click. */
-export const SPIDER_MAX = 16
-export type Spider = { key: string; x: number; y: number; ids: string[] }
+/** A fanned cluster shows at most this many pins (the strongest); the rest are one "+N more" pin that lists them all. */
+export const SPIDER_MAX = 48
+/** `sticky`: opened by a click, so it stays open until a click elsewhere, Esc or a camera move. */
+export type Spider = { key: string; x: number; y: number; ids: string[]; sticky?: boolean }
 
 /** Globe view state shared between the control stack and the layer renderer. */
 export const useGlobeUi = create<{
