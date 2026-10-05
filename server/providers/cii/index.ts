@@ -1,12 +1,16 @@
 import type { Provider } from '../../core/provider.ts'
-import { LAYER_ID, ciiFeatures } from '../../cii/engine.ts'
+import { LAYER_ID } from '../../cii/engine.ts'
+import { heatmapFeatures } from '../../cii/heatmap.ts'
 
-/** Country Instability Index (computed in-process from the other layers). */
+/**
+ * Instability on the map: a heatmap of where it is unstable (server/cii/heatmap.ts), not whole
+ * countries. The per-country index (server/cii/engine.ts) still feeds the Brief and the atlas.
+ */
 export const ciiProvider: Provider = {
-  id: 'cii',
+  id: 'instability-heatmap',
   layerId: LAYER_ID,
   ttlMs: 60_000,
   async fetch() {
-    return ciiFeatures()
+    return heatmapFeatures()
   },
 }

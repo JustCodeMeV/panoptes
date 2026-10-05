@@ -25,6 +25,7 @@ import { startUnrestEngine } from './unrest/engine.ts'
 import { networkStories, startTelegramScouts, swarmStats } from './telegram/engine.ts'
 import { translatePost } from './telegram/translate.ts'
 import { snapshotScores, startCii } from './cii/engine.ts'
+import { startHeatmap } from './cii/heatmap.ts'
 import { engineStats, entityWithTransforms, seedFor, startEntityEngine } from './entities/engine.ts'
 import { search as searchEntities } from './entities/graph.ts'
 import { runTransform } from './entities/transforms.ts'
@@ -427,6 +428,7 @@ startTelegramScouts()
 startWatchEngine(LAYERS)
 startXEngine()
 startCii(LAYERS)
+startHeatmap(LAYERS)
 startEntityEngine(LAYERS)
 // Regions of the countries most likely to be opened, fetched once in the background
 prewarmRegions(['Ukraine', 'Israel', 'Iran', 'France', 'China', 'Dem. Rep. Congo', 'Sudan', 'Syria', 'Lebanon', 'Yemen']) // Russia and the US are large (memory spike): on demand only
