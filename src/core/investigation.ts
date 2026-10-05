@@ -4,6 +4,8 @@ import type { Edge, Entity, Subgraph, TransformDef } from '../../shared/entities
 type Inspect = { entity: Entity; transforms: TransformDef[]; degree: number }
 
 type State = {
+  /** An entity to open once the case workbench has loaded its case (set by the Brief). */
+  pending: string | null
   open: boolean
   entities: Record<string, Entity>
   edges: Record<string, Edge>
@@ -49,6 +51,7 @@ async function get<T>(url: string, init?: RequestInit): Promise<T> {
 /** The open investigation: a growing subgraph the analyst expands with transforms. */
 export const useInvestigation = create<State>((set, getState) => ({
   open: false,
+  pending: null,
   entities: {},
   edges: {},
   selected: null,

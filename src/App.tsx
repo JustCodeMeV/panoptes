@@ -6,6 +6,8 @@ import { DemoBanner } from './ui/DemoBanner'
 import { AnalysisPanel } from './ui/AnalysisPanel'
 import { Investigation } from './ui/Investigation'
 import { LinkViewer } from './ui/LinkViewer'
+import { Brief } from './ui/Brief'
+import { ModeBar } from './ui/ModeBar'
 import { useLinkCapture } from './core/linkViewer'
 import { LayerPanel } from './ui/LayerPanel'
 import { shellGeometry, useShell } from './ui/shell'
@@ -34,7 +36,7 @@ export default function App() {
   const toolOut = useShell((s) => s.toolOut)
   const width = useWindowWidth()
   const ready = useGlobeUi((s) => s.ready)
-  const caseMode = useShell((s) => s.caseMode)
+  const mode = useShell((s) => s.mode)
   // The loader stays mounted through its fade-out, then goes
   const [loaderGone, setLoaderGone] = useState(false)
   useEffect(() => {
@@ -77,13 +79,15 @@ export default function App() {
       )}
       <LayerPanel box={geo.left} />
       <AnalysisPanel box={geo.right} />
-      {caseMode ? (
+      {mode === 'investigate' ? (
         <Suspense fallback={null}>
           <Workbench />
         </Suspense>
       ) : (
         <Investigation />
       )}
+      {mode === 'brief' && <Brief />}
+      <ModeBar />
       <LinkViewer />
       <DemoBanner />
     </div>

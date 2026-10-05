@@ -25,6 +25,7 @@ import { Key } from './Key'
 import { Help } from './Help'
 import { matchesQuery } from '../core/search'
 import { atTime } from '../core/time'
+import { PRESETS } from '../core/presets'
 import { setCaseMode, useShell, type PanelBox } from './shell'
 import { useEscape } from './useEscape'
 import { ago, useNow } from './useNow'
@@ -199,6 +200,27 @@ export function LayerPanel({ box }: { box: PanelBox }) {
               <Button variant="secondary" className="mt-2 w-full whitespace-nowrap" onClick={() => setHelp(true)} title="How to use ARGUS">
                 ? Help
               </Button>
+              {/* Presets: the quick way in; the groups below are for fine-tuning */}
+              <div className="mt-4 flex flex-wrap gap-1.5" role="group" aria-label="Map presets">
+                {PRESETS.map((p) => {
+                  const on = p.layers.every((id) => layerStates[id]?.enabled) && visible.every((d) => p.layers.includes(d.id) || !layerStates[d.id]?.enabled)
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      title={p.hint}
+                      aria-pressed={on}
+                      onClick={() => {
+                        setEnabled(visible.map((d) => d.id), false)
+                        setEnabled(p.layers, true)
+                      }}
+                      className={`sub t-caption border px-2 py-1 ${on ? 'border-accent-2 bg-accent-2/15 text-ink' : 'border-line text-dim hover:text-ink'}`}
+                    >
+                      {p.label}
+                    </button>
+                  )
+                })}
+              </div>
               <Fold
                 title="Layers"
                 aside={
@@ -219,8 +241,8 @@ export function LayerPanel({ box }: { box: PanelBox }) {
                 }
                 className="mt-4"
               >
-                {/* One fold per group; the first three start open */}
-                {LAYER_GROUPS.map((g, i) => {
+                {/* One fold per group, closed until needed */}
+                {LAYER_GROUPS.map((g) => {
                   const inGroup: Layer[] = [...layers.filter((l) => l.group === g), ...(g === LAYER_GROUPS[LAYER_GROUPS.length - 1] ? [darkLayer] : [])]
                   if (!inGroup.length) return null
                   return (
@@ -245,7 +267,7 @@ export function LayerPanel({ box }: { box: PanelBox }) {
                           </span>
                         </span>
                       }
-                      defaultOpen={i < 3}
+                      defaultOpen={false}
                       className="mt-2.5 border-l border-line/60 pl-2"
                     >
                       <LayerList heading={false} layers={inGroup} onToggle={(id) => (id === DARK_SIDE ? toggleDarkSide() : toggle(id))} defaultOpen={g === LAYER_GROUPS[0] ? 'campaigns' : ''} />

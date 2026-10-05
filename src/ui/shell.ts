@@ -7,13 +7,23 @@ import { LAYOUTS } from '../../gui_elements/layouts'
  * minimised the globe area grows into the freed space, carrying the
  * position readout and globe controls with it.
  */
+export type Mode = 'brief' | 'map' | 'investigate'
+const HASH: Record<Mode, string> = { brief: '', map: '#map', investigate: '#case' }
+function initialMode(): Mode {
+  if (typeof window === 'undefined') return 'brief'
+  const h = window.location.hash
+  return h === '#case' ? 'investigate' : h === '#map' || new URLSearchParams(window.location.search).has('demo') || new URLSearchParams(window.location.search).has('showreel') ? 'map' : 'brief'
+}
+
 type Shell = {
   leftMin: boolean
   /** The ANALYSIS panel is rolled up. */
   rightMin: boolean
   /** Globe area reaches the right edge: the ANALYSIS panel is minimised. */
   toolOut: boolean
-  /** Full-screen case workbench instead of the globe (#case). */
+  /** Which view fills the screen: the briefing (default), the globe, or the case workbench. */
+  mode: Mode
+  /** The globe is hidden (brief or investigate): its rendering pauses. */
   caseMode: boolean
   set: (patch: Partial<Omit<Shell, 'set'>>) => void
 }
@@ -22,7 +32,8 @@ export const useShell = create<Shell>((set) => ({
   leftMin: false,
   rightMin: false,
   toolOut: false,
-  caseMode: typeof window !== 'undefined' && window.location.hash === '#case',
+  mode: initialMode(),
+  caseMode: initialMode() !== 'map',
   set: (patch) => set(patch),
 }))
 
@@ -48,8 +59,10 @@ export function shellGeometry(d: Design) {
   return { left, right, freeLeft: docked ? left.inset + left.width : 0, freeRight: docked ? right.inset + right.width : 0 }
 }
 
-/** Enters or leaves case mode, keeping #case in the address bar so a reload stays in it. */
-export function setCaseMode(on: boolean) {
-  useShell.getState().set({ caseMode: on })
-  history.replaceState(null, '', window.location.pathname + window.location.search + (on ? '#case' : ''))
+/** Switches the main view, keeping it in the address bar so a reload stays there. */
+export function setMode(mode: Mode) {
+  useShell.getState().set({ mode, caseMode: mode !== 'map' })
+  history.replaceState(null, '', window.location.pathname + window.location.search + HASH[mode])
 }
+/** Case mode on = the investigate view; off = the map. */
+export const setCaseMode = (on: boolean) => setMode(on ? 'investigate' : 'map')

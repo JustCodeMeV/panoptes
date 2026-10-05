@@ -162,6 +162,12 @@ export function Workbench() {
           inv.load(w.graph)
         } else inv.clear()
         setLoadedFor(open.id)
+        // Opened from the Brief: seed the event once this case's (empty) graph is in place
+        const pending = useInvestigation.getState().pending
+        if (pending) {
+          useInvestigation.setState({ pending: null })
+          void useInvestigation.getState().seedEntity(pending)
+        }
       })
     return () => {
       alive = false
@@ -204,7 +210,7 @@ export function Workbench() {
     <div className="workbench" role="main" aria-label="Case workbench">
       <aside className="wb-left">
         <div className="wb-top">
-          <button className="wb-back" onClick={() => setCaseMode(false)}>← Globe</button>
+          <button className="wb-back" onClick={() => setCaseMode(false)}>← Map</button>
           <span className="wb-h">Case mode</span>
           <em>{saved}</em>
         </div>
