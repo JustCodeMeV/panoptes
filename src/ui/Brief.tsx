@@ -6,7 +6,9 @@ import countries110 from 'world-atlas/countries-110m.json'
 import { flyTo, useInvestigation } from '../core/investigation'
 import { useStore } from '../core/store'
 import { useCases } from '../core/cases'
+import { STATUS } from '../core/status'
 import { setMode } from './shell'
+import { useGlobeUi } from '../globe/globeUi'
 
 type Item = {
   id: string
@@ -25,15 +27,6 @@ type Item = {
   featureId?: string
 }
 
-/** What the check status means, in plain words. */
-const STATUS: Record<string, { label: string; color: string }> = {
-  confirmed: { label: 'Confirmed: independent outlets in several countries', color: '#22c55e' },
-  corroborated: { label: 'Corroborated by independent outlets', color: '#84cc16' },
-  'single-source': { label: 'Single source so far', color: '#eab308' },
-  'government-only': { label: 'Only government outlets so far', color: '#f97316' },
-  contested: { label: 'Contested: sources disagree', color: '#e879f9' },
-  debunked: { label: 'Debunked by a fact-check', color: '#ef4444' },
-}
 
 const topo = countries110 as unknown as Topology<{ countries: GeometryCollection }>
 const LAND = topoFeature(topo, topo.objects.countries)
@@ -84,10 +77,18 @@ export function Brief() {
     useInvestigation.getState().close()
     setMode('map')
     setEnabled(['events'], true)
-    setTimeout(() => {
-      if (i.position) flyTo(i.position.lat, i.position.lon)
-      select(`events:${i.id}`)
-    }, 300)
+    select(`events:${i.id}`)
+    if (!i.position) return
+    const go = () => flyTo(i.position!.lat, i.position!.lon)
+    // The globe pauses while hidden; on its first showing it plays its intro flight home first
+    if (useGlobeUi.getState().ready) setTimeout(go, 400)
+    else {
+      const off = useGlobeUi.subscribe((st) => {
+        if (!st.ready) return
+        off()
+        setTimeout(go, 3000)
+      })
+    }
   }
   // A new case named after the event; the workbench seeds the graph once it has opened it
   const investigate = async (i: Item) => {

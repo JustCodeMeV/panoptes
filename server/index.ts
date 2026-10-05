@@ -39,7 +39,7 @@ import { startXEngine } from './x/engine.ts'
 import { centroidOf, geolocate, searchPlaces } from './geo/gazetteer.ts'
 import { locationEntity } from './entities/rules.ts'
 import { adaptFeature, neighbourhood, placeEntity } from './entities/adapters.ts'
-import { briefing } from './entities/briefing.ts'
+import { briefing, whyFeature } from './entities/briefing.ts'
 import { briefFor } from './llm/analysis.ts'
 import { llmEnabled, llmStatus } from './llm/client.ts'
 
@@ -185,6 +185,8 @@ app.get('/api/atlas/bloc/:id', (c) => {
 // ---- entity graph (Maltego-style investigation) ----
 // What needs attention now: ranked, checked situations with the reasons, for the Brief view
 app.get('/api/briefing', (c) => c.json({ generatedAt: new Date().toISOString(), items: briefing(Math.min(20, Number(c.req.query('limit')) || 8)) }))
+// Why one item matters (the checked event it belongs to), for the item card
+app.get('/api/why/:featureId', (c) => c.json({ item: whyFeature(decodeURIComponent(c.req.param('featureId')).replace(/^events:/, '')) }))
 app.get('/api/entities/stats', (c) => c.json(engineStats()))
 app.get('/api/entities/search', (c) => c.json(searchEntities(c.req.query('q') ?? '')))
 // Start an investigation from a country (atlas click): ensures the country entity exists.

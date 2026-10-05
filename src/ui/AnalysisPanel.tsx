@@ -13,6 +13,7 @@ import { featuresOf, useSelected, useStore } from '../core/store'
 import { LAYERS } from '../layers'
 import { VERDICT_COLOR, VERDICT_LABEL, checkOf } from '../layers/x/props'
 import { NewsFeedHead, NewsFeedList } from './NewsFeed'
+import { ItemSummary } from './ItemSummary'
 import { useShell, type PanelBox } from './shell'
 
 /** First line of a machine-translated story: where it came from, and the original on demand. */
@@ -111,6 +112,7 @@ function Story() {
             })}
           </Scroller>
         )}
+        {feature.layerId !== 'atlas' && <ItemSummary feature={feature} />}
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => void addToCase(feature)}>
             {toast ?? '＋ Add to case'}
