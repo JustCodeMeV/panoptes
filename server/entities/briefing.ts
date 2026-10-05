@@ -1,5 +1,5 @@
 import type { Entity } from '../../shared/entities.ts'
-import { snapshotScores } from '../cii/engine.ts'
+import { heatAt } from '../cii/heatmap.ts'
 import type { Feature } from '../../shared/feature.ts'
 import { countryAt } from '../geo/gazetteer.ts'
 import { liveFeature } from './engine.ts'
@@ -74,12 +74,14 @@ function placeOf(e: Entity): { place?: string; country?: string } {
 }
 
 /** Scores one checked event and says why it matters, in plain words. */
-export function explain(e: Entity, cii: Map<string, number>, now = Date.now()): BriefItem | null {
+export function explain(e: Entity, now = Date.now()): BriefItem | null {
   if (e.type !== 'event' || !e.check) return null
   const c = e.check
   const { place, country } = placeOf(e)
   const casualties = Number(e.props.casualties) || 0
-  const instability = country ? (cii.get(country) ?? 0) : 0
+  // Instability where the event is (its heatmap cell), not the whole country's
+  const local = e.position ? heatAt(e.position.lat, e.position.lon) : { score: 0, drivers: [] }
+  const instability = local.score
   const fresh = Math.max(0, 1 - (now - e.lastSeen) / (24 * H))
   const score =
     Math.log2(1 + c.sources) * 8 +
@@ -96,7 +98,7 @@ export function explain(e: Entity, cii: Map<string, number>, now = Date.now()): 
   if (c.sources >= 3) why.push(`${c.sources} sources report it`)
   if (casualties) why.push(`casualties reported: ${casualties}`)
   if (DOUBT[c.status]) why.push(DOUBT[c.status])
-  if (instability >= 40) why.push(`${country} is unstable right now (index ${instability}/100)`)
+  if (instability >= 40) why.push(`unstable area: ${instability}/100 here (${local.drivers.join(' + ')})`)
   return {
     id: e.id,
     title: e.label,
@@ -118,12 +120,11 @@ export function explain(e: Entity, cii: Map<string, number>, now = Date.now()): 
 }
 
 export function briefing(limit = 8, now = Date.now()): BriefItem[] {
-  const cii = new Map(snapshotScores().countries.map((c) => [c.country, c.score]))
   const ranked: BriefItem[] = []
   for (const e of allEntities()) {
     if (e.type !== 'event' || !e.check || now - e.lastSeen > 48 * H) continue
     if (e.subtype === 'other' && e.check.sources < 3) continue
-    const item = explain(e, cii, now)
+    const item = explain(e, now)
     if (item) ranked.push(item)
   }
   ranked.sort((a, b) => b.score - a.score)
@@ -140,12 +141,11 @@ export function briefing(limit = 8, now = Date.now()): BriefItem[] {
 }
 
 /**
- * An item that is not (yet) part of a checked event: what surrounds it. The country's instability,
+ * An item that is not (yet) part of a checked event: what surrounds it. The local instability,
  * how much checked activity there is around it, the nearest checked event, and the plain fact that it
  * is one unconfirmed source so far.
  */
 function context(f: Feature, now: number): BriefItem {
-  const cii = new Map(snapshotScores().countries.map((c) => [c.country, c.score]))
   const country = f.position ? countryAt(f.position.lat, f.position.lon) : typeof f.props.country === 'string' ? f.props.country : undefined
   const why: string[] = ['not confirmed yet: no other source has reported the same event so far']
   let nearest: { e: Entity; d: number } | null = null
@@ -160,8 +160,8 @@ function context(f: Feature, now: number): BriefItem {
   }
   if (nearest) why.push(`nearest checked event, ${Math.round(nearest.d)} km away: ${nearest.e.label.slice(0, 90)}`)
   if (country && inCountry) why.push(`${inCountry} checked event${inCountry === 1 ? '' : 's'} in ${country} in the last 24 h`)
-  const instability = country ? (cii.get(country) ?? 0) : 0
-  if (instability >= 25) why.push(`${country} instability index: ${instability}/100`)
+  const local = f.position ? heatAt(f.position.lat, f.position.lon) : { score: 0, drivers: [] }
+  if (local.score >= 25) why.push(`unstable area: ${local.score}/100 here (${local.drivers.join(' + ')})`)
   if (!nearest && !inCountry) why.push('nothing else checked around it in the last 24 h: treat it as a lead')
   return {
     id: f.id, title: f.title, kind: 'unchecked', country, position: f.position, status: 'unchecked', reasons: [], why,
@@ -178,7 +178,7 @@ export async function whyFeature(rawId: string, now = Date.now()): Promise<Brief
     direct?.type === 'event'
       ? direct
       : allEntities().find((x) => x.type === 'event' && ((x.props.featureIds as string[] | undefined) ?? []).includes(featureId))
-  if (e) return explain(e, new Map(snapshotScores().countries.map((c) => [c.country, c.score])), now)
+  if (e) return explain(e, now)
   const f = await liveFeature(featureId)
   return f ? context(f, now) : null
 }

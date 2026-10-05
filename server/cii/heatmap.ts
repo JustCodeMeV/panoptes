@@ -197,3 +197,23 @@ export function startHeatmap(all: Record<string, Provider[]>) {
   setTimeout(() => void rebuild(), 100_000)
   setInterval(() => void rebuild(), EVERY_MS)
 }
+
+/** Local instability where a point is (its heatmap cell), with the kinds of evidence behind it; 0 when calm. */
+export function heatAt(lat: number, lon: number): { score: number; drivers: string[] } {
+  const id = `cii:h3:${latLngToCell(lat, lon, RES)}`
+  const f = features.find((x) => x.id === id)
+  return f ? { score: Number(f.props.score), drivers: ((f.props.families as { label: string }[]) ?? []).slice(0, 2).map((x) => x.label) } : { score: 0, drivers: [] }
+}
+
+/** A country's unstable areas: how many cells, the worst one and why; instability is local, not national. */
+export function hotspotsIn(country: string): { cells: number; max: number; drivers: string[]; at?: { lat: number; lon: number } } {
+  const mine = features.filter((f) => f.props.country === country && Number(f.props.score) >= 25)
+  if (!mine.length) return { cells: 0, max: 0, drivers: [] }
+  const worst = mine.reduce((a, b) => (Number(b.props.score) > Number(a.props.score) ? b : a))
+  return {
+    cells: mine.length,
+    max: Number(worst.props.score),
+    drivers: ((worst.props.families as { label: string }[]) ?? []).slice(0, 2).map((x) => x.label),
+    at: worst.position,
+  }
+}

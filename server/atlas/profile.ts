@@ -3,6 +3,7 @@ import { peekFeatures } from '../core/aggregate.ts'
 import { streamSource } from '../core/hub.ts'
 import type { Provider } from '../core/provider.ts'
 import { snapshotScores } from '../cii/engine.ts'
+import { hotspotsIn } from '../cii/heatmap.ts'
 import { centroidOf, countryAt } from '../geo/gazetteer.ts'
 import { BLOCS, COUNTRIES, NUCLEAR, SANCTIONED, blocsOf, displayName, findCountry, percentile, type CountryRecord } from './countries.ts'
 
@@ -102,7 +103,7 @@ function cards(c: CountryRecord, cii?: number): Card[] {
     { id: 'industry', label: 'Industry', value: c.composition.industry ? `${c.composition.industry}% of GDP` : '–', grade: grade(pInd), pct: pInd, hint: c.industries.slice(0, 3).join(', ') },
     { id: 'energy', label: 'Energy', value: energy, grade: energy, hint: `oil ${fmtNum(c.oil.productionBbl)} bbl/d produced, ${fmtNum(c.oil.consumptionBbl)} used` },
     { id: 'military', label: 'Military', value: c.military.expenditurePct ? `${c.military.expenditurePct}% of GDP` : '–', grade: NUCLEAR.has(c.name) ? 'Nuclear power' : grade(pMil), pct: pMil, hint: c.gdpUsd && c.military.expenditurePct ? `≈ ${fmtMoney((c.gdpUsd * c.military.expenditurePct) / 100)} a year` : 'spending not reported' },
-    { id: 'stability', label: 'Stability', value: cii === undefined ? 'calm' : `${100 - cii}/100`, grade: cii === undefined ? 'Stable' : cii >= 60 ? 'Crisis' : cii >= 40 ? 'Unstable' : cii >= 20 ? 'Tense' : 'Stable', pct: cii === undefined ? 100 : 100 - cii, hint: cii === undefined ? 'no live signals' : `instability index ${cii}` },
+    { id: 'stability', label: 'Stability', value: cii === undefined ? 'calm' : `worst area ${cii}/100`, grade: cii === undefined ? 'Stable' : cii >= 60 ? 'Crisis zone' : cii >= 40 ? 'Unstable areas' : cii >= 20 ? 'Tense areas' : 'Stable', pct: cii === undefined ? 100 : 100 - cii, hint: cii === undefined ? 'no unstable area on the heatmap' : `the most unstable area of the country scores ${cii}/100 on the heatmap; the rest may be calm` },
     { id: 'trade', label: 'Trade openness', value: openness ? `${Math.round(openness)}% of GDP` : '–', grade: openness === undefined ? 'n/a' : openness > 100 ? 'Hub' : openness > 60 ? 'Open' : openness > 30 ? 'Moderate' : 'Closed', hint: `exports ${fmtMoney(c.exportsUsd)}, imports ${fmtMoney(c.importsUsd)}` },
   ]
 }
@@ -153,7 +154,9 @@ export async function countryProfile(name: string) {
   if (centre) for (const k of CHOKEPOINTS) if (km(centre, k) < 550) strategic.push(`Near ${k.name}`)
   for (const b of blocsOf(c).filter((b) => ['NATO', 'CSTO', 'OPEC', 'BRICS', 'SCO', 'G-7'].includes(b))) strategic.push(`Member of ${BLOCS[b]}`)
   if (c.terroristGroups.length) strategic.push(`Armed groups active: ${c.terroristGroups.slice(0, 3).join(', ')}`)
-  if (ciiRow && ciiRow.score >= 40) strategic.push(`Unstable right now (index ${ciiRow.score})`)
+  // Instability is local: name the unstable areas, never the whole country
+  const hot = hotspotsIn(display).cells ? hotspotsIn(display) : hotspotsIn(c.name)
+  if (hot.max >= 40) strategic.push(`Unstable areas right now: ${hot.cells} (worst ${hot.max}/100: ${hot.drivers.join(' + ')})`)
   return {
     name: display,
     factbookName: c.name,
@@ -161,12 +164,13 @@ export async function countryProfile(name: string) {
     wiki,
     worldBank: wb,
     currency: code && fx ? { code, name: c.currency, perUsd: fx[code] } : c.currency ? { name: c.currency, perUsd: c.usdRate } : null,
-    cards: cards(c, ciiRow?.score),
+    cards: cards(c, hot.cells ? hot.max : undefined),
     relations: relations(c, conflictHot),
     strategic,
     position: centre,
     now: {
       cii: ciiRow ?? null,
+      hotspots: hot,
       events: { count: evIn.length, top: pick(evIn) },
       unrest: { count: unrest.filter(inCountry).length, top: pick(unrest.filter(inCountry), 3) },
       telegram: { count: telegram.filter(inCountry).length, top: pick(telegram.filter(inCountry), 3) },

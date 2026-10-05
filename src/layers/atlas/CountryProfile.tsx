@@ -23,6 +23,7 @@ type Profile = {
   relations: { blocs: { id: string; name: string }[]; allies: { name: string; via: string[] }[]; neighbours: { name: string; km: number; tense: boolean }[]; dependencies: { name: string; share: number; way: string }[]; disputes?: string }
   now: {
     cii: { score: number; components: { id: string; label: string; points: number; max: number }[] } | null
+    hotspots?: { cells: number; max: number; drivers: string[] }
     events: { count: number; top: { id: string; title: string; props: { check?: string; sources?: number } }[] }
     unrest: { count: number }
     telegram: { count: number }
@@ -152,7 +153,13 @@ export function CountryProfile({ feature, select }: DetailProps) {
 
       <h3>Right now</h3>
       <p className="atlas-now">
-        {p.now.cii ? <b>Instability {p.now.cii.score}/100</b> : <b>No instability signals</b>} · {p.now.events.count} checked events · {p.now.unrest.count} unrest hotspots ·{' '}
+        {p.now.hotspots?.cells ? (
+          <b>
+            {p.now.hotspots.cells} unstable area{p.now.hotspots.cells === 1 ? '' : 's'} (worst {p.now.hotspots.max}/100)
+          </b>
+        ) : (
+          <b>No unstable area on the heatmap</b>
+        )} · {p.now.events.count} checked events · {p.now.unrest.count} unrest hotspots ·{' '}
         {p.now.news.count} stories · {p.now.telegram.count} Telegram posts · {p.now.ships} ships · {p.now.aircraft} military aircraft
       </p>
       {!!p.now.finance?.length && (
