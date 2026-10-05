@@ -36,7 +36,7 @@ const LAND_PATH = geoPath(PROJ)(LAND) ?? ''
 function Locator({ at }: { at?: { lat: number; lon: number } }) {
   const xy = at && PROJ([at.lon, at.lat])
   return (
-    <svg viewBox="0 0 160 84" className="brief-map" aria-hidden>
+    <svg viewBox="0 0 160 84" className="bv-map" aria-hidden>
       <path d={LAND_PATH} className="land" />
       {xy && <circle cx={xy[0]} cy={xy[1]} r={3.5} />}
     </svg>
@@ -98,7 +98,7 @@ export function Brief() {
   }
 
   return (
-    <main className="brief" aria-label="What needs attention now">
+    <main className="bv" aria-label="What needs attention now">
       <header>
         <h1>What needs attention now</h1>
         <p>
@@ -106,23 +106,23 @@ export function Brief() {
           them, and ranks what is developing. Open one on the map, or investigate it: the graph is already built.
         </p>
       </header>
-      {err && <p className="brief-note">Briefing unavailable ({err}). The map still works.</p>}
-      {!items && !err && <p className="brief-note">Reading the world…</p>}
-      {items?.length === 0 && <p className="brief-note">Nothing checked yet: the first pass takes about a minute after start.</p>}
-      <ol className="brief-list">
+      {err && <p className="bv-note">Briefing unavailable ({err}). The map still works.</p>}
+      {!items && !err && <p className="bv-note">Reading the world…</p>}
+      {items?.length === 0 && <p className="bv-note">Nothing checked yet: the first pass takes about a minute after start.</p>}
+      <ol className="bv-list">
         {items?.map((i, n) => {
           const st = STATUS[i.status] ?? { label: i.status, color: '#94a3b8' }
           return (
-            <li key={i.id} className="brief-card">
-              <span className="brief-rank">{n + 1}</span>
+            <li key={i.id} className="bv-card">
+              <span className="bv-rank">{n + 1}</span>
               <Locator at={i.position} />
-              <div className="brief-body">
+              <div className="bv-body">
                 <small>
                   {i.kind.replace('-', ' ')} · {i.place ?? 'place unknown'}
                   {i.country && i.country !== i.place ? `, ${i.country}` : ''} · updated {ago(i.lastSeen)}
                 </small>
                 <h2>{i.title}</h2>
-                <p className="brief-status" style={{ ['--c' as string]: st.color }}>
+                <p className="bv-status" style={{ ['--c' as string]: st.color }}>
                   <b>{st.label}</b> · {i.reasons[0]}
                 </p>
                 <ul>
@@ -130,7 +130,7 @@ export function Brief() {
                     <li key={w}>{w}</li>
                   ))}
                 </ul>
-                <div className="brief-actions">
+                <div className="bv-actions">
                   <button type="button" onClick={() => onMap(i)}>Show on map</button>
                   <button type="button" className="primary" onClick={() => void investigate(i)}>Investigate</button>
                 </div>

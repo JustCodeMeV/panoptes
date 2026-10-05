@@ -114,6 +114,10 @@ export const entityWithTransforms = (id: string) => {
 }
 
 export const featureOf = (id: string) => featureById.get(id)
+/** A feature by id: from the last entity pass, else straight from its live layer (newer than the pass). */
+export async function liveFeature(id: string): Promise<Feature | undefined> {
+  return featureById.get(id) ?? (await features(id.split(':')[0]).catch(() => [] as Feature[])).find((f) => f.id === id)
+}
 
 let started = false
 export function startEntityEngine(all: Record<string, Provider[]>) {

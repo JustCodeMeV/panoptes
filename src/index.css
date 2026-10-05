@@ -382,26 +382,26 @@ h3.tabs button.on { color: var(--text); border-color: var(--c, var(--color-accen
 .modebar button + button { border-left: 1px solid var(--line); }
 .modebar button.on { color: var(--color-bg, #050a14); background: var(--color-accent-2); }
 .modebar button:not(.on):hover { color: var(--color-ink); }
-.brief { position: fixed; inset: 0; z-index: 30; overflow-y: auto; background: var(--color-bg, #050a14); color: var(--color-ink); padding: 72px max(16px, calc(50vw - 520px)) 40px; }
-.brief header h1 { font: 600 22px var(--font-sub); letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent-2); margin: 0 0 6px; }
-.brief header p { color: var(--dim); max-width: 760px; line-height: 1.5; margin: 0 0 20px; }
-.brief-note { color: var(--dim); }
-.brief-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.brief-card { display: grid; grid-template-columns: 28px 160px 1fr; gap: 14px; align-items: start; border: 1px solid var(--line); padding: 12px; background: color-mix(in srgb, var(--color-ink) 3%, transparent); }
-.brief-rank { font: 600 20px var(--font-sub); color: var(--color-accent-2); text-align: center; }
-.brief-map { width: 160px; height: 84px; }
-.brief-map .land { fill: color-mix(in srgb, var(--color-accent-2) 14%, transparent); stroke: color-mix(in srgb, var(--color-accent-2) 35%, transparent); stroke-width: 0.3; }
-.brief-map circle { fill: #f97316; stroke: #fff; stroke-width: 1; }
-.brief-body small { color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
-.brief-body h2 { font-size: 16px; margin: 3px 0 6px; line-height: 1.3; }
-.brief-status { margin: 0 0 6px; font-size: 12px; color: var(--dim); }
-.brief-status b { color: var(--c); font-weight: 600; }
-.brief-body ul { margin: 0 0 8px; padding-left: 16px; font-size: 12px; color: var(--color-ink); }
-.brief-actions { display: flex; gap: 8px; }
-.brief-actions button { border: 1px solid var(--line); background: transparent; color: var(--color-ink); padding: 4px 12px; cursor: pointer; font-size: 12px; }
-.brief-actions button.primary { border-color: var(--color-accent-2); color: var(--color-accent-2); }
-.brief-actions button:hover { background: color-mix(in srgb, var(--color-accent-2) 15%, transparent); }
-@media (max-width: 640px) { .brief-card { grid-template-columns: 1fr; } .brief-rank, .brief-map { display: none; } }
+.bv { position: fixed; inset: 0; z-index: 30; overflow-y: auto; background: var(--color-bg, #050a14); color: var(--color-ink); padding: 72px max(16px, calc(50vw - 520px)) 40px; }
+.bv header h1 { font: 600 22px var(--font-sub); letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent-2); margin: 0 0 6px; }
+.bv header p { color: var(--dim); max-width: 760px; line-height: 1.5; margin: 0 0 20px; }
+.bv-note { color: var(--dim); }
+.bv-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.bv-card { display: grid; grid-template-columns: 28px 160px 1fr; gap: 14px; align-items: start; border: 1px solid var(--line); padding: 12px; background: color-mix(in srgb, var(--color-ink) 3%, transparent); }
+.bv-rank { font: 600 20px var(--font-sub); color: var(--color-accent-2); text-align: center; }
+.bv-map { width: 160px; height: 84px; }
+.bv-map .land { fill: color-mix(in srgb, var(--color-accent-2) 14%, transparent); stroke: color-mix(in srgb, var(--color-accent-2) 35%, transparent); stroke-width: 0.3; }
+.bv-map circle { fill: #f97316; stroke: #fff; stroke-width: 1; }
+.bv-body small { color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+.bv-body h2 { font-size: 16px; margin: 3px 0 6px; line-height: 1.3; }
+.bv-status { margin: 0 0 6px; font-size: 12px; color: var(--dim); }
+.bv-status b { color: var(--c); font-weight: 600; }
+.bv-body ul { margin: 0 0 8px; padding-left: 16px; font-size: 12px; color: var(--color-ink); }
+.bv-actions { display: flex; gap: 8px; }
+.bv-actions button { border: 1px solid var(--line); background: transparent; color: var(--color-ink); padding: 4px 12px; cursor: pointer; font-size: 12px; }
+.bv-actions button.primary { border-color: var(--color-accent-2); color: var(--color-accent-2); }
+.bv-actions button:hover { background: color-mix(in srgb, var(--color-accent-2) 15%, transparent); }
+@media (max-width: 640px) { .bv-card { grid-template-columns: 1fr; } .bv-rank, .bv-map { display: none; } }
 
 /* ---- shared item card summary ---- */
 .item-summary { border: 1px solid var(--line); padding: 8px 10px; margin-bottom: 10px; font-size: 12px; }

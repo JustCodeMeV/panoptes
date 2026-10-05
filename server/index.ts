@@ -186,7 +186,7 @@ app.get('/api/atlas/bloc/:id', (c) => {
 // What needs attention now: ranked, checked situations with the reasons, for the Brief view
 app.get('/api/briefing', (c) => c.json({ generatedAt: new Date().toISOString(), items: briefing(Math.min(20, Number(c.req.query('limit')) || 8)) }))
 // Why one item matters (the checked event it belongs to), for the item card
-app.get('/api/why/:featureId', (c) => c.json({ item: whyFeature(decodeURIComponent(c.req.param('featureId')).replace(/^events:/, '')) }))
+app.get('/api/why/:featureId', async (c) => c.json({ item: await whyFeature(decodeURIComponent(c.req.param('featureId'))) }))
 app.get('/api/entities/stats', (c) => c.json(engineStats()))
 app.get('/api/entities/search', (c) => c.json(searchEntities(c.req.query('q') ?? '')))
 // Start an investigation from a country (atlas click): ensures the country entity exists.

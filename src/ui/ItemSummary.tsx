@@ -86,15 +86,17 @@ export function ItemSummary({ feature }: { feature: Feature }) {
           {busy ? 'Reading…' : 'Why it matters'}
         </button>
       ) : why === null ? (
-        <p className="item-why-none">Not part of a checked event yet: nothing else reports it so far.</p>
+        <p className="item-why-none">Nothing to explain yet: this item has not been read into the graph.</p>
       ) : (
         <ul className="item-why-list">
           {[...why.why, ...why.reasons.slice(1)].map((w) => (
             <li key={w}>{w}</li>
           ))}
-          <li>
-            {why.sources} sources · {why.independent} independent · {why.countries} {why.countries === 1 ? 'country' : 'countries'}
-          </li>
+          {why.status !== 'unchecked' && (
+            <li>
+              {why.sources} sources · {why.independent} independent · {why.countries} {why.countries === 1 ? 'country' : 'countries'}
+            </li>
+          )}
         </ul>
       )}
     </div>
