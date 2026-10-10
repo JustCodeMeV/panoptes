@@ -2,7 +2,6 @@ import { XMLParser } from 'fast-xml-parser'
 import type { FactCheckMatch, ReviewVerdict } from '../../shared/truth.ts'
 import { TtlCache } from '../core/cache.ts'
 import { stripHtml, tokenSet } from './text.ts'
-import { once } from '../runtime/jobs.ts'
 
 export type FactCheckItem = {
   publisher: string
@@ -116,7 +115,7 @@ export function loadCorpus(): Promise<Corpus> {
     for (const it of items) for (const t of it.tokens) df.set(t, (df.get(t) ?? 0) + 1)
     const idf = new Map([...df].map(([t, n]) => [t, Math.log((items.length + 1) / (n + 1)) + 1]))
     // A start-up burst can fail most feeds: do not pin an empty corpus for 20 minutes.
-    if (feeds.filter((f) => f.ok).length < Math.ceil(FEEDS.length / 2)) once('factchecks:retry', 20_000, () => cache.invalidate('corpus'))
+    if (feeds.filter((f) => f.ok).length < Math.ceil(FEEDS.length / 2)) setTimeout(() => cache.invalidate('corpus'), 20_000)
     return { items, idf, feeds }
   })
 }

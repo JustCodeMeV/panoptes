@@ -14,7 +14,6 @@ import { pollFeed, type NewsItem } from './ingest.ts'
 import { backoffMs } from '../core/aggregate.ts'
 import { NEWS_FEEDS } from './sources.ts'
 import { redact } from '../core/secrets.ts'
-import { every } from '../runtime/jobs.ts'
 
 export const LAYER_ID = 'news'
 const WINDOW_MS = 36 * 3600_000
@@ -341,9 +340,10 @@ export function startNewsEngine() {
     }))
     primed = true
     console.log(`[news] primed: ${stories.size} stories from ${NEWS_FEEDS.length} feeds`)
-    // Staggered so the feeds do not all fire in the same second
-    NEWS_FEEDS.forEach((feed, i) => every(`news:${feed.id}`, feed.everyMs ?? 30_000, () => void pollOne(feed, false), (i * 1300) % (feed.everyMs ?? 30_000)))
-    every('news:prune', 5 * 60_000, prune)
+    NEWS_FEEDS.forEach((feed, i) =>
+      setTimeout(() => setInterval(() => void pollOne(feed, false), feed.everyMs ?? 30_000), (i * 1300) % (feed.everyMs ?? 30_000)),
+    )
+    setInterval(prune, 5 * 60_000)
   })()
 }
 export const isPrimed = () => primed

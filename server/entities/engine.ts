@@ -10,7 +10,6 @@ import { setPhysicalSource, transformsFor } from './transforms.ts'
 import { setLayerSource } from './live.ts'
 import { extractBudget, readQueue } from './llm.ts'
 import { adaptFeature, neighbourhood } from './adapters.ts'
-import { every } from '../runtime/jobs.ts'
 
 /**
  * ENTITY ENGINE. Every 2 minutes, every new or changed entry of the event
@@ -135,6 +134,7 @@ export function startEntityEngine(all: Record<string, Provider[]>) {
         if (read) console.log(`[entities] Claude read ${read} event(s) · budget ${JSON.stringify(extractBudget())}`)
       })
       .catch((e) => console.warn(`[entities] ${e instanceof Error ? e.message : String(e)}`))
-  every('entities', EVERY_MS, tick, 60_000) // first pass after a minute: let the feeds prime first
-  every('entities:prune', 10 * 60_000, () => prune())
+  setTimeout(tick, 60_000) // let the feeds prime first
+  setInterval(tick, EVERY_MS)
+  setInterval(() => prune(), 10 * 60_000)
 }

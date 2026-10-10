@@ -9,7 +9,6 @@ import type { NewsItem } from '../news/ingest.ts'
 import { hash } from '../truth/text.ts'
 import { CHANNELS, type Channel } from './channels.ts'
 import { parsePage, type TgPost } from './parse.ts'
-import { every } from '../runtime/jobs.ts'
 
 /**
  * TELEGRAM SCOUTS. A pool of workers reads public channels through the
@@ -438,7 +437,7 @@ export function startTelegramScouts() {
     }
   }
   for (let i = 0; i < CONCURRENCY; i++) void worker()
-  every('telegram:prune', 5 * 60_000, prune)
+  setInterval(prune, 5 * 60_000)
 }
 
 // ---------- network graph ----------

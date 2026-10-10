@@ -1,6 +1,5 @@
 import type { Feature } from '../../shared/feature.ts'
 import type { LiveEvent } from '../../shared/live.ts'
-import { every } from '../runtime/jobs.ts'
 
 /**
  * Automatic English for everything scraped in another language.
@@ -90,7 +89,7 @@ async function work() {
     backoffUntil = Date.now() + 60_000
   }
 }
-every('translate', EVERY_MS, () => void work())
+setInterval(() => void work(), EVERY_MS).unref()
 
 // Fields that are never prose: links, ids, codes. Everything else that is text gets translated.
 const SKIP = new Set(['id', 'url', 'link', 'href', 'handle', 'platform', 'provider', 'image', 'thumbnail', 'lang', 'key', 'cluster', 'media', 'original', 'code', 'iso', 'tags'])

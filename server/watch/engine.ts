@@ -4,7 +4,6 @@ import { loadLayer } from '../core/aggregate.ts'
 import { eventsPerMin, publish, registerStream, streamSource, subscribe } from '../core/hub.ts'
 import type { Provider } from '../core/provider.ts'
 import { listWatches, type WatchRow } from '../cases/db.ts'
-import { every } from '../runtime/jobs.ts'
 
 /**
  * Region watch: analyst-drawn circles. Every feature from every layer that
@@ -133,5 +132,5 @@ export function startWatchEngine(layers: Record<string, Provider[]>) {
     })
   // Polled layers: sweep once silently (baseline), then every minute.
   const polled = Object.fromEntries(Object.entries(layers).filter(([id]) => !STREAMS.includes(id)))
-  void sweep(layers, true).then(() => every('watch:sweep', 60_000, () => void sweep(polled, false)))
+  void sweep(layers, true).then(() => setInterval(() => void sweep(polled, false), 60_000))
 }

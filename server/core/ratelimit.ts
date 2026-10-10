@@ -1,5 +1,4 @@
 import type { Context, Next } from 'hono'
-import { every } from '../runtime/jobs.ts'
 
 /** Client IP: Render's proxy puts the real client first in x-forwarded-for. */
 export function clientIp(c: Context): string {
@@ -15,10 +14,10 @@ export function clientIp(c: Context): string {
  */
 export function rateLimit(opts: { windowMs: number; max: number; name: string }) {
   const hits = new Map<string, { count: number; resetAt: number }>()
-  every(`ratelimit:${opts.name}`, opts.windowMs, () => {
+  setInterval(() => {
     const now = Date.now()
     for (const [k, v] of hits) if (v.resetAt <= now) hits.delete(k)
-  })
+  }, opts.windowMs).unref()
   return async (c: Context, next: Next) => {
     const key = clientIp(c)
     const now = Date.now()
