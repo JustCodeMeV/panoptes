@@ -3,6 +3,7 @@ import type { Feature } from '../../../shared/feature.ts'
 import type { Provider } from '../../core/provider.ts'
 import { TtlCache } from '../../core/cache.ts'
 import { fetchText } from '../osint/util.ts'
+import { detach } from '../../truth/text.ts'
 
 export const LAYER_ID = 'gnss'
 const cache = new TtlCache<Feature[]>(6 * 3600_000)
@@ -42,7 +43,8 @@ export function parseGpsjam(csv: string, day: string): Feature[] {
   const now = new Date().toISOString()
   const out: Feature[] = []
   for (const line of csv.split('\n').slice(1)) {
-    const [hex, g, b] = line.split(',')
+    const [cell, g, b] = line.split(',')
+    const hex = cell && detach(cell) // not a slice of the whole CSV
     const good = Number(g)
     const bad = Number(b)
     const total = good + bad

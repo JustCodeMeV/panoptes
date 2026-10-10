@@ -1,4 +1,4 @@
-import { stripHtml } from '../truth/text.ts'
+import { detach, stripHtml } from '../truth/text.ts'
 
 /** One post from a channel's public web preview (https://t.me/s/<handle>). */
 export type TgPost = {
@@ -69,23 +69,25 @@ export function parsePage(html: string, handle: string): TgPage {
     const photo = block.match(/tgme_widget_message_photo_wrap[^"]*" style="[^"]*background-image:url\('([^']+)'/)?.[1]
     const video = /tgme_widget_message_video/.test(block)
     const videoThumb = block.match(/tgme_widget_message_video_thumb" style="background-image:url\('([^']+)'/)?.[1]
+    const thumb = videoThumb ?? photo
     const videoSrc = block.match(/<video[^>]+src="([^"]+)"/)?.[1]?.replace(/&amp;/g, '&')
     const duration = block.match(/message_video_duration[^>]*>([^<]+)</)?.[1]
     const link = [...textHtml.matchAll(/href="(https?:\/\/[^"]+)"/g)].map((m) => m[1]).find((u) => !/^https?:\/\/t\.me\//.test(u))
     const msgId = Number(post.split('/').pop())
+    // Fields are detached from `html`: otherwise each kept post holds the whole channel page in memory
     posts.push({
-      post,
+      post: detach(post),
       handle,
       msgId,
-      text,
+      text: detach(text),
       at: Number.isNaN(t) ? Date.now() : Math.min(t, Date.now()),
       views: count(block.match(/tgme_widget_message_views">([^<]*)/)?.[1]),
-      ...(photo || video ? { media: { kind: video ? ('video' as const) : ('photo' as const), thumb: videoThumb ?? photo, ...(videoSrc ? { src: videoSrc } : {}), ...(duration ? { duration } : {}) } } : {}),
-      ...(fwd ? { forwardedFrom: fwd[1], forwardedName: stripHtml(fwd[2]) } : {}),
+      ...(photo || video ? { media: { kind: video ? ('video' as const) : ('photo' as const), thumb: thumb && detach(thumb), ...(videoSrc ? { src: detach(videoSrc) } : {}), ...(duration ? { duration: detach(duration) } : {}) } } : {}),
+      ...(fwd ? { forwardedFrom: detach(fwd[1]), forwardedName: detach(stripHtml(fwd[2])) } : {}),
       // Only references that survive footer removal: ads and sign-offs are not a channel network.
-      mentions: mentionsIn(textHtml, handle).filter((h) => text.toLowerCase().includes(h.toLowerCase())),
-      ...(link ? { link: link.replace(/&amp;/g, '&') } : {}),
+      mentions: mentionsIn(textHtml, handle).filter((h) => text.toLowerCase().includes(h.toLowerCase())).map(detach),
+      ...(link ? { link: detach(link.replace(/&amp;/g, '&')) } : {}),
     })
   }
-  return { title: title && stripHtml(title), subscribers, posts }
+  return { title: title && detach(stripHtml(title)), subscribers, posts }
 }

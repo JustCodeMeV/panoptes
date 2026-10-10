@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser'
-import { hash, stripHtml } from '../truth/text.ts'
+import { detach, hash, stripHtml } from '../truth/text.ts'
 import type { NewsFeed } from './sources.ts'
 
 export type NewsItem = {
@@ -95,9 +95,10 @@ export async function pollFeed(feed: NewsFeed): Promise<NewsItem[] | null> {
     out.push({
       id: hash(link || title),
       feedId: feed.id,
-      title,
-      summary: stripHtml(txt(r.description) || txt(r.summary) || txt(r['content:encoded'])).slice(0, 400),
-      url: link,
+      // Detached from the feed document, which would otherwise stay in memory with every kept story
+      title: detach(title),
+      summary: detach(stripHtml(txt(r.description) || txt(r.summary) || txt(r['content:encoded'])).slice(0, 400)),
+      url: detach(link),
       domain,
       published: Number.isNaN(t) ? Date.now() : Math.min(t, Date.now()),
     })

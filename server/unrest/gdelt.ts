@@ -1,4 +1,5 @@
 import { unzipSync, strFromU8 } from 'fflate'
+import { detach } from '../truth/text.ts'
 
 /**
  * GDELT 2.0 event export: a new tab-separated file every 15 minutes, no key.
@@ -137,11 +138,12 @@ export function parseExport(tsv: string): GdeltEvent[] {
       geoType,
       actor1Type: ev.actor1Type,
       actor2Type: ev.actor2Type,
-      place: c[52],
+      // Detached: a split field otherwise keeps the whole multi-MB export file in memory
+      place: detach(c[52]),
       country: c[53],
       lat,
       lon,
-      url: c[60],
+      url: detach(c[60]),
     })
   }
   return out

@@ -7,6 +7,13 @@ amid against between during via vs fact check claim claims viral post posts peop
 make makes made get gets got one two three here there still now only even very much many some any all`.split(/\s+/),
 )
 
+/**
+ * A copy of `s` that does not point into a larger string. V8 keeps substrings (regex matches, split
+ * fields) as slices of their parent, so one stored URL can keep a whole downloaded page in memory.
+ * Strings under 13 characters are always copied by V8 already.
+ */
+export const detach = (s: string): string => (s.length < 13 ? s : Buffer.from(s, 'utf8').toString('utf8'))
+
 /** Lowercased, accent-folded, lightly stemmed content words. */
 export function tokens(text: string): string[] {
   const out: string[] = []
