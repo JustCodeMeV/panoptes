@@ -57,6 +57,20 @@ export function matchRegions(all: Region[], names: string[]): Region[] {
 const LIVE_DAYS = 3
 const intensity = (n: number) => (n >= 25 ? 'high' : n >= 6 ? 'elevated' : n > 0 ? 'low' : 'quiet')
 
+/** Lon/lat box of a region's outer rings; null when it spans the antimeridian (always tested in full). */
+function boxOf(r: Region): [number, number, number, number] | null {
+  let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity]
+  for (const poly of r.geometry.type === 'Polygon' ? [r.geometry.coordinates] : r.geometry.coordinates)
+    for (const [x, y] of poly[0]) [x0, y0, x1, y1] = [Math.min(x0, x), Math.min(y0, y), Math.max(x1, x), Math.max(y1, y)]
+  return x1 - x0 > 180 ? null : [x0, y0, x1, y1]
+}
+/** Point-in-zone test: the box rules out most live items before the costly test on detailed outlines. */
+function zoneTest(polys: Region[]) {
+  const parts = polys.map((r) => ({ geo: r.geometry as GeoPermissibleObjects, box: boxOf(r) }))
+  return (lon: number, lat: number) =>
+    parts.some(({ geo, box }) => (!box || (lon >= box[0] && lon <= box[2] && lat >= box[1] && lat <= box[3])) && geoContains(geo, [lon, lat]))
+}
+
 export const conflictsProvider: Provider = {
   id: 'conflict-zones',
   layerId: 'frontlines',
@@ -76,9 +90,9 @@ export const conflictsProvider: Provider = {
       }
       if (!polys.length) continue
       const coordinates = polys.flatMap((r) => (r.geometry.type === 'Polygon' ? [r.geometry.coordinates] : r.geometry.coordinates))
-      const geo = { type: 'MultiPolygon', coordinates } as GeoPermissibleObjects
+      const inZone = zoneTest(polys)
       const cutoff = Date.now() - LIVE_DAYS * 86_400_000
-      const live = await liveWhere((f) => Date.parse(f.observedAt) > cutoff && geoContains(geo, [f.position!.lon, f.position!.lat]))
+      const live = await liveWhere((f) => Date.parse(f.observedAt) > cutoff && inZone(f.position!.lon, f.position!.lat))
       const reports = Object.entries(live.counts).filter(([k]) => !['ships', 'military-air', 'humanitarian', 'hazards', 'osint', 'statements'].includes(k)).reduce((s, [, n]) => s + n, 0)
       const ring = polys[0].geometry.type === 'Polygon' ? polys[0].geometry.coordinates[0] : polys[0].geometry.coordinates[0][0]
       const lon = ring.reduce((s, p) => s + p[0], 0) / ring.length
