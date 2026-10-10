@@ -304,6 +304,36 @@ Evidence opens on the graph even when the item is no longer live. Everything aut
 (SQLite) and to the browser; a case the server lost (a free host wipes its disk on restart) is
 re-created from the browser's copy. The globe stops rendering while case mode is open.
 
+## Photo geolocation (Sleuth)
+
+**📍 Geolocate photo** (on any item that carries a photo, and in case mode) finds where a photo was
+taken with the [geo-sleuth](https://github.com/Oldcircle/geo-sleuth) method (MIT, vendored unmodified
+in `sleuth/geo-sleuth`). Every conclusion is checked against data, and the result is coordinates with
+an error radius, tiered confidence, the reasoning chain and evidence images.
+
+- **Tool server** (`sleuth/server.py`): runs the skill's Python scripts (EXIF, OCR, reverse image
+  search, lookup tables, OpenStreetMap, sun and shadow math, terrain skylines, camera pose,
+  CLIP-ranked satellite tiles, DINOv2 street-view matching). It accepts only allowlisted scripts,
+  keeps one workspace per run, and needs a bearer token (`SLEUTH_TOKEN`). It is a separate container
+  (`sleuth/Dockerfile`), because the models and the browser do not fit the web service.
+- **Agent** (`server/sleuth/`): Claude follows the skill's `SKILL.md` verbatim and calls the scripts.
+  The free steps run first (board, intake); the AI looks only at what the scripts ranked highest.
+- **Cost**: default `claude-haiku-5-5`, at most 40 tool calls and $0.15 per run. **Look harder**
+  continues the same run on Sonnet 5.5, then Opus 5.5, with a new budget. Other limits: one run at a
+  time, $5 a day (`SLEUTH_DAILY_USD`), 10 starts an hour per IP. The prompt is cached, and the same
+  image is never paid for twice.
+- For items, what the post claims and where ARGUS placed it are given to the agent as hypotheses to
+  test. Reverse-search links (Google Lens, Yandex, Bing, TinEye) open in the analyst's browser.
+
+Run the tool server locally (Python 3.10+, [uv](https://docs.astral.sh/uv/)), then set
+`SLEUTH_URL=http://127.0.0.1:8790` (the default) for the API:
+
+```sh
+cd sleuth && uv venv .venv && uv pip install -p .venv/bin/python torch --index-url https://download.pytorch.org/whl/cpu \
+  && uv pip install -p .venv/bin/python -r requirements.txt && .venv/bin/python -m playwright install chromium
+SLEUTH_DEV=1 .venv/bin/python server.py
+```
+
 ## Socials via Apify (X, TikTok, Instagram)
 
 With `APIFY_TOKEN`, the 💲 transforms search X, TikTok and Instagram for an entity. They run only when

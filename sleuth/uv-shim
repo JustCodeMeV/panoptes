@@ -1,0 +1,5 @@
+#!/bin/sh
+# Stands in for `uv` inside the sleuth container: the geo-sleuth scripts call `$UV run <script> args`
+# to start each other; every dependency is already in one environment, so run it with that python.
+[ "$1" = run ] && shift
+exec "${SLEUTH_PYTHON:-python3}" "$@"

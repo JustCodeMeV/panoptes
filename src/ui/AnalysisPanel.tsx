@@ -1,5 +1,6 @@
 import { Component, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Button } from '../../gui_elements/Button'
+import { imageOf, useSleuth } from '../core/sleuth'
 import { durationMs } from '../../gui_elements/catalog'
 import { Dock, FoldBody, Header } from '../../gui_elements/Composites'
 import { useDesign } from '../../gui_elements/context'
@@ -120,6 +121,11 @@ function Story() {
           <Button variant="secondary" onClick={() => void useInvestigation.getState().seed(feature.id)} title="Open this item as entities (events, places, actors, sources, claims) and expand them">
             ◆ Investigate
           </Button>
+          {imageOf(feature) && (
+            <Button variant="secondary" onClick={() => useSleuth.getState().openFor(feature)} title="Find where this photo was taken, and test it against what the item claims">
+              📍 Geolocate photo
+            </Button>
+          )}
         </div>
         <div className="mt-3">
           <DetailGuard key={feature.id}>

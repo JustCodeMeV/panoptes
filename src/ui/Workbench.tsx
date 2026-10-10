@@ -7,6 +7,7 @@ import type { Edge, Entity } from '../../shared/entities'
 import type { Feature } from '../../shared/feature'
 import { useCases, type CaseFull } from '../core/cases'
 import { flyTo, useInvestigation } from '../core/investigation'
+import { useSleuth } from '../core/sleuth'
 import { downloadCasePdf } from './casePdf'
 import { graphPositions, restorePositions } from './graphPositions'
 import { Investigation } from './Investigation'
@@ -234,6 +235,9 @@ export function Workbench() {
           <button className="wb-back" onClick={() => setCaseMode(false)}>← Map</button>
           <span className="wb-h">Case mode</span>
           <em>{saved}</em>
+          <button className="wb-geo" onClick={() => useSleuth.getState().openFor()} title="Find where a photo was taken (geo-sleuth method)">
+            📍 Geolocate photo
+          </button>
         </div>
         <label className="wb-field">
           <span>Case</span>

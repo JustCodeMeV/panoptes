@@ -10,6 +10,7 @@ import { Brief } from './ui/Brief'
 import { ModeBar } from './ui/ModeBar'
 import { useLinkCapture } from './core/linkViewer'
 import { LayerPanel } from './ui/LayerPanel'
+import { Sleuth } from './ui/Sleuth'
 import { shellGeometry, useShell } from './ui/shell'
 import { useGlobeUi } from './globe/globeUi'
 
@@ -89,6 +90,7 @@ export default function App() {
       {mode === 'brief' && <Brief />}
       <ModeBar />
       <LinkViewer />
+      <Sleuth />
       <DemoBanner />
     </div>
   )

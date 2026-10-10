@@ -26,7 +26,9 @@ import { networkStories, startTelegramScouts, swarmStats } from './telegram/engi
 import { translatePost } from './telegram/translate.ts'
 import { snapshotScores, startCii } from './cii/engine.ts'
 import { startHeatmap } from './cii/heatmap.ts'
-import { engineStats, entityWithTransforms, seedFor, startEntityEngine } from './entities/engine.ts'
+import { engineStats, entityWithTransforms, liveFeature, seedFor, startEntityEngine } from './entities/engine.ts'
+import * as sleuth from './sleuth/runs.ts'
+import { toolServer } from './sleuth/tools.ts'
 import { search as searchEntities } from './entities/graph.ts'
 import { runTransform } from './entities/transforms.ts'
 import { readEvent } from './entities/llm.ts'
@@ -63,7 +65,10 @@ app.use('*', secureHeaders({ referrerPolicy: 'strict-origin-when-cross-origin' }
 // Case workspaces (graph snapshots) and case imports may be larger than other requests
 const smallBody = bodyLimit({ maxSize: 512 * 1024, onError: (c) => c.json({ error: 'request body too large' }, 413) })
 const caseBody = bodyLimit({ maxSize: 2 * 1024 * 1024, onError: (c) => c.json({ error: 'case too large' }, 413) })
-app.use('/api/*', (c, next) => (/\/workspace$|^\/api\/cases\/import$/.test(c.req.path) ? caseBody(c, next) : smallBody(c, next)))
+const photoBody = bodyLimit({ maxSize: 21 * 1024 * 1024, onError: (c) => c.json({ error: 'photo larger than 20 MB' }, 413) })
+app.use('/api/*', (c, next) =>
+  c.req.path === '/api/sleuth' ? photoBody(c, next) : /\/workspace$|^\/api\/cases\/import$/.test(c.req.path) ? caseBody(c, next) : smallBody(c, next),
+)
 // Endpoints that spend money (Claude) or rate-limited upstream quota (GDELT), per client IP.
 app.use('/api/llm/*', rateLimit({ windowMs: 10 * 60_000, max: 20, name: 'AI briefs' }))
 app.use('/api/truth/check', rateLimit({ windowMs: 10 * 60_000, max: 30, name: 'claim checks' }))
@@ -222,6 +227,61 @@ app.post('/api/llm/extract/:id', async (c) => {
   const x = await readEvent(c.req.param('id'), { force: true })
   const e = entityWithTransforms(c.req.param('id'))
   return x && e ? c.json({ extraction: x, entity: e }) : c.json({ error: 'not read: unknown event, budget reached or AI unavailable' }, 503)
+})
+// SLEUTH: photo geolocation (geo-sleuth scripts on the tool server, metered Claude agent). Paid: per-IP limit,
+// one run at a time and a daily dollar cap (server/sleuth/runs.ts).
+app.get('/api/sleuth/status', async (c) => c.json(await sleuth.sleuthStatus()))
+app.get('/api/sleuth/runs', (c) => c.json({ runs: sleuth.listRuns() }))
+app.use('/api/sleuth', rateLimit({ windowMs: 60 * 60_000, max: 10, name: 'sleuth' }))
+app.post('/api/sleuth', async (c) => {
+  try {
+    const form = c.req.header('content-type')?.startsWith('multipart/') ? await c.req.parseBody() : ((await c.req.json().catch(() => ({}))) as Record<string, unknown>)
+    const purpose = typeof form.purpose === 'string' ? form.purpose : ''
+    let image: Uint8Array
+    let source: sleuth.RunSource
+    let context: string | undefined
+    if (form.photo instanceof File) {
+      image = new Uint8Array(await form.photo.arrayBuffer())
+      source = { kind: 'upload', title: form.photo.name.slice(0, 120) }
+    } else if (typeof form.featureId === 'string') {
+      const f = await liveFeature(form.featureId)
+      if (!f) return c.json({ error: 'item not found in the live layers (it may have just expired)' }, 404)
+      const url = sleuth.imageOf(f)
+      if (!url) return c.json({ error: 'this item carries no photo' }, 400)
+      image = await sleuth.fetchImage(url)
+      source = { kind: 'item', featureId: f.id, url, title: f.title.slice(0, 160) }
+      context = sleuth.contextOf(f)
+    } else if (typeof form.url === 'string') {
+      image = await sleuth.fetchImage(form.url)
+      source = { kind: 'url', url: form.url.slice(0, 500) }
+    } else return c.json({ error: 'send a photo, an image url or a featureId' }, 400)
+    if (typeof form.context === 'string' && form.context.trim()) context = [context, `Analyst's note: ${form.context.slice(0, 1000)}`].filter(Boolean).join('\n')
+    return c.json({ run: await sleuth.startRun({ image, purpose, source, context }) })
+  } catch (e) {
+    return c.json({ error: redact(e instanceof Error ? e.message : String(e)) }, 400)
+  }
+})
+app.get('/api/sleuth/:id', (c) => {
+  const r = sleuth.getRun(c.req.param('id'))
+  return r ? c.json({ run: r }) : c.json({ error: 'no such run' }, 404)
+})
+app.post('/api/sleuth/:id/harder', async (c) => {
+  try {
+    return c.json({ run: await sleuth.harder(c.req.param('id')) })
+  } catch (e) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 400)
+  }
+})
+app.post('/api/sleuth/:id/cancel', (c) => (sleuth.cancel(c.req.param('id')) ? c.json({ ok: true }) : c.json({ error: 'no such run' }, 404)))
+// Artifacts (evidence images, contact sheets) of a known run only; ?max= downscales
+app.get('/api/sleuth/:id/file/*', async (c) => {
+  const id = c.req.param('id')
+  if (!sleuth.getRun(id)) return c.json({ error: 'no such run' }, 404)
+  const path = decodeURIComponent(c.req.path.slice(`/api/sleuth/${id}/file/`.length))
+  const max = Number(c.req.query('max')) || undefined
+  const res = await toolServer.file(id, path, max).catch(() => null)
+  if (!res?.ok) return c.json({ error: 'no such file' }, 404)
+  return new Response(res.body, { headers: { 'Content-Type': res.headers.get('content-type') ?? 'application/octet-stream', 'Cache-Control': 'private, max-age=3600' } })
 })
 // Transforms fetch from outside services (and Apify spends credit): per-IP limit.
 app.use('/api/entities/:id/transform', rateLimit({ windowMs: 10 * 60_000, max: 90, name: 'transforms' }))

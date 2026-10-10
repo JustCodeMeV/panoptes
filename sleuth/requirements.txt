@@ -1,0 +1,12 @@
+# Union of the vendored geo-sleuth scripts' inline dependencies (PEP 723 headers), one environment.
+# torch comes from the CPU wheel index (see Dockerfile).
+pillow
+pillow-heif
+numpy
+transformers
+opencv-python-headless
+rapidocr-onnxruntime
+playwright
+requests
+socksio
+pysocks
