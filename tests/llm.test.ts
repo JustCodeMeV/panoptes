@@ -7,12 +7,13 @@ import type { FactCheckMatch } from '../shared/truth.ts'
 import { z } from 'zod/v4'
 
 delete process.env.ANTHROPIC_API_KEY
+process.env.LLM_ANONYMOUS = '0' // no keyless floor either
 const fc = (url: string, score: number, verdict: FactCheckMatch['verdict'] = 'false'): FactCheckMatch => ({ publisher: 'P', title: url, url, verdict, score })
 
-test('without a key the LLM is a silent no-op', async () => {
+test('without any provider the LLM is a silent no-op', async () => {
   assert.equal(llmEnabled(), false)
   assert.equal(await structured({ system: 's', prompt: 'p', schema: z.object({ a: z.string() }) }), null)
-  assert.match(llmStatus().error ?? '', /no ANTHROPIC_API_KEY/)
+  assert.match(llmStatus().error ?? '', /no AI provider configured/)
   const f = { id: 'news:x', layerId: 'news', title: 't', geoPrecision: 'none' as const, observedAt: '', source: { provider: 'p', platform: 'p', retrievedAt: '' }, tags: [], props: { assessment: assess({ signals: [], factChecks: [], coverage: null }) } }
   assert.equal(await briefFor(f), null)
 })

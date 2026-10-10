@@ -316,12 +316,14 @@ an error radius, tiered confidence, the reasoning chain and evidence images.
   CLIP-ranked satellite tiles, DINOv2 street-view matching). It accepts only allowlisted scripts,
   keeps one workspace per run, and needs a bearer token (`SLEUTH_TOKEN`). It is a separate container
   (`sleuth/Dockerfile`), because the models and the browser do not fit the web service.
-- **Agent** (`server/sleuth/`): Claude follows the skill's `SKILL.md` verbatim and calls the scripts.
+- **Agent** (`server/sleuth/`): the model follows the skill's `SKILL.md` verbatim and calls the scripts.
   The free steps run first (board, intake); the AI looks only at what the scripts ranked highest.
-- **Cost**: default `claude-haiku-5-5`, at most 40 tool calls and $0.15 per run. **Look harder**
-  continues the same run on Sonnet 5.5, then Opus 5.5, with a new budget. Other limits: one run at a
-  time, $5 a day (`SLEUTH_DAILY_USD`), 10 starts an hour per IP. The prompt is cached, and the same
-  image is never paid for twice.
+- **Cost**: runs on the provider router, using the free providers that can see images and call tools
+  (Gemini, Mistral, OpenRouter, Pollinations). Claude is the last resort, and paid calls are capped at
+  $0.15 per run. Each run is limited to 40 tool calls. **Look harder** continues the same run on
+  Claude Sonnet 5.5, then Opus 5.5, with a new budget (needs `ANTHROPIC_API_KEY`). Other limits: one
+  run at a time, $5 a day (`SLEUTH_DAILY_USD`), 10 starts an hour per IP. The same image is never
+  investigated twice.
 - For items, what the post claims and where ARGUS placed it are given to the agent as hypotheses to
   test. Reverse-search links (Google Lens, Yandex, Bing, TinEye) open in the analyst's browser.
 
@@ -388,15 +390,25 @@ flagged stories is drawn red. `?story=<id>` restricts it to one story's sources 
 keeping each pair's history across all stories. Open it from **Network** in the left panel or
 the **Network** tab next to a story's timeline. Leads for an analyst, not attribution.
 
-## AI analyst brief (optional)
+## AI analyst brief and the provider router (optional)
 
-With `ANTHROPIC_API_KEY` set (default model `claude-haiku-4-5`, override with
-`PANOPTES_LLM_MODEL`), the **✦ Analyst brief** button on any story asks Claude for a
-summary, why it is flagged, how each outlet group frames it, next checks and English
-glosses of foreign headlines, using only the evidence the engine already gathered. The
-claim checker also has Claude judge lexical fact-check candidates as same claim / related /
-unrelated. Calls are cached per story state and capped per hour
-(`PANOPTES_LLM_MAX_PER_HOUR`, default 60). Without a key both fall back to keyword matching.
+All AI work goes through one router (`server/llm/router.ts`), built on the OmniRoute pattern. Each call
+goes to the first healthy provider, in priority order, that can do what the call needs (JSON, tools,
+images). Free tiers come first: Gemini, Groq, Cerebras, Mistral, OpenRouter, Pollinations. Paid Claude
+comes last. Failures stay isolated per provider: a 429 cools it down (Retry-After honoured), a
+rejected key disables it for an hour, an unknown model is locked out, and repeated errors open its
+circuit for five minutes. Each key is free with no card (`GEMINI_API_KEY`, `GROQ_API_KEY`, … in
+`.env.example`), and a provider without a key is skipped. Change the order with `LLM_ORDER`. The
+health chip shows one row per provider.
+
+The **✦ Analyst brief** button on any story asks for a summary, why it is flagged, how each outlet
+group frames it, next checks and English glosses of foreign headlines. It uses only the evidence the
+engine already gathered. The claim checker has the model judge lexical fact-check candidates (same
+claim / related / unrelated). Event extraction and Telegram translation use the same structured
+calls, whose JSON is validated against a schema. Background work stays on free providers unless
+`PANOPTES_LLM_PAID=1`. Calls are cached and capped per hour (`PANOPTES_LLM_MAX_PER_HOUR`, default 60).
+With no provider, everything falls back to keyword matching. There is no dependable keyless provider:
+Pollinations without a key (opt-in, `LLM_ANONYMOUS=1`) now refuses almost every real prompt.
 
 ## Region watch (`watch` layer, real-time)
 

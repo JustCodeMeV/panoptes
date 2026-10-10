@@ -377,8 +377,10 @@ app.get('/api/health/sources', async (c) => {
     for (const p of statuses) rows.push({ layer, id: p.id, ok: p.ok, error: p.error && redact(p.error), stale: p.stale })
   }
   for (const s of engineStatus()) rows.push({ layer: 'truth', id: s.id, ok: s.ok, error: s.error && redact(s.error) })
+  // One row per AI provider in the router (free tiers, Claude, keyless floor)
   const l = llmStatus()
-  rows.push({ layer: 'ai', id: l.id, ok: l.ok, error: l.error })
+  for (const p of l.providers) rows.push({ layer: 'ai', id: `ai:${p.id}`, ok: p.available, error: p.lastError ?? (p.coolingDownS ? `cooling down ${p.coolingDownS}s` : undefined) })
+  if (!l.providers.length) rows.push({ layer: 'ai', id: l.id, ok: false, error: l.error })
   // A source waiting for an optional key is "off", not broken.
   return c.json(rows.map((r) => ({ ...r, off: !r.ok && NOT_CONFIGURED.test(r.error ?? '') })))
 })

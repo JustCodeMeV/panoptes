@@ -1,16 +1,17 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { createHash, randomBytes } from 'node:crypto'
 import type { Feature } from '../../shared/feature.ts'
 import { redact } from '../core/secrets.ts'
 import { assertPublicUrl } from '../reader/reader.ts'
+import { canServe, chat, routerStatus, type Part } from '../llm/router.ts'
 import { runAgent, systemFor, type AgentState, type Finding, type Step } from './agent.ts'
-import { LADDER, type Model } from './prices.ts'
 import { execTool, toolServer } from './tools.ts'
 
 /**
  * SLEUTH RUNS: one photo investigation each. Free work first (board init + intake: EXIF, OCR, crops,
- * reverse image search, no LLM), then the metered agent. Bounded three ways: per-run steps and dollars,
- * one run at a time, and a daily dollar cap. The same image is never paid for twice (hash memo).
+ * reverse image search, no LLM), then the agent on the provider router: free providers that see images
+ * and call tools first, Claude only as the last resort or when "look harder" asks for it. Bounded three
+ * ways: per-run steps and dollars (paid calls only), one run at a time, and a daily dollar cap.
+ * The same image is never investigated twice (hash memo).
  */
 
 export type RunStatus = 'intake' | 'running' | 'done' | 'failed' | 'cancelled'
@@ -24,7 +25,8 @@ export type Run = {
   source: RunSource
   purpose: string
   context?: string
-  model: Model
+  /** Provider/model that answered last (router: free tiers first). */
+  model: string
   costUsd: number
   toolCalls: number
   budget: { steps: number; usd: number }
@@ -36,11 +38,13 @@ export type Run = {
 }
 
 const STEPS = Number(process.env.SLEUTH_MAX_STEPS) || 40
-const USD: Record<Model, number> = {
-  'claude-haiku-5-5': Number(process.env.SLEUTH_USD_HAIKU) || 0.15,
-  'claude-sonnet-5-5': Number(process.env.SLEUTH_USD_SONNET) || 1.5,
-  'claude-opus-5-5': Number(process.env.SLEUTH_USD_OPUS) || 3,
-}
+// Dollars a run may spend on paid providers (free providers cost nothing); "look harder" levels
+const USD_BASE = Number(process.env.SLEUTH_USD) || 0.15
+const HARDER: { model: string; label: string; usd: number }[] = [
+  { model: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', usd: Number(process.env.SLEUTH_USD_SONNET) || 1.5 },
+  { model: 'claude-opus-5-5', label: 'Claude Opus 5.5', usd: Number(process.env.SLEUTH_USD_OPUS) || 3 },
+]
+const NEED = ['tools', 'vision'] as const
 const DAILY_USD = Number(process.env.SLEUTH_DAILY_USD) || 5
 const MAX_ACTIVE = Number(process.env.SLEUTH_MAX_ACTIVE) || 1
 const MAX_RUNS = 50
@@ -52,25 +56,25 @@ const cancelled = new Set<string>()
 const spentByDay = new Map<string, number>()
 const today = () => new Date().toISOString().slice(0, 10)
 
-let client: Anthropic | null | undefined
-const getClient = () => (client === undefined ? (client = process.env.ANTHROPIC_API_KEY ? new Anthropic({ timeout: 180_000, maxRetries: 2 }) : null) : client)
-
 let skillText: string | undefined
 async function system() {
   skillText ??= (await toolServer.skill('SKILL.md')) ?? undefined
   if (!skillText) throw new Error('tool server has no SKILL.md')
   return systemFor(skillText)
 }
+const hasClaude = () => routerStatus().some((p) => p.id === 'anthropic')
 
 export async function sleuthStatus() {
   const spent = spentByDay.get(today()) ?? 0
   return {
-    llm: !!getClient(),
+    llm: canServe([...NEED]),
+    providers: routerStatus().filter((p) => NEED.every((c) => p.caps.includes(c))).map((p) => ({ id: p.id, model: p.model, free: p.free, available: p.available, lastError: p.lastError })),
+    harder: hasClaude() ? HARDER.map((h) => h.label) : [],
     toolServer: await toolServer.health(),
     active: [...runs.values()].filter((r) => r.status === 'intake' || r.status === 'running').length,
     spentTodayUsd: Math.round(spent * 1000) / 1000,
     dailyCapUsd: DAILY_USD,
-    defaults: { model: LADDER[0], steps: STEPS, usd: USD[LADDER[0]] },
+    defaults: { model: 'free providers first', steps: STEPS, usd: USD_BASE },
   }
 }
 
@@ -144,7 +148,7 @@ export async function startRun(inp: StartInput): Promise<Run> {
   if (inp.image.length > MAX_IMAGE) throw new Error('image larger than 20 MB')
   const purpose = inp.purpose.trim().slice(0, 500)
   if (purpose.length < 3) throw new Error('state the purpose of this geolocation')
-  if (!getClient()) throw new Error('ANTHROPIC_API_KEY is not configured')
+  if (!canServe([...NEED])) throw new Error('no AI provider that can see images and call tools is configured: add a free key (GEMINI_API_KEY, MISTRAL_API_KEY, OPENROUTER_API_KEY or POLLINATIONS_API_KEY)')
   if (!(await toolServer.health())) throw new Error('the sleuth tool server is not reachable')
   const hash = createHash('sha256').update(inp.image).digest('hex')
   const prior = [...runs.values()].find((r) => r.hash === hash && r.status !== 'failed' && r.status !== 'cancelled')
@@ -153,10 +157,9 @@ export async function startRun(inp: StartInput): Promise<Run> {
   if ((spentByDay.get(today()) ?? 0) >= DAILY_USD) throw new Error(`daily geolocation budget ($${DAILY_USD}) reached`)
 
   const id = `run-${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`
-  const model = LADDER[0]
   const run: Run = {
     id, status: 'intake', createdAt: Date.now(), updatedAt: Date.now(), hash, source: inp.source, purpose, context: inp.context,
-    model, costUsd: 0, toolCalls: 0, budget: { steps: STEPS, usd: USD[model] }, steps: [], images: [],
+    model: '', costUsd: 0, toolCalls: 0, budget: { steps: STEPS, usd: USD_BASE }, steps: [], images: [],
   }
   runs.set(id, run)
   trim()
@@ -191,8 +194,8 @@ async function execute(run: Run, image: Uint8Array, kind: string) {
     step(run, 'tool', `intake (EXIF, OCR, crops, reverse image search) in ${(intake.ms / 1000).toFixed(0)}s`, intake.code === 0)
     const report = (await toolServer.text(run.id, 'intake/intake.md')) ?? `intake failed:\n${intake.stderr.slice(-2000)}`
     const photo = await toolServer.image(run.id, name, 1280)
-    const first: Anthropic.Beta.BetaContentBlockParam[] = [
-      ...(photo ? [{ type: 'image' as const, source: { type: 'base64' as const, media_type: photo.type as 'image/jpeg', data: photo.data } }] : []),
+    const first: Part[] = [
+      ...(photo ? [{ type: 'image' as const, mime: photo.type, data: photo.data }] : []),
       {
         type: 'text',
         text: [
@@ -204,7 +207,7 @@ async function execute(run: Run, image: Uint8Array, kind: string) {
         ].filter(Boolean).join('\n\n'),
       },
     ]
-    const state: AgentState = { model: run.model, messages: [{ role: 'user', content: first }], steps: run.steps, toolCalls: 0, costUsd: 0, budget: run.budget }
+    const state: AgentState = { route: { paid: true }, model: '', messages: [{ role: 'user', parts: first }], steps: run.steps, toolCalls: 0, costUsd: 0, budget: run.budget }
     agents.set(run.id, state)
     await drive(run, state)
   } catch (e) {
@@ -217,19 +220,19 @@ async function execute(run: Run, image: Uint8Array, kind: string) {
 async function drive(run: Run, state: AgentState) {
   run.status = 'running'
   const before = state.costUsd
-  const c = getClient()!
   await runAgent(state, await system(), {
-    create: (p) => c.beta.messages.create(p),
+    chat,
     exec: (name, input) => execTool(run.id, name, input),
     cancelled: () => cancelled.has(run.id),
     onStep: () => {
+      run.model = state.model
       run.costUsd = state.costUsd
       run.toolCalls = state.toolCalls
       run.updatedAt = Date.now()
     },
   })
   spentByDay.set(today(), (spentByDay.get(today()) ?? 0) + state.costUsd - before)
-  Object.assign(run, { costUsd: state.costUsd, toolCalls: state.toolCalls, report: state.report, finding: state.finding, updatedAt: Date.now() })
+  Object.assign(run, { model: state.model, costUsd: state.costUsd, toolCalls: state.toolCalls, report: state.report, finding: state.finding, updatedAt: Date.now() })
   run.status = state.stop === 'cancelled' ? 'cancelled' : state.stop === 'error' || state.stop === 'refused' ? 'failed' : 'done'
   if (state.error) run.error = redact(state.error)
   // Images worth showing: evidence first, then sheets and renders the agent produced
@@ -238,24 +241,26 @@ async function drive(run: Run, state: AgentState) {
   run.images = [...imgs.filter((f) => /evidence/i.test(f)), ...imgs.filter((f) => !/evidence/i.test(f))].slice(0, 30)
 }
 
-/** Continue the same investigation on the next stronger model, with a fresh budget for it. */
+/** Continue the same investigation on Claude (Sonnet, then Opus), with a fresh budget for it. */
 export async function harder(id: string): Promise<Run> {
   const run = runs.get(id)
   const state = agents.get(id)
   if (!run || !state) throw new Error('no such run')
   if (run.status === 'intake' || run.status === 'running') throw new Error('the run is still going')
-  const next = LADDER[LADDER.indexOf(run.model) + 1]
+  if (!hasClaude()) throw new Error('looking harder uses Claude: set ANTHROPIC_API_KEY (paid)')
+  const level = HARDER.findIndex((x) => x.model === state.route.model) + 1
+  const next = HARDER[level]
   if (!next) throw new Error('already on the strongest model')
   if ((spentByDay.get(today()) ?? 0) >= DAILY_USD) throw new Error(`daily geolocation budget ($${DAILY_USD}) reached`)
   if ([...runs.values()].filter((r) => r.status === 'intake' || r.status === 'running').length >= MAX_ACTIVE) throw new Error('another geolocation is running')
   cancelled.delete(id)
-  run.model = state.model = next
-  run.budget = state.budget = { steps: state.toolCalls + STEPS, usd: state.costUsd + USD[next] }
+  state.route = { only: ['anthropic'], model: next.model, paid: true }
+  run.budget = state.budget = { steps: state.toolCalls + STEPS, usd: state.costUsd + next.usd }
   run.error = undefined
-  step(run, 'note', `looking harder with ${next}`)
+  step(run, 'note', `looking harder with ${next.label}`)
   state.messages.push({
     role: 'user',
-    content: `The analyst asked you to look harder; you are now running on a stronger model with a new budget (${STEPS} more tool calls, $${USD[next].toFixed(2)}). Re-check the conclusion above against the skill's hard rules: which clues are unused, which candidates were down-weighted without evidence, which discriminating test was skipped. Continue the investigation, then give a new final message with the JSON block.`,
+    parts: [{ type: 'text', text: `The analyst asked you to look harder; you are now running on a stronger model with a new budget (${STEPS} more tool calls, $${next.usd.toFixed(2)}). Re-check the conclusion above against the skill's hard rules: which clues are unused, which candidates were down-weighted without evidence, which discriminating test was skipped. Continue the investigation, then give a new final message with the JSON block.` }],
   })
   void drive(run, state).catch((e) => {
     run.status = 'failed'

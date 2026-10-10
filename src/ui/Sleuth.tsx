@@ -8,8 +8,6 @@ import { flyTo } from '../core/investigation'
 import { imageOf, reverseLinks, useSleuth, type SleuthRun } from '../core/sleuth'
 import { setCaseMode } from './shell'
 
-const MODEL: Record<string, string> = { 'claude-haiku-5-5': 'Haiku 5.5', 'claude-sonnet-5-5': 'Sonnet 5.5', 'claude-opus-5-5': 'Opus 5.5' }
-const NEXT: Record<string, string> = { 'claude-haiku-5-5': 'Sonnet 5.5', 'claude-sonnet-5-5': 'Opus 5.5' }
 const STATUS: Record<SleuthRun['status'], string> = { intake: 'Reading the photo (metadata, text, reverse image search)…', running: 'Investigating…', done: 'Done', failed: 'Failed', cancelled: 'Stopped' }
 const usd = (n: number) => `$${n < 0.1 ? n.toFixed(3) : n.toFixed(2)}`
 const dist = (m?: number) => (m === undefined ? '?' : m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`)
@@ -84,7 +82,11 @@ function Form() {
         </Button>
         {status && (
           <span className="sleuth-meta">
-            {!status.toolServer ? 'Geolocation service offline' : !status.llm ? 'AI not configured' : `${MODEL[status.defaults.model] ?? status.defaults.model}, up to ${usd(status.defaults.usd)} and ${status.defaults.steps} steps · today ${usd(status.spentTodayUsd)} of ${usd(status.dailyCapUsd)}`}
+            {!status.toolServer
+              ? 'Geolocation service offline'
+              : !status.llm
+                ? 'No AI provider that can see images is configured: add a free key (Gemini, Mistral, OpenRouter or Pollinations)'
+                : `${status.providers.map((p) => p.id + (p.free ? '' : ' (paid)')).join(' → ')} · up to ${status.defaults.steps} steps, paid calls capped at ${usd(status.defaults.usd)} · today ${usd(status.spentTodayUsd)} of ${usd(status.dailyCapUsd)}`}
           </span>
         )}
       </div>
@@ -101,6 +103,8 @@ function RunView({ run }: { run: SleuthRun }) {
   const reset = useSleuth((s) => s.reset)
   const show = useSleuth((s) => s.show)
   const busy = useSleuth((s) => s.busy)
+  const harderLevels = useSleuth((s) => s.status?.harder ?? [])
+  const next = run.model.includes('claude-opus') ? undefined : run.model.includes('claude-sonnet') ? harderLevels[1] : harderLevels[0]
   const [big, setBig] = useState<string | null>(null)
   const live = run.status === 'intake' || run.status === 'running'
   const f = run.finding
@@ -116,7 +120,7 @@ function RunView({ run }: { run: SleuthRun }) {
       <div className="sleuth-head">
         <b>{STATUS[run.status]}</b>
         <span className="sleuth-meta">
-          {MODEL[run.model] ?? run.model} · {run.toolCalls}/{run.budget.steps} steps · {usd(run.costUsd)} of {usd(run.budget.usd)}
+          {run.model || 'starting'} · {run.toolCalls}/{run.budget.steps} steps · {usd(run.costUsd)} of {usd(run.budget.usd)}
         </span>
       </div>
       {run.error && <p className="sleuth-error">{run.error}</p>}
@@ -192,9 +196,9 @@ function RunView({ run }: { run: SleuthRun }) {
           </Button>
         ) : (
           <>
-            {NEXT[run.model] && run.status === 'done' && (
-              <Button variant="secondary" loading={busy} onClick={() => void harder()} title="Continue the same investigation on a stronger model, with a new budget">
-                Look harder ({NEXT[run.model]})
+            {next && run.status === 'done' && (
+              <Button variant="secondary" loading={busy} onClick={() => void harder()} title="Continue the same investigation on a stronger (paid) model, with a new budget">
+                Look harder ({next})
               </Button>
             )}
             <Button variant="secondary" onClick={reset}>

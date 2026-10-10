@@ -12,7 +12,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "start": "node server/index.ts",
-    "test": "PANOPTES_DB=:memory: node --import tsx --test 'tests/**/*.test.ts'"
+    "test": "PANOPTES_DB=:memory: LLM_ANONYMOUS=0 node --import tsx --test 'tests/**/*.test.ts'"
   },
   "engines": {
     "node": ">=24"

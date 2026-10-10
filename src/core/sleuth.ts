@@ -24,7 +24,18 @@ export type SleuthRun = {
   images: string[]
   error?: string
 }
-export type SleuthStatus = { llm: boolean; toolServer: boolean; active: number; spentTodayUsd: number; dailyCapUsd: number; defaults: { model: string; steps: number; usd: number } }
+export type SleuthStatus = {
+  llm: boolean
+  toolServer: boolean
+  active: number
+  spentTodayUsd: number
+  dailyCapUsd: number
+  defaults: { model: string; steps: number; usd: number }
+  /** Providers that can see images and call tools, in router order. */
+  providers: { id: string; model: string; free: boolean; available: boolean; lastError?: string }[]
+  /** "Look harder" levels (Claude), empty without a key. */
+  harder: string[]
+}
 
 type State = {
   open: boolean

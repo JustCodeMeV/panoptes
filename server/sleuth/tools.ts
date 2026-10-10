@@ -1,4 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk'
+import type { ToolOutcome } from './agent.ts'
 
 /**
  * The tool server (sleuth/server.py) runs the geo-sleuth scripts; this is its client and the tools
@@ -105,7 +106,8 @@ export const TOOLS: Anthropic.Beta.BetaTool[] = [
 type Input = { script?: string; args?: string[]; path?: string; max?: number; dir?: string }
 
 /** Runs one tool call; failures come back as an error result for Claude, never as an exception. */
-export async function execTool(run: string, name: string, raw: unknown): Promise<{ content: Anthropic.Beta.BetaToolResultBlockParam['content']; isError: boolean; summary: string }> {
+export async function execTool(run: string, name: string, raw: unknown): Promise<ToolOutcome> {
+  const txt = (text: string): ToolOutcome['content'] => [{ type: 'text', text }]
   const input = (raw ?? {}) as Input
   try {
     switch (name) {
@@ -115,35 +117,35 @@ export async function execTool(run: string, name: string, raw: unknown): Promise
         const out = r.stdout.length > MAX_STDOUT ? `…(${r.stdout.length - MAX_STDOUT} chars cut; write --out to a file and read_file it)\n${r.stdout.slice(-MAX_STDOUT)}` : r.stdout
         const files = r.files.filter((f) => !f.startsWith('.cache/'))
         const text = [`exit ${r.code} in ${(r.ms / 1000).toFixed(1)}s`, out, r.stderr && `stderr:\n${r.stderr.slice(-1500)}`, files.length && `files written: ${files.slice(0, 40).join(', ')}${files.length > 40 ? ` (+${files.length - 40})` : ''}`].filter(Boolean).join('\n')
-        return { content: text, isError: r.code !== 0, summary: `${input.script} ${args.join(' ')}`.slice(0, 200) }
+        return { content: txt(text), isError: r.code !== 0, summary: `${input.script} ${args.join(' ')}`.slice(0, 200) }
       }
       case 'read_file': {
         const t = await toolServer.text(run, String(input.path))
-        if (t === null) return { content: `no such file: ${input.path}`, isError: true, summary: `read ${input.path}` }
-        return { content: t.length > MAX_TEXT ? `${t.slice(0, MAX_TEXT)}\n…(${t.length - MAX_TEXT} chars cut)` : t, isError: false, summary: `read ${input.path}` }
+        if (t === null) return { content: txt(`no such file: ${input.path}`), isError: true, summary: `read ${input.path}` }
+        return { content: txt(t.length > MAX_TEXT ? `${t.slice(0, MAX_TEXT)}\n…(${t.length - MAX_TEXT} chars cut)` : t), isError: false, summary: `read ${input.path}` }
       }
       case 'view_image': {
         const img = await toolServer.image(run, String(input.path), Math.max(512, Math.min(Number(input.max) || 1280, 2048)))
-        if (!img) return { content: `no such image: ${input.path}`, isError: true, summary: `view ${input.path}` }
+        if (!img) return { content: txt(`no such image: ${input.path}`), isError: true, summary: `view ${input.path}` }
         return {
-          content: [{ type: 'image', source: { type: 'base64', media_type: img.type as 'image/jpeg', data: img.data } }],
+          content: [{ type: 'image', mime: img.type, data: img.data }],
           isError: false,
           summary: `view ${input.path}`,
         }
       }
       case 'list_files': {
         const l = await toolServer.list(run, input.dir ? String(input.dir) : '')
-        return { content: `${l.files.join('\n')}${l.total > l.files.length ? `\n…(${l.total - l.files.length} more)` : ''}`, isError: false, summary: `ls ${input.dir ?? ''}` }
+        return { content: txt(`${l.files.join('\n')}${l.total > l.files.length ? `\n…(${l.total - l.files.length} more)` : ''}`), isError: false, summary: `ls ${input.dir ?? ''}` }
       }
       case 'read_skill_file': {
         const t = await toolServer.skill(String(input.path))
-        if (t === null) return { content: `no such skill file: ${input.path}`, isError: true, summary: `skill ${input.path}` }
-        return { content: t.length > MAX_TEXT * 3 ? `${t.slice(0, MAX_TEXT * 3)}\n…(cut)` : t, isError: false, summary: `skill ${input.path}` }
+        if (t === null) return { content: txt(`no such skill file: ${input.path}`), isError: true, summary: `skill ${input.path}` }
+        return { content: txt(t.length > MAX_TEXT * 3 ? `${t.slice(0, MAX_TEXT * 3)}\n…(cut)` : t), isError: false, summary: `skill ${input.path}` }
       }
       default:
-        return { content: `unknown tool ${name}`, isError: true, summary: name }
+        return { content: txt(`unknown tool ${name}`), isError: true, summary: name }
     }
   } catch (e) {
-    return { content: `failed: ${e instanceof Error ? e.message : String(e)}`, isError: true, summary: `${name} failed` }
+    return { content: txt(`failed: ${e instanceof Error ? e.message : String(e)}`), isError: true, summary: `${name} failed` }
   }
 }
