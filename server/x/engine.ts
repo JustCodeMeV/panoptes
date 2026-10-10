@@ -3,6 +3,7 @@ import type { LiveEvent } from '../../shared/live.ts'
 import type { Assessment } from '../../shared/truth.ts'
 import { eventsPerMin, listenerCount, publish, registerStream, streamSource, subscribe } from '../core/hub.ts'
 import { askGrok, grokEnabled, type XCheck } from './grok.ts'
+import { every } from '../runtime/jobs.ts'
 
 /**
  * Twitter/X layer: decides when a story is worth a second opinion from X and asks Grok.
@@ -124,5 +125,5 @@ export function startXEngine() {
   subscribe(WATCHED, (e) => {
     if (e.type === 'upsert') consider(e.feature)
   })
-  setInterval(() => void pump(), GAP_MS).unref()
+  every('x:pump', GAP_MS, () => void pump())
 }

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { geoArea } from 'd3-geo'
 import { findCountry } from './countries.ts'
+import { once } from '../runtime/jobs.ts'
 
 /**
  * REGIONS: first-level subdivisions (states, provinces, oblasts, regions) of any
@@ -126,7 +127,7 @@ export function prewarmRegions(names: string[]) {
     if (i >= names.length) return
     void regionsFor(names[i++])
       .catch(() => null)
-      .finally(() => setTimeout(next, 5_000))
+      .finally(() => once('regions:prewarm', 5_000, next))
   }
-  setTimeout(next, 120_000)
+  once('regions:prewarm', 120_000, next)
 }

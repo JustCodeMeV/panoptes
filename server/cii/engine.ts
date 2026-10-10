@@ -6,6 +6,7 @@ import { loadLayer } from '../core/aggregate.ts'
 import { streamSource } from '../core/hub.ts'
 import type { Provider } from '../core/provider.ts'
 import { centroidOf, countryAt, countryNameForId } from '../geo/gazetteer.ts'
+import { every } from '../runtime/jobs.ts'
 
 /**
  * COUNTRY INSTABILITY INDEX. A transparent 0-100 score per country, rebuilt
@@ -158,6 +159,5 @@ export function startCii(all: Record<string, Provider[]>) {
   started = true
   layers = all
   // Let the engines prime first; then refresh on a fixed cadence.
-  setTimeout(() => void rebuild(), 90_000)
-  setInterval(() => void rebuild(), EVERY_MS)
+  every('cii', EVERY_MS, () => void rebuild(), 90_000)
 }

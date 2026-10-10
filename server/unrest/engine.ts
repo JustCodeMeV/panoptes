@@ -1,5 +1,6 @@
 import type { Feature } from '../../shared/feature.ts'
 import { ROOT_LABEL, fetchExport, latestStamp, parseStamp, stamp, titleFromUrl, type GdeltEvent } from './gdelt.ts'
+import { every, once } from '../runtime/jobs.ts'
 
 export const LAYER_ID = 'unrest'
 const WINDOW_MS = 12 * 3600_000
@@ -59,11 +60,11 @@ export function startUnrestEngine() {
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e)
       console.warn(`[unrest] ${lastError}`)
-      if (prime) setTimeout(() => void tick(true), 15_000) // start-up failure: retry soon
+      if (prime) once('unrest:retry', 15_000, () => void tick(true)) // start-up failure: retry soon
     }
   }
   void tick(true)
-  setInterval(() => void tick(false), 5 * 60_000)
+  every('unrest', 5 * 60_000, () => void tick(false))
 }
 
 export const health = () => ({ ok: !lastError && lastOk > 0, error: lastError, events: events.size, files: fetched.size, lastOk })

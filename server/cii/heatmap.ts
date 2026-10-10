@@ -5,6 +5,7 @@ import { streamSource } from '../core/hub.ts'
 import type { Provider } from '../core/provider.ts'
 import { COUNTRIES, displayName } from '../atlas/countries.ts'
 import { centroidOf, countryAt } from '../geo/gazetteer.ts'
+import { every } from '../runtime/jobs.ts'
 
 /**
  * INSTABILITY HEATMAP: where it is unstable, not which country. Instability is
@@ -194,8 +195,7 @@ export function startHeatmap(all: Record<string, Provider[]>) {
   if (started) return
   started = true
   layers = all
-  setTimeout(() => void rebuild(), 100_000)
-  setInterval(() => void rebuild(), EVERY_MS)
+  every('heatmap', EVERY_MS, () => void rebuild(), 100_000)
 }
 
 /** Local instability where a point is (its heatmap cell), with the kinds of evidence behind it; 0 when calm. */

@@ -11,6 +11,7 @@ import { fetchManifold } from './sources/manifold.ts'
 import { fetchPolymarket, polymarketHistory } from './sources/polymarket.ts'
 import type { RawMarket } from './types.ts'
 import { redact } from '../core/secrets.ts'
+import { every } from '../runtime/jobs.ts'
 
 export const LAYER_ID = 'markets'
 const MOVE_MIN = 0.02 // 2 probability points between polls
@@ -196,6 +197,6 @@ export function startMarketsEngine() {
       }
     }
     void tick().then(() => console.log(`[markets] ${src.id}: ${[...entries.values()].filter((e) => e.raw.platform === src.id).length} markets`))
-    setInterval(() => void tick(), src.every)
+    every(`markets:${src.id}`, src.every, () => void tick())
   }
 }
