@@ -22,6 +22,7 @@ import { events } from './events'
 import { atlas } from './atlas'
 import { finance } from './finance'
 import { cyber } from './cyber'
+import { exposure } from './exposure'
 import { hazards } from './hazards'
 import { statements } from './statements'
 import { research } from './research'
@@ -36,7 +37,7 @@ export const LAYERS: LayerDef[] = [
   news, telegram, x, livestreams, trends, statements, research,
   markets, finance,
   acled, frontlines, unrest, warnings, militaryAir, ships,
-  gnss, osint, cyber,
+  gnss, osint, cyber, exposure,
   hazards, humanitarian,
   satellites, infrastructure,
 ]

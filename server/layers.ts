@@ -1,5 +1,6 @@
 import type { Provider } from './core/provider.ts'
 import { seedProvider } from './providers/livestreams/seed.ts'
+import { windyWebcamsProvider } from './providers/livestreams/windy-webcams.ts'
 import { youtubeApiProvider } from './providers/livestreams/youtube-api.ts'
 import { eonetProvider } from './providers/osint/eonet.ts'
 import { gdacsProvider } from './providers/osint/gdacs.ts'
@@ -30,6 +31,7 @@ import { aisstreamProvider } from './providers/maritime/aisstream.ts'
 import { eventsProvider } from './providers/events/entities.ts'
 import { financeProvider } from './providers/finance/yahoo.ts'
 import { ransomwareProvider } from './providers/cyber/ransomware.ts'
+import { shodanProvider } from './providers/exposure/shodan.ts'
 import { feodoProvider } from './providers/cyber/feodo.ts'
 import { kevProvider } from './providers/cyber/kev.ts'
 import { statementsProvider } from './providers/briefs/statements.ts'
@@ -44,7 +46,7 @@ import { reliefwebProvider, whoProvider } from './providers/humanitarian/feeds.t
  * Provider order = dedupe priority (earlier wins), so put the best source first.
  */
 export const LAYERS: Record<string, Provider[]> = {
-  livestreams: [youtubeApiProvider, youtubeScrapeProvider, seedProvider],
+  livestreams: [youtubeApiProvider, youtubeScrapeProvider, seedProvider, windyWebcamsProvider],
   narratives: [truthProvider],
   events: [eventsProvider],
   atlas: [], // client-only: country outlines opened by clicking the globe
@@ -54,6 +56,7 @@ export const LAYERS: Record<string, Provider[]> = {
   markets: [marketsProvider],
   finance: [financeProvider],
   cyber: [ransomwareProvider, feodoProvider, kevProvider],
+  exposure: [shodanProvider],
   cii: [ciiProvider],
   trends: [googleTrendsProvider],
   unrest: [gdeltEventsProvider],

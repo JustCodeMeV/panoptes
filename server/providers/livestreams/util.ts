@@ -13,6 +13,35 @@ export function parseViewers(text?: string): number | undefined {
   return Math.round(n * mult)
 }
 
+/** A live/iframe stream from any operator that publishes it for public viewing (webcams, traffic cams). */
+export function embedFeature(args: {
+  provider: string
+  platform: string
+  id: string
+  title: string
+  position: { lat: number; lon: number }
+  geoBasis: string
+  embedUrl: string
+  url?: string
+  tags?: string[]
+  extra?: Record<string, unknown>
+}): Feature {
+  const now = new Date().toISOString()
+  return {
+    id: `${LAYER_ID}:${args.provider}:${args.id}`,
+    layerId: LAYER_ID,
+    title: args.title,
+    position: args.position,
+    geoPrecision: 'approximate',
+    geoBasis: args.geoBasis,
+    observedAt: now,
+    source: { provider: args.provider, platform: args.platform, url: args.url ?? args.embedUrl, retrievedAt: now },
+    media: { kind: 'iframe', url: args.embedUrl },
+    tags: ['public-webcam', ...(args.tags ?? [])],
+    props: { live: true, publicWebcam: true, operator: args.platform, ...args.extra },
+  }
+}
+
 export function youtubeFeature(args: {
   provider: string
   videoId: string

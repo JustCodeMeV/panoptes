@@ -109,12 +109,19 @@ Write one provider file and add it to that layer's array in `server/layers.ts`.
 | `youtube-api` | `YOUTUBE_API_KEY` | uploader-reported coordinates at full precision, `exact` |
 | `youtube-scrape` | nothing | **inferred** from title/channel via gazetteer; unlocatable streams are dropped |
 | `seed` | nothing | broadcaster's city, `approximate` (always-on news channels) |
+| `windy-webcams` | `WINDY_WEBCAMS_KEY` | operator-published location, `approximate` (opt-in public webcams only) |
 
 Coordinates are never jittered or coarsened. Inferred positions are the gazetteer
 entry (a named site if the text names one, else city, else country centroid), labelled
 `inferred`, so overlapping pins stack at one point; clicking a stack opens a chooser.
 Scraping is best-effort and may break when YouTube changes; a failing provider never
 takes the layer down (see provider chips in the panel).
+
+`windy-webcams` adds public webcams whose operators publish them for public viewing (Windy Webcams
+API, opt-in), tagged `public-webcam` — live views of public places for corroborating events on the ground.
+ARGUS never ingests internet-exposed *private* cameras (e.g. from Shodan): connecting to those is
+unauthorized access to someone's device, and an exposed banner carries no owner consent, so only
+consented, published-for-viewing feeds are shown here.
 
 ## Source neutrality
 
@@ -255,6 +262,18 @@ of the notices. ReliefWeb's edge refuses some cloud hosts; WHO still feeds the l
   (listed). Victims, groups and malware families become entities.
 - `finance`: 40+ instruments from Yahoo's chart API (major indices, oil, gas, gold, wheat, currencies),
   with day and month moves; a board in the panel. Indices and currencies link to their country.
+
+## Exposed infrastructure (`exposure`)
+
+Internet-facing systems counted **by country** via Shodan's aggregate facet endpoint
+(`/shodan/host/count`), which returns totals and per-country buckets and **consumes no query credits**.
+Categories: industrial control systems (`tag:ics`) and unsecured cameras (`device:webcam`); set
+`SHODAN_EXTRA=1` to add open databases and exposed remote desktop. Needs `SHODAN_API_KEY`
+(off without it).
+
+This is an **attack-surface scale** map — how many misconfigured, exposed systems sit in each country,
+to warn operators and the public. It is deliberately aggregate: ARGUS never calls `/shodan/host/search`
+or host lookups, and never stores or shows individual hosts, IP addresses, ports, screenshots or feeds.
 
 ## Entity graph and investigation canvas
 
